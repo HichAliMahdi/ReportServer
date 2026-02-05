@@ -42,17 +42,7 @@ public class UserService implements UserDetailsService {
     
     public User registerUser(String username, String email, String password) {
         // Validate inputs
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Username is required");
-        }
-        
-        if (email == null || email.trim().isEmpty()) {
-            throw new IllegalArgumentException("Email is required");
-        }
-        
-        if (password == null || password.isEmpty()) {
-            throw new IllegalArgumentException("Password is required");
-        }
+        validateBasicInputs(username, email, password);
         
         // Trim username and email
         username = username.trim();
@@ -147,26 +137,12 @@ public class UserService implements UserDetailsService {
     
     public User createUser(String username, String email, String password, String role) {
         // Validate inputs
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Username is required");
-        }
-        
-        if (email == null || email.trim().isEmpty()) {
-            throw new IllegalArgumentException("Email is required");
-        }
-        
-        if (password == null || password.isEmpty()) {
-            throw new IllegalArgumentException("Password is required");
-        }
-        
-        if (role == null || role.trim().isEmpty()) {
-            throw new IllegalArgumentException("Role is required");
-        }
+        validateBasicInputs(username, email, password);
         
         // Trim username and email
         username = username.trim();
         email = email.trim();
-        role = role.trim();
+        role = role != null ? role.trim() : "USER";
         
         // Validate email format
         if (!isValidEmail(email)) {
@@ -174,9 +150,7 @@ public class UserService implements UserDetailsService {
         }
         
         // Validate role
-        if (!role.equals("ADMIN") && !role.equals("USER")) {
-            throw new IllegalArgumentException("Invalid role. Must be ADMIN or USER");
-        }
+        validateRole(role);
         
         // Validate password strength
         validatePasswordStrength(password);
@@ -219,9 +193,7 @@ public class UserService implements UserDetailsService {
         
         if (role != null) {
             // Validate role
-            if (!role.equals("ADMIN") && !role.equals("USER")) {
-                throw new IllegalArgumentException("Invalid role. Must be ADMIN or USER");
-            }
+            validateRole(role);
             user.setRole(role);
         }
         
@@ -272,8 +244,8 @@ public class UserService implements UserDetailsService {
         if (email == null || email.trim().isEmpty()) {
             return false;
         }
-        // Basic email validation regex
-        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        // Basic email validation regex - allows TLDs of 2 or more characters
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$";
         return email.matches(emailRegex);
     }
     
@@ -289,6 +261,32 @@ public class UserService implements UserDetailsService {
         
         // Optional: Add more password complexity requirements
         // For now, we'll just enforce minimum length
+    }
+    
+    // Helper method to validate role
+    private void validateRole(String role) {
+        if (role == null || role.trim().isEmpty()) {
+            throw new IllegalArgumentException("Role is required");
+        }
+        
+        if (!role.equals("ADMIN") && !role.equals("USER")) {
+            throw new IllegalArgumentException("Invalid role. Must be ADMIN or USER");
+        }
+    }
+    
+    // Helper method to validate basic input fields
+    private void validateBasicInputs(String username, String email, String password) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        
+        if (password == null || password.isEmpty()) {
+            throw new IllegalArgumentException("Password is required");
+        }
     }
     
     public long countUsers() {
