@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,12 +16,41 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
         h1 {
             color: white;
-            text-align: center;
-            margin-bottom: 30px;
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .user-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info span {
+            font-weight: 500;
+        }
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
         .tabs {
             display: flex;
@@ -230,7 +259,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 JasperReports Server</h1>
+        <div class="header">
+            <h1>📊 JasperReports Server</h1>
+            <div class="user-info">
+                <span>👤 <span sec:authentication="name">User</span></span>
+                <form th:action="@{/logout}" method="post" style="margin: 0;">
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </div>
+        </div>
         
         <!-- Tabs -->
         <div class="tabs">
