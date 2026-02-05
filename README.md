@@ -1,14 +1,16 @@
 # JasperReports Server
 
-A lightweight JasperReports Server application built with Spring Boot that supports JRXML report generation with MySQL database connectivity.
+A lightweight JasperReports Server application built with Spring Boot that supports JRXML report generation with multiple datasource management and MySQL database connectivity.
 
 ## Features
 
 - Upload and manage JRXML report templates
 - Generate reports in multiple formats (PDF, XLSX)
-- MySQL database connection support for data-driven reports
-- RESTful API for report generation
-- Simple web interface for report management
+- **Multiple datasource management with UI** - Configure and manage multiple database connections
+- **Dynamic datasource selection** - Select which datasource to use when generating reports
+- MySQL and PostgreSQL database support for data-driven reports
+- RESTful API for report generation and datasource management
+- Simple web interface for report and datasource management
 
 ## Prerequisites
 
@@ -18,43 +20,30 @@ A lightweight JasperReports Server application built with Spring Boot that suppo
 
 ## Database Configuration
 
-The application is pre-configured to connect to a MySQL database. You can customize the connection settings in `src/main/resources/application.properties`:
+The application now uses an embedded H2 database to store datasource configurations. This allows you to manage multiple database connections through the web interface without editing configuration files.
 
-```properties
-# Database configuration (MySQL)
-spring.datasource.url=jdbc:mysql://localhost:3306/reportserver?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-spring.datasource.username=root
-spring.datasource.password=your_secure_password
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-```
+### Managing Datasources
 
-**Security Note**: Always set a strong password for your database connection, especially in production environments. Never commit sensitive credentials to version control.
+1. Open the web interface at `http://localhost:8080`
+2. Click on the "Datasources" tab
+3. Click "Add New Datasource" to configure a new database connection
+4. Fill in the connection details:
+   - **Name**: A friendly name for the datasource
+   - **JDBC URL**: The database connection URL (e.g., `jdbc:mysql://localhost:3306/mydb`)
+   - **Username**: Database username
+   - **Password**: Database password
+   - **Driver Class**: Select MySQL or PostgreSQL driver
+5. Click "Test Connection" to verify the connection
+6. Click "Save" to store the datasource configuration
 
-### Setting up MySQL Database
+### Supported Databases
 
-1. Install MySQL Server if not already installed
-2. Create a database for the application:
-   ```sql
-   CREATE DATABASE reportserver;
-   ```
-3. Update the database credentials in `application.properties`
-4. The application will automatically create necessary tables on startup
+- **MySQL**: `jdbc:mysql://host:port/database`
+- **PostgreSQL**: `jdbc:postgresql://host:port/database`
 
-### Database Connection Testing
+### Legacy Configuration (Optional)
 
-Test your database connection using the built-in endpoint:
-
-```bash
-curl http://localhost:8080/db/test
-```
-
-Expected response on success:
-```json
-{
-  "status": "success",
-  "message": "Database connection successful"
-}
-```
+You can still view the application's internal H2 database configuration in `src/main/resources/application.properties`. However, for report generation, you should use the datasource management UI to configure your external databases.
 
 ## Building the Application
 
@@ -96,16 +85,87 @@ POST /generate?reportName=report.jrxml&format=pdf
 curl -X POST "http://localhost:8080/generate?reportName=report.jrxml&format=pdf" -o output.pdf
 ```
 
-Generate a report with database connection:
+Generate a report with database connection using a specific datasource:
 ```bash
-POST /generate?reportName=report.jrxml&format=pdf&useDatabase=true
+POST /generate?reportName=report.jrxml&format=pdf&useDatabase=true&datasourceId=1
 
-curl -X POST "http://localhost:8080/generate?reportName=report.jrxml&format=pdf&useDatabase=true" -o output.pdf
+curl -X POST "http://localhost:8080/generate?reportName=report.jrxml&format=pdf&useDatabase=true&datasourceId=1" -o output.pdf
 ```
 
 Supported formats:
 - `pdf` - PDF format (default)
 - `xlsx` or `excel` - Excel format
+
+### Datasource Management API
+
+#### List All Datasources
+```bash
+GET /api/datasources
+
+curl http://localhost:8080/api/datasources
+```
+
+#### Get Datasource by ID
+```bash
+GET /api/datasources/{id}
+
+curl http://localhost:8080/api/datasources/1
+```
+
+#### Create Datasource
+```bash
+POST /api/datasources
+Content-Type: application/json
+
+curl -X POST http://localhost:8080/api/datasources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Database",
+    "url": "jdbc:mysql://localhost:3306/mydb",
+    "username": "user",
+    "password": "pass",
+    "driverClassName": "com.mysql.cj.jdbc.Driver"
+  }'
+```
+
+#### Update Datasource
+```bash
+PUT /api/datasources/{id}
+Content-Type: application/json
+
+curl -X PUT http://localhost:8080/api/datasources/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Database",
+    "url": "jdbc:mysql://localhost:3306/mydb",
+    "username": "user",
+    "password": "pass",
+    "driverClassName": "com.mysql.cj.jdbc.Driver"
+  }'
+```
+
+#### Delete Datasource
+```bash
+DELETE /api/datasources/{id}
+
+curl -X DELETE http://localhost:8080/api/datasources/1
+```
+
+#### Test Datasource Connection
+```bash
+POST /api/datasources/test
+Content-Type: application/json
+
+curl -X POST http://localhost:8080/api/datasources/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test",
+    "url": "jdbc:mysql://localhost:3306/mydb",
+    "username": "user",
+    "password": "pass",
+    "driverClassName": "com.mysql.cj.jdbc.Driver"
+  }'
+```
 
 ### List Available Reports
 
@@ -115,21 +175,14 @@ GET /reports
 curl http://localhost:8080/reports
 ```
 
-### Test Database Connection
-
-```bash
-GET /db/test
-
-curl http://localhost:8080/db/test
-```
-
 ## Using Database in Reports
 
 To use database connection in your JRXML reports:
 
 1. Design your report with a SQL query in JasperReports Studio or iReport
 2. Upload the JRXML file to the server
-3. Generate the report with `useDatabase=true` parameter
+3. Create a datasource in the "Datasources" tab
+4. When generating the report, check "Use Database Connection" and select your datasource
 
 Example JRXML with database query:
 ```xml
@@ -138,7 +191,7 @@ Example JRXML with database query:
 </queryString>
 ```
 
-The application will automatically provide the database connection to JasperReports engine when `useDatabase=true`.
+The application will automatically provide the selected database connection to JasperReports engine.
 
 ## Configuration Options
 
@@ -146,28 +199,28 @@ All configuration options are in `src/main/resources/application.properties`:
 
 - **Server Port**: `server.port=8080`
 - **Max File Upload Size**: `spring.servlet.multipart.max-file-size=10MB`
-- **Database URL**: `spring.datasource.url`
-- **Database Username**: `spring.datasource.username`
-- **Database Password**: `spring.datasource.password`
-- **JPA Settings**: `spring.jpa.*` for Hibernate configuration
+- **H2 Database (Internal)**: Used for storing datasource configurations
+  - `spring.datasource.url=jdbc:h2:file:./data/reportserver`
+  - Access H2 Console at `/h2-console` (if enabled)
 
 ## Troubleshooting
 
-### Database Connection Issues
+### Datasource Connection Issues
 
-If you encounter database connection errors:
+If you encounter datasource connection errors:
 
-1. Verify MySQL is running: `sudo systemctl status mysql`
-2. Check database credentials in `application.properties`
-3. Ensure the database exists: `SHOW DATABASES;`
-4. Test connection using `/db/test` endpoint
-5. Check MySQL user permissions
+1. Verify the database server is running
+2. Check the JDBC URL format is correct
+3. Ensure database credentials are accurate
+4. Test connection using the "Test Connection" button in the datasource form
+5. Check the database user has appropriate permissions
 
 ### Common Errors
 
-**"Access denied for user"**: Update username/password in application.properties
-**"Unknown database"**: Create the database using `CREATE DATABASE reportserver;`
-**"Connection refused"**: Ensure MySQL is running and accepting connections
+**"Please select a datasource when using database connection"**: You must select a datasource from the dropdown when "Use Database Connection" is checked
+**"Datasource with name 'X' already exists"**: Choose a unique name for each datasource
+**"Connection refused"**: Ensure the database server is running and accepting connections
+**"Access denied for user"**: Verify username and password are correct
 
 ## License
 
