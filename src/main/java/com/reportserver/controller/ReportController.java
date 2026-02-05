@@ -1,6 +1,9 @@
 package com.reportserver.controller;
 
+import com.reportserver.service.DatabaseConnectionService;
 import com.reportserver.service.ReportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,14 +16,20 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 
 @Controller
 public class ReportController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
+
     @Autowired
     private ReportService reportService;
+
+    @Autowired
+    private DatabaseConnectionService databaseConnectionService;
 
     private static final String UPLOAD_DIR = "data/reports/";
 
@@ -46,6 +55,7 @@ public class ReportController {
 
             return ResponseEntity.ok("File uploaded successfully: " + filename);
         } catch (Exception e) {
+            logger.error("Failed to upload report file: " + file.getOriginalFilename(), e);
             return ResponseEntity.badRequest().body("Upload failed: " + e.getMessage());
         }
     }
@@ -54,8 +64,10 @@ public class ReportController {
     public ResponseEntity<byte[]> generateReport(
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
             @RequestParam(required = false) Map<String, String> parameters) {
         
+        Connection connection = null;
         try {
             String jrxmlPath = UPLOAD_DIR + reportName;
             
@@ -65,8 +77,13 @@ public class ReportController {
                 reportParams.putAll(parameters);
             }
 
-            // Generate report (without database connection for now)
-            byte[] reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, null);
+            // Get database connection if requested
+            if (useDatabase) {
+                connection = databaseConnectionService.getConnection();
+            }
+
+            // Generate report
+            byte[] reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, connection);
 
             // Set content type based on format
             MediaType contentType = format.equalsIgnoreCase("xlsx") ? 
@@ -84,8 +101,13 @@ public class ReportController {
                     .body(reportBytes);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Failed to generate report: " + reportName, e);
             return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
+        } finally {
+            // Always close the connection if it was opened
+            if (connection != null) {
+                databaseConnectionService.closeConnection(connection);
+            }
         }
     }
 
@@ -98,5 +120,25 @@ public class ReportController {
         }
         String[] files = dir.list((d, name) -> name.endsWith(".jrxml"));
         return ResponseEntity.ok(files != null ? files : new String[0]);
+    }
+
+    @GetMapping("/db/test")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> testDatabaseConnection() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            boolean isConnected = databaseConnectionService.testConnection();
+            response.put("status", isConnected ? "success" : "failed");
+            response.put("message", isConnected ? 
+                "Database connection successful" : 
+                "Database connection failed");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Error testing connection: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 }
