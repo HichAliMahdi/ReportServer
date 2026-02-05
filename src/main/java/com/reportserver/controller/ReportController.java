@@ -1,6 +1,6 @@
 package com.reportserver.controller;
 
-import com.reportserver.service.DatabaseConnectionService;
+import com.reportserver.service.DataSourceService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +29,7 @@ public class ReportController {
     private ReportService reportService;
 
     @Autowired
-    private DatabaseConnectionService databaseConnectionService;
+    private DataSourceService dataSourceService;
 
     private static final String UPLOAD_DIR = "data/reports/";
 
@@ -65,6 +65,7 @@ public class ReportController {
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
+            @RequestParam(value = "datasourceId", required = false) Long datasourceId,
             @RequestParam(required = false) Map<String, String> parameters) {
         
         Connection connection = null;
@@ -79,7 +80,12 @@ public class ReportController {
 
             // Get database connection if requested
             if (useDatabase) {
-                connection = databaseConnectionService.getConnection();
+                if (datasourceId != null) {
+                    // Use the selected datasource
+                    connection = dataSourceService.getConnection(datasourceId);
+                } else {
+                    throw new IllegalArgumentException("Please select a datasource when using database connection");
+                }
             }
 
             // Generate report
@@ -106,7 +112,11 @@ public class ReportController {
         } finally {
             // Always close the connection if it was opened
             if (connection != null) {
-                databaseConnectionService.closeConnection(connection);
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    logger.error("Error closing connection", e);
+                }
             }
         }
     }
@@ -120,25 +130,5 @@ public class ReportController {
         }
         String[] files = dir.list((d, name) -> name.endsWith(".jrxml"));
         return ResponseEntity.ok(files != null ? files : new String[0]);
-    }
-
-    @GetMapping("/db/test")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> testDatabaseConnection() {
-        Map<String, Object> response = new HashMap<>();
-        
-        try {
-            boolean isConnected = databaseConnectionService.testConnection();
-            response.put("status", isConnected ? "success" : "failed");
-            response.put("message", isConnected ? 
-                "Database connection successful" : 
-                "Database connection failed");
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "Error testing connection: " + e.getMessage());
-            return ResponseEntity.status(500).body(response);
-        }
     }
 }
