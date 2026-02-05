@@ -2,6 +2,8 @@ package com.reportserver.controller;
 
 import com.reportserver.service.DatabaseConnectionService;
 import com.reportserver.service.ReportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -20,6 +22,8 @@ import java.util.Map;
 
 @Controller
 public class ReportController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
 
     @Autowired
     private ReportService reportService;
@@ -51,6 +55,7 @@ public class ReportController {
 
             return ResponseEntity.ok("File uploaded successfully: " + filename);
         } catch (Exception e) {
+            logger.error("Failed to upload report file: " + file.getOriginalFilename(), e);
             return ResponseEntity.badRequest().body("Upload failed: " + e.getMessage());
         }
     }
@@ -96,7 +101,7 @@ public class ReportController {
                     .body(reportBytes);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Failed to generate report: " + reportName, e);
             return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
         } finally {
             // Always close the connection if it was opened

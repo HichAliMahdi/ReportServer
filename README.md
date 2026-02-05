@@ -24,9 +24,11 @@ The application is pre-configured to connect to a MySQL database. You can custom
 # Database configuration (MySQL)
 spring.datasource.url=jdbc:mysql://localhost:3306/reportserver?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
 spring.datasource.username=root
-spring.datasource.password=
+spring.datasource.password=your_secure_password
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 ```
+
+**Security Note**: Always set a strong password for your database connection, especially in production environments. Never commit sensitive credentials to version control.
 
 ### Setting up MySQL Database
 

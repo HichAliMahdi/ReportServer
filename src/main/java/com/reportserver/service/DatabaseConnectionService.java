@@ -1,5 +1,7 @@
 package com.reportserver.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +11,8 @@ import java.sql.SQLException;
 
 @Service
 public class DatabaseConnectionService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseConnectionService.class);
 
     @Autowired
     private DataSource dataSource;
@@ -31,7 +35,7 @@ public class DatabaseConnectionService {
             try {
                 connection.close();
             } catch (SQLException e) {
-                // Log but don't throw - connection cleanup
+                logger.error("Error closing database connection", e);
             }
         }
     }
@@ -46,6 +50,7 @@ public class DatabaseConnectionService {
             connection = getConnection();
             return connection != null && !connection.isClosed();
         } catch (SQLException e) {
+            logger.error("Database connection test failed", e);
             return false;
         } finally {
             closeConnection(connection);
