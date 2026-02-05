@@ -6,7 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -18,8 +18,11 @@ import java.util.Optional;
 @Component
 public class FirstLoginFilter extends OncePerRequestFilter {
     
-    @Autowired
-    private UserService userService;
+    private final ApplicationContext applicationContext;
+    
+    public FirstLoginFilter(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -48,6 +51,7 @@ public class FirstLoginFilter extends OncePerRequestFilter {
         
         // Check if user needs to change password
         String username = auth.getName();
+        UserService userService = applicationContext.getBean(UserService.class);
         Optional<User> userOpt = userService.findByUsername(username);
         
         if (userOpt.isPresent() && userOpt.get().isFirstLogin()) {
