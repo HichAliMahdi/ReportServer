@@ -71,7 +71,12 @@ public class DataSourceService {
         existing.setName(dataSource.getName());
         existing.setUrl(dataSource.getUrl());
         existing.setUsername(dataSource.getUsername());
-        existing.setPassword(dataSource.getPassword());
+        
+        // Only update password if provided (not empty)
+        if (dataSource.getPassword() != null && !dataSource.getPassword().trim().isEmpty()) {
+            existing.setPassword(dataSource.getPassword());
+        }
+        
         existing.setDriverClassName(dataSource.getDriverClassName());
         
         return dataSourceRepository.save(existing);

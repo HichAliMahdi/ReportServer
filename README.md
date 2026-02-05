@@ -36,6 +36,8 @@ The application now uses an embedded H2 database to store datasource configurati
 5. Click "Test Connection" to verify the connection
 6. Click "Save" to store the datasource configuration
 
+**Security Note**: Currently, passwords are stored in the H2 database. For production environments, consider implementing additional encryption or using environment variables for sensitive credentials. API responses do not include password fields to prevent exposure.
+
 ### Supported Databases
 
 - **MySQL**: `jdbc:mysql://host:port/database`

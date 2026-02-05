@@ -468,16 +468,40 @@
                 datasources.forEach(ds => {
                     // Add to table
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${ds.name}</td>
-                        <td>${ds.url}</td>
-                        <td>${ds.username}</td>
-                        <td>${ds.driverClassName}</td>
-                        <td>
-                            <button class="btn-small" onclick="editDatasource(${ds.id})">Edit</button>
-                            <button class="btn-small btn-danger" onclick="deleteDatasource(${ds.id})">Delete</button>
-                        </td>
-                    `;
+                    
+                    // Create cells with text content (prevents XSS)
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = ds.name;
+                    
+                    const urlCell = document.createElement('td');
+                    urlCell.textContent = ds.url;
+                    
+                    const usernameCell = document.createElement('td');
+                    usernameCell.textContent = ds.username;
+                    
+                    const driverCell = document.createElement('td');
+                    driverCell.textContent = ds.driverClassName;
+                    
+                    const actionsCell = document.createElement('td');
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn-small';
+                    editBtn.textContent = 'Edit';
+                    editBtn.onclick = () => editDatasource(ds.id);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'btn-small btn-danger';
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.onclick = () => deleteDatasource(ds.id);
+                    
+                    actionsCell.appendChild(editBtn);
+                    actionsCell.appendChild(deleteBtn);
+                    
+                    row.appendChild(nameCell);
+                    row.appendChild(urlCell);
+                    row.appendChild(usernameCell);
+                    row.appendChild(driverCell);
+                    row.appendChild(actionsCell);
+                    
                     tableBody.appendChild(row);
 
                     // Add to select
@@ -535,13 +559,14 @@
             const modal = document.getElementById('datasourceModal');
             const form = document.getElementById('datasourceForm');
             const title = document.getElementById('modalTitle');
+            const passwordField = document.getElementById('dsPassword');
             
             form.reset();
             document.getElementById('datasourceMessage').innerHTML = '';
             
             if (datasourceId) {
                 title.textContent = 'Edit Datasource';
-                // Load datasource data
+                // Load datasource data (password will not be returned from API)
                 fetch('/api/datasources/' + datasourceId)
                 .then(response => response.json())
                 .then(ds => {
@@ -549,12 +574,16 @@
                     document.getElementById('dsName').value = ds.name;
                     document.getElementById('dsUrl').value = ds.url;
                     document.getElementById('dsUsername').value = ds.username;
-                    document.getElementById('dsPassword').value = ds.password;
                     document.getElementById('dsDriver').value = ds.driverClassName;
+                    // Password is not set - user must enter it again if they want to change it
+                    passwordField.placeholder = "Leave blank to keep current password";
+                    passwordField.required = false;
                 });
             } else {
                 title.textContent = 'Add Datasource';
                 document.getElementById('datasourceId').value = '';
+                passwordField.placeholder = "";
+                passwordField.required = true;
             }
             
             modal.style.display = 'block';

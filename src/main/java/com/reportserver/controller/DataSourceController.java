@@ -1,5 +1,6 @@
 package com.reportserver.controller;
 
+import com.reportserver.dto.DataSourceDTO;
 import com.reportserver.model.DataSource;
 import com.reportserver.service.DataSourceService;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/datasources")
@@ -22,12 +24,15 @@ public class DataSourceController {
     private DataSourceService dataSourceService;
 
     /**
-     * Get all datasources
+     * Get all datasources (without passwords)
      */
     @GetMapping
-    public ResponseEntity<List<DataSource>> getAllDataSources() {
+    public ResponseEntity<List<DataSourceDTO>> getAllDataSources() {
         try {
-            List<DataSource> dataSources = dataSourceService.getAllDataSources();
+            List<DataSourceDTO> dataSources = dataSourceService.getAllDataSources()
+                .stream()
+                .map(DataSourceDTO::fromEntity)
+                .collect(Collectors.toList());
             return ResponseEntity.ok(dataSources);
         } catch (Exception e) {
             logger.error("Error retrieving datasources", e);
@@ -36,12 +41,13 @@ public class DataSourceController {
     }
 
     /**
-     * Get datasource by ID
+     * Get datasource by ID (without password)
      */
     @GetMapping("/{id}")
-    public ResponseEntity<DataSource> getDataSourceById(@PathVariable Long id) {
+    public ResponseEntity<DataSourceDTO> getDataSourceById(@PathVariable Long id) {
         try {
             return dataSourceService.getDataSourceById(id)
+                .map(DataSourceDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
