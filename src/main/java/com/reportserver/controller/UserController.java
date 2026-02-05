@@ -94,6 +94,22 @@ public class UserController {
         Map<String, Object> response = new HashMap<>();
         
         try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = auth.getName();
+            User currentUser = userService.findByUsername(currentUsername).orElse(null);
+            
+            // Prevent admin from demoting or disabling themselves
+            if (currentUser != null && currentUser.getId().equals(id)) {
+                String newRole = (String) request.get("role");
+                Boolean enabled = (Boolean) request.get("enabled");
+                
+                if ((newRole != null && !"ADMIN".equals(newRole)) || (enabled != null && !enabled)) {
+                    response.put("status", "error");
+                    response.put("message", "You cannot demote or disable your own account");
+                    return ResponseEntity.badRequest().body(response);
+                }
+            }
+            
             String email = (String) request.get("email");
             String role = (String) request.get("role");
             Boolean enabled = (Boolean) request.get("enabled");
@@ -119,6 +135,17 @@ public class UserController {
         Map<String, Object> response = new HashMap<>();
         
         try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = auth.getName();
+            User currentUser = userService.findByUsername(currentUsername).orElse(null);
+            
+            // Prevent admin from deleting themselves
+            if (currentUser != null && currentUser.getId().equals(id)) {
+                response.put("status", "error");
+                response.put("message", "You cannot delete your own account");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
             userService.deleteUser(id);
             
             response.put("status", "success");
