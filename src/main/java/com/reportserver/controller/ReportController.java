@@ -1,6 +1,7 @@
 package com.reportserver.controller;
 
 import com.reportserver.service.DatabaseConnectionService;
+import com.reportserver.service.DataSourceService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,9 @@ public class ReportController {
 
     @Autowired
     private DatabaseConnectionService databaseConnectionService;
+
+    @Autowired
+    private DataSourceService dataSourceService;
 
     private static final String UPLOAD_DIR = "data/reports/";
 
@@ -65,6 +69,7 @@ public class ReportController {
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
+            @RequestParam(value = "datasourceId", required = false) Long datasourceId,
             @RequestParam(required = false) Map<String, String> parameters) {
         
         Connection connection = null;
@@ -79,7 +84,13 @@ public class ReportController {
 
             // Get database connection if requested
             if (useDatabase) {
-                connection = databaseConnectionService.getConnection();
+                if (datasourceId != null) {
+                    // Use the selected datasource
+                    connection = dataSourceService.getConnection(datasourceId);
+                } else {
+                    // Use the default datasource from application.properties
+                    connection = databaseConnectionService.getConnection();
+                }
             }
 
             // Generate report
