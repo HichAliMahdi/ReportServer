@@ -36,7 +36,7 @@ public class UserService implements UserDetailsService {
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
                 .disabled(!user.isEnabled())
-                .authorities(new ArrayList<>())
+                .authorities("ROLE_" + user.getRole())
                 .build();
     }
     
@@ -105,5 +105,86 @@ public class UserService implements UserDetailsService {
         
         User user = userOpt.get();
         return user.getResetTokenExpiry() != null && user.getResetTokenExpiry().isAfter(LocalDateTime.now());
+    }
+    
+    // User Management Methods
+    
+    public java.util.List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+    
+    public Optional<User> getUserById(Long id) {
+        return userRepository.findById(id);
+    }
+    
+    public User createUser(String username, String email, String password, String role) {
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRole(role);
+        user.setEnabled(true);
+        user.setFirstLogin(true);
+        
+        logger.info("Creating new user: {} with role: {}", username, role);
+        return userRepository.save(user);
+    }
+    
+    public User updateUser(Long id, String email, String role, Boolean enabled) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        if (email != null && !email.equals(user.getEmail())) {
+            if (userRepository.existsByEmail(email)) {
+                throw new IllegalArgumentException("Email already exists");
+            }
+            user.setEmail(email);
+        }
+        
+        if (role != null) {
+            user.setRole(role);
+        }
+        
+        if (enabled != null) {
+            user.setEnabled(enabled);
+        }
+        
+        logger.info("Updating user: {}", user.getUsername());
+        return userRepository.save(user);
+    }
+    
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        logger.info("Deleting user: {}", user.getUsername());
+        userRepository.delete(user);
+    }
+    
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFirstLogin(false);
+        
+        userRepository.save(user);
+        logger.info("Password changed for user: {}", username);
+    }
+    
+    public long countUsers() {
+        return userRepository.count();
     }
 }

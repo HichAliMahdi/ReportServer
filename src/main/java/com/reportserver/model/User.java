@@ -35,6 +35,12 @@ public class User {
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
     
+    @Column(nullable = false)
+    private String role = "USER"; // Default role
+    
+    @Column(name = "first_login", nullable = false)
+    private boolean firstLogin = true; // Force password change on first login
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -53,6 +59,13 @@ public class User {
         this.username = username;
         this.email = email;
         this.password = password;
+    }
+    
+    public User(String username, String email, String password, String role) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.role = role;
     }
     
     // Getters and Setters
@@ -126,5 +139,21 @@ public class User {
     
     public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
         this.resetTokenExpiry = resetTokenExpiry;
+    }
+    
+    public String getRole() {
+        return role;
+    }
+    
+    public void setRole(String role) {
+        this.role = role;
+    }
+    
+    public boolean isFirstLogin() {
+        return firstLogin;
+    }
+    
+    public void setFirstLogin(boolean firstLogin) {
+        this.firstLogin = firstLogin;
     }
 }
