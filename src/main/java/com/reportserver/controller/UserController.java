@@ -1,7 +1,9 @@
 package com.reportserver.controller;
 
+import com.reportserver.dto.UserCreationDTO;
 import com.reportserver.model.User;
 import com.reportserver.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -9,11 +11,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 public class UserController {
@@ -64,16 +68,25 @@ public class UserController {
     @PostMapping("/api/users")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> createUser(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> createUser(@Valid @RequestBody UserCreationDTO userDTO, BindingResult bindingResult) {
         Map<String, Object> response = new HashMap<>();
         
+        if (bindingResult.hasErrors()) {
+            String errors = bindingResult.getFieldErrors().stream()
+                    .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+            response.put("status", "error");
+            response.put("message", errors);
+            return ResponseEntity.badRequest().body(response);
+        }
+        
         try {
-            String username = request.get("username");
-            String email = request.get("email");
-            String password = request.get("password");
-            String role = request.getOrDefault("role", "USER");
-            
-            User user = userService.createUser(username, email, password, role);
+            User user = userService.createUser(
+                userDTO.getUsername(), 
+                userDTO.getEmail(), 
+                userDTO.getPassword(), 
+                userDTO.getRole()
+            );
             
             response.put("status", "success");
             response.put("message", "User created successfully");

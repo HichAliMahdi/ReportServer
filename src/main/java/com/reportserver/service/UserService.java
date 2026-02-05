@@ -41,6 +41,21 @@ public class UserService implements UserDetailsService {
     }
     
     public User registerUser(String username, String email, String password) {
+        // Validate inputs
+        validateBasicInputs(username, email, password);
+        
+        // Trim username and email
+        username = username.trim();
+        email = email.trim();
+        
+        // Validate email format
+        if (!isValidEmail(email)) {
+            throw new IllegalArgumentException("Invalid email format");
+        }
+        
+        // Validate password strength
+        validatePasswordStrength(password);
+        
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -89,6 +104,9 @@ public class UserService implements UserDetailsService {
             throw new IllegalArgumentException("Reset token has expired");
         }
         
+        // Validate new password strength
+        validatePasswordStrength(newPassword);
+        
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
@@ -118,6 +136,25 @@ public class UserService implements UserDetailsService {
     }
     
     public User createUser(String username, String email, String password, String role) {
+        // Validate inputs
+        validateBasicInputs(username, email, password);
+        
+        // Trim username and email
+        username = username.trim();
+        email = email.trim();
+        role = role != null ? role.trim() : "USER";
+        
+        // Validate email format
+        if (!isValidEmail(email)) {
+            throw new IllegalArgumentException("Invalid email format");
+        }
+        
+        // Validate role
+        validateRole(role);
+        
+        // Validate password strength
+        validatePasswordStrength(password);
+        
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -143,6 +180,11 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         if (email != null && !email.equals(user.getEmail())) {
+            // Validate email format
+            if (!isValidEmail(email)) {
+                throw new IllegalArgumentException("Invalid email format");
+            }
+            
             if (userRepository.existsByEmail(email)) {
                 throw new IllegalArgumentException("Email already exists");
             }
@@ -150,6 +192,8 @@ public class UserService implements UserDetailsService {
         }
         
         if (role != null) {
+            // Validate role
+            validateRole(role);
             user.setRole(role);
         }
         
@@ -173,15 +217,76 @@ public class UserService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
+        if (oldPassword == null || oldPassword.isEmpty()) {
+            throw new IllegalArgumentException("Current password is required");
+        }
+        
+        if (newPassword == null || newPassword.isEmpty()) {
+            throw new IllegalArgumentException("New password is required");
+        }
+        
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new IllegalArgumentException("Current password is incorrect");
         }
+        
+        // Validate new password strength
+        validatePasswordStrength(newPassword);
         
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setFirstLogin(false);
         
         userRepository.save(user);
         logger.info("Password changed for user: {}", username);
+    }
+    
+    // Helper method to validate email format
+    private boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        // Basic email validation regex - allows TLDs of 2 or more characters
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$";
+        return email.matches(emailRegex);
+    }
+    
+    // Helper method to validate password strength
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.isEmpty()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+        
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long");
+        }
+        
+        // Optional: Add more password complexity requirements
+        // For now, we'll just enforce minimum length
+    }
+    
+    // Helper method to validate role
+    private void validateRole(String role) {
+        if (role == null || role.trim().isEmpty()) {
+            throw new IllegalArgumentException("Role is required");
+        }
+        
+        if (!role.equals("ADMIN") && !role.equals("USER")) {
+            throw new IllegalArgumentException("Invalid role. Must be ADMIN or USER");
+        }
+    }
+    
+    // Helper method to validate basic input fields
+    private void validateBasicInputs(String username, String email, String password) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        
+        if (password == null || password.isEmpty()) {
+            throw new IllegalArgumentException("Password is required");
+        }
     }
     
     public long countUsers() {
