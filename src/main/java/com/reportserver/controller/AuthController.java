@@ -67,8 +67,8 @@ public class AuthController {
                 return "redirect:/register";
             }
             
-            if (password.length() < 6) {
-                redirectAttributes.addFlashAttribute("error", "Password must be at least 6 characters long");
+            if (password.length() < 8) {
+                redirectAttributes.addFlashAttribute("error", "Password must be at least 8 characters long");
                 return "redirect:/register";
             }
             
@@ -155,8 +155,8 @@ public class AuthController {
                 return "redirect:/reset-password";
             }
             
-            if (password.length() < 6) {
-                redirectAttributes.addFlashAttribute("error", "Password must be at least 6 characters long");
+            if (password.length() < 8) {
+                redirectAttributes.addFlashAttribute("error", "Password must be at least 8 characters long");
                 redirectAttributes.addAttribute("token", token);
                 return "redirect:/reset-password";
             }
