@@ -73,7 +73,7 @@ public class UserService implements UserDetailsService {
         
         String token = UUID.randomUUID().toString();
         user.setResetToken(token);
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1)); // Token valid for 1 hour
+        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1)); // Token expires in 1 hour
         
         userRepository.save(user);
         logger.info("Password reset token created for user: {}", user.getUsername());

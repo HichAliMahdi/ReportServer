@@ -106,18 +106,19 @@ public class AuthController {
             String token = userService.createPasswordResetToken(email.trim());
             
             // In a real application, you would send this token via email
-            // For now, we'll display it (in production, use email service)
-            logger.info("Password reset token for {}: {}", email, token);
+            // For development/testing, log it at DEBUG level
+            logger.debug("Password reset token generated for email: {}, token: {}", email, token);
             
             redirectAttributes.addFlashAttribute("message", 
-                "Password reset instructions have been sent to your email. " +
-                "Token: " + token + " (In production, this would be emailed)");
+                "If an account with that email exists, password reset instructions have been sent.");
             return "redirect:/login";
             
         } catch (IllegalArgumentException e) {
-            logger.error("Password reset failed: {}", e.getMessage());
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/forgot-password";
+            // Don't reveal whether email exists - use generic message
+            logger.debug("Password reset request for non-existent email: {}", email);
+            redirectAttributes.addFlashAttribute("message", 
+                "If an account with that email exists, password reset instructions have been sent.");
+            return "redirect:/login";
         } catch (Exception e) {
             logger.error("Password reset failed with unexpected error", e);
             redirectAttributes.addFlashAttribute("error", "Failed to process password reset. Please try again.");
