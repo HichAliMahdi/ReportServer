@@ -163,6 +163,42 @@ public class ReportController {
         return ResponseEntity.ok(files != null ? files : new String[0]);
     }
 
+    @DeleteMapping("/reports/{reportName}")
+    @ResponseBody
+    public ResponseEntity<String> deleteReport(@PathVariable String reportName) {
+        try {
+            // Validate file name (security check to prevent path traversal)
+            if (reportName.contains("..") || reportName.contains("/") || reportName.contains("\\")) {
+                logger.warn("Invalid report name in delete request: " + reportName);
+                return ResponseEntity.badRequest().body("Invalid report name");
+            }
+            
+            if (!reportName.toLowerCase().endsWith(".jrxml")) {
+                logger.warn("Delete attempt with invalid file type: " + reportName);
+                return ResponseEntity.badRequest().body("Only .jrxml files can be deleted");
+            }
+            
+            Path reportPath = Paths.get(UPLOAD_DIR + reportName);
+            File reportFile = reportPath.toFile();
+            
+            if (!reportFile.exists()) {
+                logger.warn("Delete attempt for non-existent file: " + reportName);
+                return ResponseEntity.badRequest().body("Report file not found: " + reportName);
+            }
+            
+            if (reportFile.delete()) {
+                logger.info("Report deleted successfully: " + reportName);
+                return ResponseEntity.ok("Report deleted successfully: " + reportName);
+            } else {
+                logger.error("Failed to delete report file: " + reportName);
+                return ResponseEntity.status(500).body("Failed to delete report file");
+            }
+        } catch (Exception e) {
+            logger.error("Error deleting report: " + reportName, e);
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
+    }
+
     private MediaType getContentType(String format) {
         switch (format.toLowerCase()) {
             case "pdf":
