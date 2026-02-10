@@ -6,6 +6,8 @@
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>JasperReports Server</title>
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -248,6 +250,19 @@
         .close:hover {
             color: #333;
         }
+        #editorContainer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: flex-end;
+        }
         .checkbox-group {
             display: flex;
             align-items: center;
@@ -387,6 +402,49 @@
                         </div>
                     </div>
                     
+                    <!-- Parameters Section -->
+                    <div class="form-group" id="builderParametersGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">🔧 Parameters (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Parameters are input values you can pass to your report to filter data or customize output.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Date Filter:</strong> Name: startDate, Type: Date, Default: new java.util.Date()</p>
+                                <p><strong>Text Filter:</strong> Name: customerName, Type: String, Default: "All"</p>
+                                <p><strong>Number Filter:</strong> Name: minAmount, Type: BigDecimal, Default: 0</p>
+                                <p style="margin-top: 8px;"><em>Use in SQL: WHERE date >= $P{startDate} AND amount >= $P{minAmount}</em></p>
+                                <p><em>Tip: Parameters must be passed when generating the report. Use them in your SQL query to filter data.</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openParameterModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Parameter</button>
+                        
+                        <div id="parametersList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No parameters added yet</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Variables Section -->
+                    <div class="form-group" id="builderVariablesGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">📊 Variables (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Variables allow you to perform calculations, store values, and create running totals.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Running Total:</strong> Name: totalSales, Type: BigDecimal, Calculation: Sum, Expression: $F{price}</p>
+                                <p><strong>Record Counter:</strong> Name: recordCount, Type: Integer, Calculation: Count, Expression: $F{id}</p>
+                                <p><strong>Page Numbering:</strong> Use built-in variable $V{PAGE_NUMBER}</p>
+                                <p style="margin-top: 8px;"><em>Tip: Variables are evaluated in the order they're declared. One variable can reference another declared before it.</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openVariableModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Variable</button>
+                        
+                        <div id="variablesList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No variables added yet</p>
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn" style="margin-top: 20px;">🚀 Generate JRXML Report</button>
                     
                     <div id="builderMessage" style="margin-top: 15px;"></div>
@@ -455,6 +513,181 @@
                 <button type="button" class="btn" onclick="testDatasourceConnection()">Test Connection</button>
                 <button type="submit" class="btn">Save</button>
                 <div id="datasourceMessage" style="margin-top: 15px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JRXML Editor Modal -->
+    <div id="jrxmlEditorModal" class="modal">
+        <div class="modal-content" style="max-width: 90%; width: 1200px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeJrxmlEditor()">&times;</span>
+                <h3 id="jrxmlEditorTitle">Edit JRXML File</h3>
+            </div>
+            <div id="editorContainer"></div>
+            <div class="editor-actions">
+                <button type="button" class="btn" onclick="closeJrxmlEditor()" style="background: #6c757d;">Cancel</button>
+                <button type="button" class="btn" onclick="downloadEditedJrxml()" style="background: #17a2b8;">💾 Download</button>
+                <button type="button" class="btn" onclick="saveJrxmlFile()">✅ Save</button>
+            </div>
+            <div id="editorMessage" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- Parameter Modal -->
+    <div id="parameterModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeParameterModal()">&times;</span>
+                <h3 id="parameterModalTitle">Add Parameter</h3>
+            </div>
+            <form id="parameterForm" onsubmit="saveParameter(event)">
+                <input type="hidden" id="parameterEditIndex">
+                
+                <div class="form-group">
+                    <label for="paramName">Parameter Name: *</label>
+                    <input type="text" id="paramName" required placeholder="startDate" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                    <small style="color: #666;">Use in SQL as $P{parameterName} or in expressions as $P{parameterName}</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramClass">Java Class: *</label>
+                    <select id="paramClass" required onchange="updateParameterExamples()">
+                        <option value="java.lang.String">String</option>
+                        <option value="java.lang.Integer">Integer</option>
+                        <option value="java.lang.Long">Long</option>
+                        <option value="java.lang.Double">Double</option>
+                        <option value="java.math.BigDecimal">BigDecimal</option>
+                        <option value="java.lang.Boolean">Boolean</option>
+                        <option value="java.util.Date">Date</option>
+                        <option value="java.sql.Timestamp">Timestamp</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramDefaultValue">Default Value Expression:</label>
+                    <input type="text" id="paramDefaultValue" placeholder='null or "Default Text"'>
+                    <small id="paramExamples" style="color: #666; display: block; margin-top: 5px;">
+                        <strong>Examples:</strong> null | "My Text" | "" (empty string)
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramDescription">Description (Optional):</label>
+                    <textarea id="paramDescription" rows="2" placeholder="Brief description of this parameter"></textarea>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeParameterModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Parameter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Variable Modal -->
+    <div id="variableModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeVariableModal()">&times;</span>
+                <h3 id="variableModalTitle">Add Variable</h3>
+            </div>
+            <form id="variableForm" onsubmit="saveVariable(event)">
+                <input type="hidden" id="variableEditIndex">
+                
+                <div class="form-group">
+                    <label for="varName">Variable Name: *</label>
+                    <input type="text" id="varName" required placeholder="myVariable" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                    <small style="color: #666;">Use in expressions as $V{variableName}</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varClass">Java Class: *</label>
+                        <select id="varClass" required>
+                            <option value="java.lang.String">String</option>
+                            <option value="java.lang.Integer">Integer</option>
+                            <option value="java.lang.Long">Long</option>
+                            <option value="java.lang.Double">Double</option>
+                            <option value="java.math.BigDecimal">BigDecimal</option>
+                            <option value="java.lang.Boolean">Boolean</option>
+                            <option value="java.util.Date">Date</option>
+                            <option value="java.sql.Timestamp">Timestamp</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="varCalculation">Calculation Type: *</label>
+                        <select id="varCalculation" required onchange="updateVariableFormFields()">
+                            <option value="Nothing">Nothing</option>
+                            <option value="Count">Count</option>
+                            <option value="DistinctCount">Distinct Count</option>
+                            <option value="Sum">Sum</option>
+                            <option value="Average">Average</option>
+                            <option value="Lowest">Lowest</option>
+                            <option value="Highest">Highest</option>
+                            <option value="StandardDeviation">Standard Deviation</option>
+                            <option value="Variance">Variance</option>
+                            <option value="First">First</option>
+                            <option value="System">System</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="varExpression">Variable Expression: *</label>
+                    <input type="text" id="varExpression" required placeholder="$F{fieldName} or custom expression">
+                    <small style="color: #666;">Use $F{fieldName} for fields, $P{paramName} for parameters, $V{varName} for other variables</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="varInitialValue">Initial Value Expression:</label>
+                    <input type="text" id="varInitialValue" placeholder="0 or null or &quot;Initial&quot;">
+                    <small style="color: #666;">Starting value before the expression is first computed</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varResetType">Reset Type: *</label>
+                        <select id="varResetType" required onchange="updateVariableFormFields()">
+                            <option value="Report">Report</option>
+                            <option value="Page">Page</option>
+                            <option value="Column">Column</option>
+                            <option value="Group">Group</option>
+                            <option value="None">None</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="varResetGroupDiv" style="display: none;">
+                        <label for="varResetGroup">Reset Group:</label>
+                        <input type="text" id="varResetGroup" placeholder="GroupName">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varIncrementType">Increment Type: *</label>
+                        <select id="varIncrementType" required onchange="updateVariableFormFields()">
+                            <option value="None">None</option>
+                            <option value="Report">Report</option>
+                            <option value="Page">Page</option>
+                            <option value="Column">Column</option>
+                            <option value="Group">Group</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="varIncrementGroupDiv" style="display: none;">
+                        <label for="varIncrementGroup">Increment Group:</label>
+                        <input type="text" id="varIncrementGroup" placeholder="GroupName">
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeVariableModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Variable</button>
+                </div>
             </form>
         </div>
     </div>
@@ -595,11 +828,29 @@
                     downloadLink.style.padding = '4px 8px';
                     downloadLink.style.borderRadius = '4px';
                     downloadLink.style.transition = 'background 0.2s';
+                    downloadLink.style.marginRight = '10px';
                     downloadLink.onmouseover = function() { this.style.background = '#f0f0f0'; };
                     downloadLink.onmouseout = function() { this.style.background = 'transparent'; };
                     
+                    const editBtn = document.createElement('button');
+                    editBtn.innerHTML = '✏️ Edit';
+                    editBtn.onclick = () => openJrxmlEditor(report);
+                    editBtn.style.color = '#ffc107';
+                    editBtn.style.background = 'none';
+                    editBtn.style.border = 'none';
+                    editBtn.style.cursor = 'pointer';
+                    editBtn.style.fontSize = '14px';
+                    editBtn.style.fontWeight = '500';
+                    editBtn.style.padding = '4px 8px';
+                    editBtn.style.borderRadius = '4px';
+                    editBtn.style.transition = 'background 0.2s';
+                    editBtn.onmouseover = function() { this.style.background = '#fff3cd'; };
+                    editBtn.onmouseout = function() { this.style.background = 'transparent'; };
+                    
                     item.appendChild(nameSpan);
-                    item.appendChild(downloadLink);
+                    item.appendChild(document.createElement('div')).style.display = 'flex';
+                    item.lastChild.appendChild(downloadLink);
+                    item.lastChild.appendChild(editBtn);
                     list.appendChild(item);
                 });
             });
@@ -615,10 +866,10 @@
                 return;
             }
 
-            fetch(`/reports/${encodeURIComponent(reportName)}/parameters`)
+            fetch(`/api/jrxml/parameters/${encodeURIComponent(reportName)}`)
             .then(response => response.json())
-            .then(parameters => {
-                if (parameters.length === 0) {
+            .then(data => {
+                if (!data.success || data.parameters.length === 0) {
                     parametersSection.style.display = 'none';
                     return;
                 }
@@ -626,12 +877,12 @@
                 parametersContainer.innerHTML = '';
                 parametersSection.style.display = 'block';
 
-                parameters.forEach(param => {
+                data.parameters.forEach(param => {
                     const formGroup = document.createElement('div');
                     formGroup.className = 'form-group';
                     
                     const label = document.createElement('label');
-                    label.textContent = param.name + (param.description ? ' - ' + param.description : '');
+                    label.textContent = param.name + ' (' + param.class.split('.').pop() + ')';
                     label.setAttribute('for', 'param_' + param.name);
                     
                     let input;
@@ -640,21 +891,26 @@
                         input.type = 'checkbox';
                         input.id = 'param_' + param.name;
                         input.name = param.name;
-                    } else {
+                        input.setAttribute('data-param-type', param.class);
+                    } else if (param.inputType === 'date') {
                         input = document.createElement('input');
-                        input.type = param.inputType;
+                        input.type = 'date';
                         input.id = 'param_' + param.name;
                         input.name = param.name;
-                        input.className = 'form-control';
-                        
-                        if (param.inputType === 'number' && param.step) {
-                            input.step = param.step;
-                        }
-                        
-                        // Set placeholder for date inputs
-                        if (param.inputType === 'date') {
-                            input.placeholder = 'YYYY-MM-DD';
-                        }
+                        input.setAttribute('data-param-type', param.class);
+                    } else if (param.inputType === 'number') {
+                        input = document.createElement('input');
+                        input.type = 'number';
+                        input.step = 'any';
+                        input.id = 'param_' + param.name;
+                        input.name = param.name;
+                        input.setAttribute('data-param-type', param.class);
+                    } else {
+                        input = document.createElement('input');
+                        input.type = 'text';
+                        input.id = 'param_' + param.name;
+                        input.name = param.name;
+                        input.setAttribute('data-param-type', param.class);
                     }
                     
                     formGroup.appendChild(label);
@@ -663,7 +919,7 @@
                 });
             })
             .catch(error => {
-                console.error('Error loading parameters:', error);
+                console.error('Error loading report parameters:', error);
                 parametersSection.style.display = 'none';
             });
         }
@@ -1020,6 +1276,230 @@
                 });
         }
 
+        // Parameter Management
+        let reportParameters = [];
+
+        function openParameterModal(editIndex = null) {
+            const modal = document.getElementById('parameterModal');
+            const title = document.getElementById('parameterModalTitle');
+            const form = document.getElementById('parameterForm');
+            
+            form.reset();
+            document.getElementById('parameterEditIndex').value = '';
+            
+            if (editIndex !== null) {
+                title.textContent = 'Edit Parameter';
+                document.getElementById('parameterEditIndex').value = editIndex;
+                
+                const parameter = reportParameters[editIndex];
+                document.getElementById('paramName').value = parameter.name;
+                document.getElementById('paramClass').value = parameter.javaClass;
+                document.getElementById('paramDefaultValue').value = parameter.defaultValueExpression || '';
+                document.getElementById('paramDescription').value = parameter.description || '';
+            } else {
+                title.textContent = 'Add Parameter';
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeParameterModal() {
+            document.getElementById('parameterModal').style.display = 'none';
+        }
+
+        function saveParameter(event) {
+            event.preventDefault();
+            
+            const editIndex = document.getElementById('parameterEditIndex').value;
+            const parameter = {
+                name: document.getElementById('paramName').value.trim(),
+                javaClass: document.getElementById('paramClass').value,
+                defaultValueExpression: document.getElementById('paramDefaultValue').value.trim(),
+                description: document.getElementById('paramDescription').value.trim()
+            };
+            
+            // Validate parameter name uniqueness (except when editing the same parameter)
+            const nameExists = reportParameters.some((p, index) => 
+                p.name === parameter.name && index != editIndex
+            );
+            
+            if (nameExists) {
+                alert('A parameter with this name already exists. Please use a unique name.');
+                return;
+            }
+            
+            if (editIndex !== '') {
+                reportParameters[parseInt(editIndex)] = parameter;
+            } else {
+                reportParameters.push(parameter);
+            }
+            
+            displayParameters();
+            closeParameterModal();
+        }
+
+        function displayParameters() {
+            const container = document.getElementById('parametersList');
+            
+            if (reportParameters.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No parameters added yet</p>';
+                return;
+            }
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
+            html += '<th style="padding: 8px; text-align: left;">Name</th>';
+            html += '<th style="padding: 8px; text-align: left;">Type</th>';
+            html += '<th style="padding: 8px; text-align: left;">Default Value</th>';
+            html += '<th style="padding: 8px; text-align: center;">Actions</th>';
+            html += '</tr></thead><tbody>';
+            
+            reportParameters.forEach((parameter, index) => {
+                html += '<tr style="border-bottom: 1px solid #dee2e6;">';
+                html += `<td style="padding: 8px;"><strong>$P{${parameter.name}}</strong></td>`;
+                html += `<td style="padding: 8px; font-size: 12px;">${parameter.javaClass.split('.').pop()}</td>`;
+                html += `<td style="padding: 8px; font-family: monospace; font-size: 12px;">${parameter.defaultValueExpression || '<em>none</em>'}</td>`;
+                html += `<td style="padding: 8px; text-align: center;">`;
+                html += `<button type="button" onclick="openParameterModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
+                html += `<button type="button" onclick="deleteParameter(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
+                html += `</td></tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function deleteParameter(index) {
+            if (confirm('Are you sure you want to delete this parameter?')) {
+                reportParameters.splice(index, 1);
+                displayParameters();
+            }
+        }
+
+        // Variable Management
+        let reportVariables = [];
+
+        function openVariableModal(editIndex = null) {
+            const modal = document.getElementById('variableModal');
+            const title = document.getElementById('variableModalTitle');
+            const form = document.getElementById('variableForm');
+            
+            form.reset();
+            document.getElementById('variableEditIndex').value = '';
+            
+            if (editIndex !== null) {
+                title.textContent = 'Edit Variable';
+                document.getElementById('variableEditIndex').value = editIndex;
+                
+                const variable = reportVariables[editIndex];
+                document.getElementById('varName').value = variable.name;
+                document.getElementById('varClass').value = variable.javaClass;
+                document.getElementById('varCalculation').value = variable.calculation;
+                document.getElementById('varExpression').value = variable.expression;
+                document.getElementById('varInitialValue').value = variable.initialValue || '';
+                document.getElementById('varResetType').value = variable.resetType;
+                document.getElementById('varResetGroup').value = variable.resetGroup || '';
+                document.getElementById('varIncrementType').value = variable.incrementType;
+                document.getElementById('varIncrementGroup').value = variable.incrementGroup || '';
+                
+                updateVariableFormFields();
+            } else {
+                title.textContent = 'Add Variable';
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeVariableModal() {
+            document.getElementById('variableModal').style.display = 'none';
+        }
+
+        function updateVariableFormFields() {
+            const resetType = document.getElementById('varResetType').value;
+            const incrementType = document.getElementById('varIncrementType').value;
+            
+            document.getElementById('varResetGroupDiv').style.display = 
+                resetType === 'Group' ? 'block' : 'none';
+            document.getElementById('varIncrementGroupDiv').style.display = 
+                incrementType === 'Group' ? 'block' : 'none';
+        }
+
+        function saveVariable(event) {
+            event.preventDefault();
+            
+            const editIndex = document.getElementById('variableEditIndex').value;
+            const variable = {
+                name: document.getElementById('varName').value.trim(),
+                javaClass: document.getElementById('varClass').value,
+                calculation: document.getElementById('varCalculation').value,
+                expression: document.getElementById('varExpression').value.trim(),
+                initialValue: document.getElementById('varInitialValue').value.trim(),
+                resetType: document.getElementById('varResetType').value,
+                resetGroup: document.getElementById('varResetGroup').value.trim(),
+                incrementType: document.getElementById('varIncrementType').value,
+                incrementGroup: document.getElementById('varIncrementGroup').value.trim()
+            };
+            
+            // Validate variable name uniqueness (except when editing the same variable)
+            const nameExists = reportVariables.some((v, index) => 
+                v.name === variable.name && index != editIndex
+            );
+            
+            if (nameExists) {
+                alert('A variable with this name already exists. Please use a unique name.');
+                return;
+            }
+            
+            if (editIndex !== '') {
+                reportVariables[parseInt(editIndex)] = variable;
+            } else {
+                reportVariables.push(variable);
+            }
+            
+            displayVariables();
+            closeVariableModal();
+        }
+
+        function displayVariables() {
+            const container = document.getElementById('variablesList');
+            
+            if (reportVariables.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No variables added yet</p>';
+                return;
+            }
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
+            html += '<th style="padding: 8px; text-align: left;">Name</th>';
+            html += '<th style="padding: 8px; text-align: left;">Type</th>';
+            html += '<th style="padding: 8px; text-align: left;">Calculation</th>';
+            html += '<th style="padding: 8px; text-align: left;">Expression</th>';
+            html += '<th style="padding: 8px; text-align: center;">Actions</th>';
+            html += '</tr></thead><tbody>';
+            
+            reportVariables.forEach((variable, index) => {
+                html += '<tr style="border-bottom: 1px solid #dee2e6;">';
+                html += `<td style="padding: 8px;"><strong>$V{${variable.name}}</strong></td>`;
+                html += `<td style="padding: 8px; font-size: 12px;">${variable.javaClass.split('.').pop()}</td>`;
+                html += `<td style="padding: 8px;">${variable.calculation}</td>`;
+                html += `<td style="padding: 8px; font-family: monospace; font-size: 12px;">${variable.expression}</td>`;
+                html += `<td style="padding: 8px; text-align: center;">`;
+                html += `<button type="button" onclick="openVariableModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
+                html += `<button type="button" onclick="deleteVariable(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
+                html += `</td></tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function deleteVariable(index) {
+            if (confirm('Are you sure you want to delete this variable?')) {
+                reportVariables.splice(index, 1);
+                displayVariables();
+            }
+        }
+
         function loadBuilderTables() {
             const datasourceId = document.getElementById('builderDatasource').value;
             const tableGroup = document.getElementById('builderTableGroup');
@@ -1059,9 +1539,13 @@
             const tableName = document.getElementById('builderTable').value;
             const columnsGroup = document.getElementById('builderColumnsGroup');
             const columnsContainer = document.getElementById('builderColumnsContainer');
+            const parametersGroup = document.getElementById('builderParametersGroup');
+            const variablesGroup = document.getElementById('builderVariablesGroup');
             
             if (!tableName) {
                 columnsGroup.style.display = 'none';
+                parametersGroup.style.display = 'none';
+                variablesGroup.style.display = 'none';
                 return;
             }
 
@@ -1084,6 +1568,8 @@
                             columnsContainer.appendChild(div);
                         });
                         columnsGroup.style.display = 'block';
+                        parametersGroup.style.display = 'block';
+                        variablesGroup.style.display = 'block';
                     } else {
                         showBuilderMessage('Failed to load columns: ' + (data.message || 'Unknown error'), 'error');
                     }
@@ -1128,6 +1614,16 @@
             formData.append('tableName', tableName);
             formData.append('datasourceId', datasourceId);
             columns.forEach(col => formData.append('columns', col));
+            
+            // Add parameters as JSON if any exist
+            if (reportParameters.length > 0) {
+                formData.append('parametersJson', JSON.stringify(reportParameters));
+            }
+            
+            // Add variables as JSON if any exist
+            if (reportVariables.length > 0) {
+                formData.append('variablesJson', JSON.stringify(reportVariables));
+            }
 
             fetch('/api/builder/generate', {
                 method: 'POST',
@@ -1148,6 +1644,13 @@
                     document.getElementById('builderForm').reset();
                     document.getElementById('builderTableGroup').style.display = 'none';
                     document.getElementById('builderColumnsGroup').style.display = 'none';
+                    document.getElementById('builderParametersGroup').style.display = 'none';
+                    document.getElementById('builderVariablesGroup').style.display = 'none';
+                    // Clear parameters and variables
+                    reportParameters = [];
+                    reportVariables = [];
+                    displayParameters();
+                    displayVariables();
                 } else {
                     showBuilderMessage('✗ ' + data.message, 'error');
                 }
@@ -1182,6 +1685,146 @@
                 setTimeout(() => { msg.textContent = ''; msg.style.padding = '0'; }, 5000);
             }
         }
+
+        // Monaco Editor for JRXML Editing
+        let monacoEditor = null;
+        let currentEditingFile = null;
+
+        function openJrxmlEditor(fileName) {
+            currentEditingFile = fileName;
+            document.getElementById('jrxmlEditorTitle').textContent = 'Edit: ' + fileName;
+            document.getElementById('jrxmlEditorModal').style.display = 'block';
+            document.getElementById('editorMessage').textContent = '';
+
+            // Load file content
+            fetch(`/api/jrxml/load/${encodeURIComponent(fileName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        initializeMonacoEditor(data.content);
+                    } else {
+                        showEditorMessage('Failed to load file: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showEditorMessage('Error loading file: ' + error, 'error');
+                });
+        }
+
+        function initializeMonacoEditor(content) {
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+            
+            require(['vs/editor/editor.main'], function() {
+                const container = document.getElementById('editorContainer');
+                container.innerHTML = '';
+                
+                monacoEditor = monaco.editor.create(container, {
+                    value: content,
+                    language: 'xml',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    scrollBeyondLastLine: false,
+                    readOnly: false,
+                    wordWrap: 'on'
+                });
+            });
+        }
+
+        function closeJrxmlEditor() {
+            document.getElementById('jrxmlEditorModal').style.display = 'none';
+            if (monacoEditor) {
+                monacoEditor.dispose();
+                monacoEditor = null;
+            }
+            currentEditingFile = null;
+        }
+
+        function saveJrxmlFile() {
+            if (!monacoEditor || !currentEditingFile) {
+                showEditorMessage('No file to save', 'error');
+                return;
+            }
+
+            const content = monacoEditor.getValue();
+            const formData = new URLSearchParams();
+            formData.append('fileName', currentEditingFile);
+            formData.append('content', content);
+
+            showEditorMessage('Saving file...', 'info');
+
+            fetch('/api/jrxml/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    [csrfHeader]: csrfToken
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showEditorMessage('✓ File saved successfully!', 'success');
+                    setTimeout(() => {
+                        closeJrxmlEditor();
+                        loadReports();
+                    }, 1500);
+                } else {
+                    showEditorMessage('✗ Save failed: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showEditorMessage('Error saving file: ' + error, 'error');
+            });
+        }
+
+        function downloadEditedJrxml() {
+            if (!monacoEditor || !currentEditingFile) {
+                showEditorMessage('No file to download', 'error');
+                return;
+            }
+
+            const content = monacoEditor.getValue();
+            const blob = new Blob([content], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentEditingFile;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showEditorMessage('✓ File downloaded!', 'success');
+        }
+
+        function showEditorMessage(text, type) {
+            const msg = document.getElementById('editorMessage');
+            msg.textContent = text;
+            msg.style.padding = '10px';
+            msg.style.borderRadius = '6px';
+            msg.style.marginTop = '15px';
+            
+            if (type === 'success') {
+                msg.style.background = '#d4edda';
+                msg.style.color = '#155724';
+                msg.style.border = '1px solid #c3e6cb';
+            } else if (type === 'error') {
+                msg.style.background = '#f8d7da';
+                msg.style.color = '#721c24';
+                msg.style.border = '1px solid #f5c6cb';
+            } else if (type === 'info') {
+                msg.style.background = '#d1ecf1';
+                msg.style.color = '#0c5460';
+                msg.style.border = '1px solid #bee5eb';
+            }
+        }
     </script>
+    
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
 </body>
 </html>

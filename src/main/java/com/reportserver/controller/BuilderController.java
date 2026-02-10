@@ -1,8 +1,12 @@
 package com.reportserver.controller;
 
+import com.reportserver.dto.ParameterDTO;
+import com.reportserver.dto.VariableDTO;
 import com.reportserver.service.DataSourceService;
 import com.reportserver.service.JrxmlBuilderService;
 import com.reportserver.service.SchemaIntrospectionService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,7 +117,7 @@ public class BuilderController {
     }
 
     /**
-     * Generate a JRXML file based on selected table and columns
+     * Generate a JRXML file based on selected table, columns, parameters, and variables
      */
     @PostMapping("/generate")
     @ResponseBody
@@ -121,7 +125,9 @@ public class BuilderController {
             @RequestParam String reportName,
             @RequestParam String tableName,
             @RequestParam List<String> columns,
-            @RequestParam Long datasourceId) {
+            @RequestParam Long datasourceId,
+            @RequestParam(required = false) String parametersJson,
+            @RequestParam(required = false) String variablesJson) {
         
         Connection connection = null;
         try {
@@ -162,11 +168,41 @@ public class BuilderController {
                 }
             }
 
+            // Parse parameters from JSON if provided
+            List<ParameterDTO> parameters = new ArrayList<>();
+            if (parametersJson != null && !parametersJson.trim().isEmpty()) {
+                try {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    parameters = objectMapper.readValue(parametersJson, new TypeReference<List<ParameterDTO>>() {});
+                    logger.info("Parsed {} parameter(s) from JSON", parameters.size());
+                } catch (Exception e) {
+                    logger.error("Error parsing parameters JSON", e);
+                    return ResponseEntity.badRequest()
+                        .body(Map.of("success", false, "message", "Invalid parameters format: " + e.getMessage()));
+                }
+            }
+
+            // Parse variables from JSON if provided
+            List<VariableDTO> variables = new ArrayList<>();
+            if (variablesJson != null && !variablesJson.trim().isEmpty()) {
+                try {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    variables = objectMapper.readValue(variablesJson, new TypeReference<List<VariableDTO>>() {});
+                    logger.info("Parsed {} variable(s) from JSON", variables.size());
+                } catch (Exception e) {
+                    logger.error("Error parsing variables JSON", e);
+                    return ResponseEntity.badRequest()
+                        .body(Map.of("success", false, "message", "Invalid variables format: " + e.getMessage()));
+                }
+            }
+
             // Generate JRXML content
             String jrxmlContent = jrxmlBuilderService.generateJrxml(
                 reportName.replace(".jrxml", ""), 
                 tableName, 
-                selectedColumns
+                selectedColumns,
+                parameters,
+                variables
             );
 
             // Save to file
