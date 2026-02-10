@@ -42,21 +42,36 @@ public class ReportController {
     @ResponseBody
     public ResponseEntity<String> uploadReport(@RequestParam("file") MultipartFile file) {
         try {
+            // Validate file
+            if (file.isEmpty()) {
+                logger.warn("Upload attempt with empty file");
+                return ResponseEntity.badRequest().body("Please select a file to upload");
+            }
+            
+            String filename = file.getOriginalFilename();
+            if (filename == null || !filename.toLowerCase().endsWith(".jrxml")) {
+                logger.warn("Upload attempt with invalid file type: " + filename);
+                return ResponseEntity.badRequest().body("Only .jrxml files are allowed");
+            }
+            
+            logger.info("Uploading file: " + filename + " (" + file.getSize() + " bytes)");
+            
             // Create directory if it doesn't exist
             File uploadDir = new File(UPLOAD_DIR);
             if (!uploadDir.exists()) {
+                logger.info("Creating upload directory: " + uploadDir.getAbsolutePath());
                 uploadDir.mkdirs();
             }
 
             // Save the file
-            String filename = file.getOriginalFilename();
             Path path = Paths.get(UPLOAD_DIR + filename);
             Files.write(path, file.getBytes());
-
+            
+            logger.info("File uploaded successfully: " + filename);
             return ResponseEntity.ok("File uploaded successfully: " + filename);
         } catch (Exception e) {
-            logger.error("Failed to upload report file: " + file.getOriginalFilename(), e);
-            return ResponseEntity.badRequest().body("Upload failed: " + e.getMessage());
+            logger.error("Failed to upload report file", e);
+            return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
         }
     }
 
@@ -70,7 +85,18 @@ public class ReportController {
         
         Connection connection = null;
         try {
+            logger.info("Generating report: {} in format: {}, useDatabase: {}, datasourceId: {}", 
+                       reportName, format, useDatabase, datasourceId);
+            
             String jrxmlPath = UPLOAD_DIR + reportName;
+            
+            // Check if file exists
+            File reportFile = new File(jrxmlPath);
+            if (!reportFile.exists()) {
+                logger.error("Report file not found: {}", jrxmlPath);
+                return ResponseEntity.badRequest()
+                    .body(("Report file not found: " + reportName).getBytes());
+            }
             
             // Convert String parameters to proper types if needed
             Map<String, Object> reportParams = new HashMap<>();
@@ -81,15 +107,21 @@ public class ReportController {
             // Get database connection if requested
             if (useDatabase) {
                 if (datasourceId != null) {
+                    logger.info("Getting database connection for datasource ID: {}", datasourceId);
                     // Use the selected datasource
                     connection = dataSourceService.getConnection(datasourceId);
+                    if (connection == null) {
+                        throw new IllegalArgumentException("Failed to connect to datasource");
+                    }
                 } else {
                     throw new IllegalArgumentException("Please select a datasource when using database connection");
                 }
             }
 
             // Generate report
+            logger.info("Compiling and filling report...");
             byte[] reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, connection);
+            logger.info("Report generated successfully, size: {} bytes", reportBytes.length);
 
             // Set content type based on format
             MediaType contentType = format.equalsIgnoreCase("xlsx") ? 

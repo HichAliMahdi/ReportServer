@@ -58,6 +58,20 @@
             <version>6.21.3</version>
         </dependency>
 
+        <!-- JasperReports Functions (provides DATEFORMAT and other utility functions) -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports-functions</artifactId>
+            <version>6.21.3</version>
+        </dependency>
+
+        <!-- Apache POI for better font support -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
         <!-- Database drivers (add the ones you need) -->
         <dependency>
             <groupId>com.mysql</groupId>

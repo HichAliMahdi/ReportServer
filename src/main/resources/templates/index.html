@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>JasperReports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -435,24 +437,50 @@
         function uploadFile() {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
-            
-            if (!file) return;
+    
+            if (!file) {
+                showMessage('Please select a file', 'error');
+                return;
+            }
+
+            // Check if it's a .jrxml file
+            if (!file.name.toLowerCase().endsWith('.jrxml')) {
+                showMessage('Please select a .jrxml file', 'error');
+                return;
+            }
 
             const formData = new FormData();
             formData.append('file', file);
 
+            // Add CSRF token
+            const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+            const headers = {};
+            if (token && header) {
+                headers[header] = token;
+            }
+
             fetch('/upload', {
                 method: 'POST',
+                headers: headers,
                 body: formData
             })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(text || 'Upload failed');
+                    });
+                }
+                return response.text();
+            })
             .then(data => {
                 showMessage(data, 'success');
                 loadReports();
                 fileInput.value = '';
             })
             .catch(error => {
-                showMessage('Upload failed: ' + error, 'error');
+                showMessage('Upload failed: ' + error.message, 'error');
             });
         }
 
@@ -558,21 +586,49 @@
             const formData = new FormData(this);
             const params = new URLSearchParams();
             
-            params.append('reportName', formData.get('reportName'));
+            const reportName = formData.get('reportName');
+            if (!reportName) {
+                showMessage('Please select a report', 'error');
+                return;
+            }
+            
+            params.append('reportName', reportName);
             params.append('format', formData.get('format'));
             
             const useDatabase = document.getElementById('useDatabaseCheck').checked;
             params.append('useDatabase', useDatabase);
             
-            if (useDatabase && formData.get('datasourceId')) {
-                params.append('datasourceId', formData.get('datasourceId'));
+            if (useDatabase) {
+                const datasourceId = formData.get('datasourceId');
+                if (!datasourceId) {
+                    showMessage('Please select a datasource when using database connection', 'error');
+                    return;
+                }
+                params.append('datasourceId', datasourceId);
             }
 
+            // Add CSRF token
+            const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+            const headers = {};
+            if (token && header) {
+                headers[header] = token;
+            }
+
+            showMessage('Generating report...', 'success');
+
             fetch('/generate?' + params.toString(), {
-                method: 'POST'
+                method: 'POST',
+                headers: headers
             })
             .then(response => {
-                if (!response.ok) throw new Error('Generation failed');
+                if (!response.ok) {
+                    // Try to extract error message from response
+                    return response.text().then(text => {
+                        throw new Error(text || 'Generation failed');
+                    });
+                }
                 return response.blob();
             })
             .then(blob => {
@@ -580,8 +636,8 @@
                 const a = document.createElement('a');
                 a.href = url;
                 const format = formData.get('format');
-                const reportName = formData.get('reportName').replace('.jrxml', '');
-                a.download = reportName + '.' + format;
+                const reportNameOnly = reportName.replace('.jrxml', '');
+                a.download = reportNameOnly + '.' + format;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -589,7 +645,8 @@
                 showMessage('Report generated successfully!', 'success');
             })
             .catch(error => {
-                showMessage('Generation failed: ' + error, 'error');
+                showMessage('Generation failed: ' + error.message, 'error');
+                console.error('Report generation error:', error);
             });
         };
 
@@ -696,6 +753,7 @@
         };
 
         function testDatasourceConnection() {
+            const id = document.getElementById('datasourceId').value;
             const formData = {
                 name: document.getElementById('dsName').value || 'test',
                 url: document.getElementById('dsUrl').value,
@@ -703,6 +761,11 @@
                 password: document.getElementById('dsPassword').value,
                 driverClassName: document.getElementById('dsDriver').value
             };
+            
+            // Include ID for existing datasources so backend can retrieve stored password if needed
+            if (id) {
+                formData.id = parseInt(id);
+            }
             
             fetch('/api/datasources/test', {
                 method: 'POST',

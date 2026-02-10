@@ -139,6 +139,14 @@ public class DataSourceController {
     public ResponseEntity<Map<String, Object>> testConnection(@RequestBody DataSource dataSource) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // If datasource has an ID and password is empty, get the existing password from DB
+            if (dataSource.getId() != null && 
+                (dataSource.getPassword() == null || dataSource.getPassword().trim().isEmpty())) {
+                dataSourceService.getDataSourceById(dataSource.getId()).ifPresent(existing -> {
+                    dataSource.setPassword(existing.getPassword());
+                });
+            }
+            
             boolean isConnected = dataSourceService.testConnection(dataSource);
             response.put("status", isConnected ? "success" : "failed");
             response.put("message", isConnected ? 

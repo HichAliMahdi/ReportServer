@@ -19,11 +19,22 @@ public class ReportService {
     public byte[] generateReport(String jrxmlPath, Map<String, Object> parameters, 
                                  String outputFormat, Connection connection) throws Exception {
         
+        File jrxmlFile = new File(jrxmlPath);
+        if (!jrxmlFile.exists()) {
+            throw new FileNotFoundException("Report file not found: " + jrxmlPath);
+        }
+        
         // Compile JRXML to JasperReport
         JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlPath);
         
-        // Fill report with data
-        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
+        // Fill report with data (use empty data source if no connection provided)
+        JasperPrint jasperPrint;
+        if (connection != null) {
+            jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
+        } else {
+            // Use empty data source when no connection is provided
+            jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+        }
         
         // Export based on format
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
