@@ -10,8 +10,8 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Jasper Report Server</name>
-    <description>Lightweight JasperReports Server with JRXML support</description>
+    <name>Report Server</name>
+    <description>Lightweight Reports Server with JRXML support</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
