@@ -276,6 +276,7 @@
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('reports')">Reports</button>
+            <button class="tab" onclick="switchTab('builder')">Report Builder</button>
             <button class="tab" onclick="switchTab('datasources')">Datasources</button>
         </div>
 
@@ -308,7 +309,15 @@
                         <label for="formatSelect">Output Format:</label>
                         <select id="formatSelect" name="format">
                             <option value="pdf">PDF</option>
-                            <option value="xlsx">Excel (XLSX)</option>
+                            <option value="html">HTML</option>
+                            <option value="xlsx">Microsoft Excel (XLSX)</option>
+                            <option value="xls">Microsoft Excel (XLS)</option>
+                            <option value="docx">Microsoft Word (DOCX)</option>
+                            <option value="rtf">Rich Text Format (RTF)</option>
+                            <option value="odt">OpenDocument Text (ODT)</option>
+                            <option value="csv">CSV (Comma-separated values)</option>
+                            <option value="xml">XML</option>
+                            <option value="txt">Plain Text (TXT)</option>
                         </select>
                     </div>
 
@@ -324,6 +333,12 @@
                         </select>
                     </div>
 
+                    <!-- Report Parameters Section -->
+                    <div id="parametersSection" style="display: none;">
+                        <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">📝 Report Parameters</h3>
+                        <div id="parametersContainer"></div>
+                    </div>
+
                     <button type="submit" class="btn">Generate Report</button>
                 </form>
             </div>
@@ -332,6 +347,50 @@
             <div class="card">
                 <h2>📋 Available Reports</h2>
                 <div id="reportList" class="report-list"></div>
+            </div>
+        </div>
+
+        <!-- Report Builder Tab -->
+        <div id="builderTab" class="tab-content">
+            <div class="card">
+                <h2>🔧 Report Builder</h2>
+                <p style="color: #666; margin-bottom: 20px;">Build a simple report from database tables</p>
+                
+                <form id="builderForm" onsubmit="generateBuilderReport(event)">
+                    <div class="form-group">
+                        <label for="builderReportName">Report Name:</label>
+                        <input type="text" id="builderReportName" required placeholder="MyReport" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="builderDatasource">Select Datasource:</label>
+                        <select id="builderDatasource" required onchange="loadBuilderTables()">
+                            <option value="">-- Select a datasource --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="builderTableGroup" style="display: none;">
+                        <label for="builderTable">Select Table:</label>
+                        <select id="builderTable" onchange="loadBuilderColumns()">
+                            <option value="">-- Select a table --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="builderColumnsGroup" style="display: none;">
+                        <label>Select Columns:</label>
+                        <div style="margin-bottom: 10px;">
+                            <button type="button" onclick="selectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; margin-right: 10px;">✓ Select All</button>
+                            <button type="button" onclick="unselectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; background: #6c757d;">✗ Unselect All</button>
+                        </div>
+                        <div id="builderColumnsContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                            <p style="color: #999;">Select a table first</p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="margin-top: 20px;">🚀 Generate JRXML Report</button>
+                    
+                    <div id="builderMessage" style="margin-top: 15px;"></div>
+                </form>
             </div>
         </div>
 
@@ -401,6 +460,10 @@
     </div>
 
     <script>
+        // Get CSRF token from meta tags
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
         // Load data on page load
         window.onload = function() {
             loadReports();
@@ -421,9 +484,13 @@
             if (tabName === 'reports') {
                 document.getElementById('reportsTab').classList.add('active');
                 document.querySelectorAll('.tab')[0].classList.add('active');
+            } else if (tabName === 'builder') {
+                document.getElementById('builderTab').classList.add('active');
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                loadBuilderDatasources();
             } else if (tabName === 'datasources') {
                 document.getElementById('datasourcesTab').classList.add('active');
-                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.querySelectorAll('.tab')[2].classList.add('active');
                 loadDatasources();
             }
         }
@@ -507,14 +574,104 @@
                     option.textContent = report;
                     select.appendChild(option);
 
-                    // Add to list
+                    // Add to list with download button
                     const item = document.createElement('div');
                     item.className = 'report-item';
-                    item.textContent = report;
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = report;
+                    
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = `/api/builder/download/${encodeURIComponent(report)}`;
+                    downloadLink.download = report;
+                    downloadLink.innerHTML = '📥 Download';
+                    downloadLink.style.color = '#667eea';
+                    downloadLink.style.textDecoration = 'none';
+                    downloadLink.style.fontSize = '14px';
+                    downloadLink.style.fontWeight = '500';
+                    downloadLink.style.padding = '4px 8px';
+                    downloadLink.style.borderRadius = '4px';
+                    downloadLink.style.transition = 'background 0.2s';
+                    downloadLink.onmouseover = function() { this.style.background = '#f0f0f0'; };
+                    downloadLink.onmouseout = function() { this.style.background = 'transparent'; };
+                    
+                    item.appendChild(nameSpan);
+                    item.appendChild(downloadLink);
                     list.appendChild(item);
                 });
             });
         }
+
+        function loadReportParameters(reportName) {
+            const parametersSection = document.getElementById('parametersSection');
+            const parametersContainer = document.getElementById('parametersContainer');
+            
+            if (!reportName) {
+                parametersSection.style.display = 'none';
+                parametersContainer.innerHTML = '';
+                return;
+            }
+
+            fetch(`/reports/${encodeURIComponent(reportName)}/parameters`)
+            .then(response => response.json())
+            .then(parameters => {
+                if (parameters.length === 0) {
+                    parametersSection.style.display = 'none';
+                    return;
+                }
+
+                parametersContainer.innerHTML = '';
+                parametersSection.style.display = 'block';
+
+                parameters.forEach(param => {
+                    const formGroup = document.createElement('div');
+                    formGroup.className = 'form-group';
+                    
+                    const label = document.createElement('label');
+                    label.textContent = param.name + (param.description ? ' - ' + param.description : '');
+                    label.setAttribute('for', 'param_' + param.name);
+                    
+                    let input;
+                    if (param.inputType === 'checkbox') {
+                        input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.id = 'param_' + param.name;
+                        input.name = param.name;
+                    } else {
+                        input = document.createElement('input');
+                        input.type = param.inputType;
+                        input.id = 'param_' + param.name;
+                        input.name = param.name;
+                        input.className = 'form-control';
+                        
+                        if (param.inputType === 'number' && param.step) {
+                            input.step = param.step;
+                        }
+                        
+                        // Set placeholder for date inputs
+                        if (param.inputType === 'date') {
+                            input.placeholder = 'YYYY-MM-DD';
+                        }
+                    }
+                    
+                    formGroup.appendChild(label);
+                    formGroup.appendChild(input);
+                    parametersContainer.appendChild(formGroup);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading parameters:', error);
+                parametersSection.style.display = 'none';
+            });
+        }
+
+        // Add event listener to load parameters when report is selected
+        document.getElementById('reportSelect').addEventListener('change', function() {
+            loadReportParameters(this.value);
+        });
 
         function loadDatasources() {
             fetch('/api/datasources')
@@ -605,6 +762,19 @@
                     return;
                 }
                 params.append('datasourceId', datasourceId);
+            }
+
+            // Collect report parameters
+            const parametersContainer = document.getElementById('parametersContainer');
+            if (parametersContainer && parametersContainer.children.length > 0) {
+                const paramInputs = parametersContainer.querySelectorAll('input, select, textarea');
+                paramInputs.forEach(input => {
+                    if (input.type === 'checkbox') {
+                        params.append(input.name, input.checked ? 'true' : 'false');
+                    } else if (input.value) {
+                        params.append(input.name, input.value);
+                    }
+                });
             }
 
             // Add CSRF token
@@ -829,6 +999,189 @@
                 closeDatasourceModal();
             }
         };
+
+        // ========== Report Builder Functions ==========
+        
+        function loadBuilderDatasources() {
+            fetch('/api/datasources')
+                .then(response => response.json())
+                .then(datasources => {
+                    const select = document.getElementById('builderDatasource');
+                    select.innerHTML = '<option value="">-- Select a datasource --</option>';
+                    datasources.forEach(ds => {
+                        const option = document.createElement('option');
+                        option.value = ds.id;
+                        option.textContent = ds.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading datasources:', error);
+                });
+        }
+
+        function loadBuilderTables() {
+            const datasourceId = document.getElementById('builderDatasource').value;
+            const tableGroup = document.getElementById('builderTableGroup');
+            const columnsGroup = document.getElementById('builderColumnsGroup');
+            
+            if (!datasourceId) {
+                tableGroup.style.display = 'none';
+                columnsGroup.style.display = 'none';
+                return;
+            }
+
+            fetch(`/api/builder/datasources/${datasourceId}/tables`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.tables) {
+                        const select = document.getElementById('builderTable');
+                        select.innerHTML = '<option value="">-- Select a table --</option>';
+                        data.tables.forEach(table => {
+                            const option = document.createElement('option');
+                            option.value = table;
+                            option.textContent = table;
+                            select.appendChild(option);
+                        });
+                        tableGroup.style.display = 'block';
+                        columnsGroup.style.display = 'none';
+                    } else {
+                        showBuilderMessage('Failed to load tables: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(error => {
+                    showBuilderMessage('Error loading tables: ' + error, 'error');
+                });
+        }
+
+        function loadBuilderColumns() {
+            const datasourceId = document.getElementById('builderDatasource').value;
+            const tableName = document.getElementById('builderTable').value;
+            const columnsGroup = document.getElementById('builderColumnsGroup');
+            const columnsContainer = document.getElementById('builderColumnsContainer');
+            
+            if (!tableName) {
+                columnsGroup.style.display = 'none';
+                return;
+            }
+
+            fetch(`/api/builder/datasources/${datasourceId}/tables/${tableName}/columns`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.columns) {
+                        columnsContainer.innerHTML = '';
+                        data.columns.forEach(column => {
+                            const div = document.createElement('div');
+                            div.style.marginBottom = '8px';
+                            div.innerHTML = `
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="checkbox" name="builderColumns" value="${column.name}" 
+                                           style="margin-right: 8px;" checked>
+                                    <span style="font-weight: 500;">${column.name}</span>
+                                    <span style="color: #999; margin-left: 8px; font-size: 12px;">(${column.type})</span>
+                                </label>
+                            `;
+                            columnsContainer.appendChild(div);
+                        });
+                        columnsGroup.style.display = 'block';
+                    } else {
+                        showBuilderMessage('Failed to load columns: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(error => {
+                    showBuilderMessage('Error loading columns: ' + error, 'error');
+                });
+        }
+
+        function selectAllColumns() {
+            const checkboxes = document.querySelectorAll('input[name="builderColumns"]');
+            checkboxes.forEach(cb => cb.checked = true);
+        }
+
+        function unselectAllColumns() {
+            const checkboxes = document.querySelectorAll('input[name="builderColumns"]');
+            checkboxes.forEach(cb => cb.checked = false);
+        }
+
+        function generateBuilderReport(event) {
+            event.preventDefault();
+            
+            const reportName = document.getElementById('builderReportName').value.trim();
+            const datasourceId = document.getElementById('builderDatasource').value;
+            const tableName = document.getElementById('builderTable').value;
+            
+            // Get selected columns
+            const checkboxes = document.querySelectorAll('input[name="builderColumns"]:checked');
+            const columns = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (columns.length === 0) {
+                showBuilderMessage('Please select at least one column', 'error');
+                return;
+            }
+
+            // Show loading message
+            showBuilderMessage('Generating JRXML file...', 'info');
+
+            // Build form data
+            const formData = new URLSearchParams();
+            formData.append('reportName', reportName);
+            formData.append('tableName', tableName);
+            formData.append('datasourceId', datasourceId);
+            columns.forEach(col => formData.append('columns', col));
+
+            fetch('/api/builder/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    [csrfHeader]: csrfToken
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showBuilderMessage('✓ ' + data.message + ' - Check Available Reports section to download', 'success');
+                    
+                    // Reload reports list
+                    loadReports();
+                    // Reset form
+                    document.getElementById('builderForm').reset();
+                    document.getElementById('builderTableGroup').style.display = 'none';
+                    document.getElementById('builderColumnsGroup').style.display = 'none';
+                } else {
+                    showBuilderMessage('✗ ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showBuilderMessage('Error generating report: ' + error, 'error');
+            });
+        }
+
+        function showBuilderMessage(text, type) {
+            const msg = document.getElementById('builderMessage');
+            msg.textContent = text;
+            msg.style.padding = '10px';
+            msg.style.borderRadius = '6px';
+            msg.style.marginTop = '15px';
+            
+            if (type === 'success') {
+                msg.style.background = '#d4edda';
+                msg.style.color = '#155724';
+                msg.style.border = '1px solid #c3e6cb';
+            } else if (type === 'error') {
+                msg.style.background = '#f8d7da';
+                msg.style.color = '#721c24';
+                msg.style.border = '1px solid #f5c6cb';
+            } else if (type === 'info') {
+                msg.style.background = '#d1ecf1';
+                msg.style.color = '#0c5460';
+                msg.style.border = '1px solid #bee5eb';
+            }
+            
+            if (type !== 'info') {
+                setTimeout(() => { msg.textContent = ''; msg.style.padding = '0'; }, 5000);
+            }
+        }
     </script>
 </body>
 </html>

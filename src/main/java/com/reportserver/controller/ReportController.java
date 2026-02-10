@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -98,7 +99,7 @@ public class ReportController {
                     .body(("Report file not found: " + reportName).getBytes());
             }
             
-            // Convert String parameters to proper types if needed
+            // Add parameters to report
             Map<String, Object> reportParams = new HashMap<>();
             if (parameters != null) {
                 reportParams.putAll(parameters);
@@ -123,11 +124,9 @@ public class ReportController {
             byte[] reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, connection);
             logger.info("Report generated successfully, size: {} bytes", reportBytes.length);
 
-            // Set content type based on format
-            MediaType contentType = format.equalsIgnoreCase("xlsx") ? 
-                MediaType.APPLICATION_OCTET_STREAM : MediaType.APPLICATION_PDF;
-
-            String extension = format.equalsIgnoreCase("xlsx") ? "xlsx" : "pdf";
+            // Set content type and extension based on format
+            MediaType contentType = getContentType(format);
+            String extension = getFileExtension(format);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(contentType);
@@ -162,5 +161,60 @@ public class ReportController {
         }
         String[] files = dir.list((d, name) -> name.endsWith(".jrxml"));
         return ResponseEntity.ok(files != null ? files : new String[0]);
+    }
+
+    private MediaType getContentType(String format) {
+        switch (format.toLowerCase()) {
+            case "pdf":
+                return MediaType.APPLICATION_PDF;
+            case "html":
+                return MediaType.TEXT_HTML;
+            case "xlsx":
+            case "xls":
+                return MediaType.parseMediaType("application/vnd.ms-excel");
+            case "docx":
+                return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            case "rtf":
+                return MediaType.parseMediaType("application/rtf");
+            case "odt":
+                return MediaType.parseMediaType("application/vnd.oasis.opendocument.text");
+            case "csv":
+                return MediaType.parseMediaType("text/csv");
+            case "xml":
+                return MediaType.APPLICATION_XML;
+            case "txt":
+            case "text":
+                return MediaType.TEXT_PLAIN;
+            default:
+                return MediaType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
+    private String getFileExtension(String format) {
+        switch (format.toLowerCase()) {
+            case "pdf":
+                return "pdf";
+            case "html":
+                return "html";
+            case "xlsx":
+                return "xlsx";
+            case "xls":
+                return "xls";
+            case "docx":
+                return "docx";
+            case "rtf":
+                return "rtf";
+            case "odt":
+                return "odt";
+            case "csv":
+                return "csv";
+            case "xml":
+                return "xml";
+            case "txt":
+            case "text":
+                return "txt";
+            default:
+                return "pdf";
+        }
     }
 }
