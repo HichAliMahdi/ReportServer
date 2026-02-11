@@ -1,0 +1,175 @@
+package com.reportserver.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.reportserver.model.ScheduledReport;
+import com.reportserver.repository.ScheduledReportRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class ReportSchedulerService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReportSchedulerService.class);
+    private static final String REPORTS_DIR = "data/reports/";
+    private static final String OUTPUT_DIR = "data/scheduled_output/";
+
+    @Autowired
+    private ScheduledReportRepository scheduledReportRepository;
+
+    @Autowired
+    private ReportService reportService;
+
+    @Autowired
+    private DataSourceService dataSourceService;
+
+    @Autowired
+    private ScheduledReportService scheduledReportService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    // Check every minute for scheduled reports that need to run
+    @Scheduled(fixedRate = 60000) // Run every 60 seconds
+    public void executeScheduledReports() {
+        LocalDateTime now = LocalDateTime.now();
+        List<ScheduledReport> dueReports = scheduledReportRepository
+                .findByNextRunTimeLessThanEqualAndEnabledTrue(now);
+
+        if (!dueReports.isEmpty()) {
+            logger.info("Found {} scheduled report(s) to execute", dueReports.size());
+        }
+
+        for (ScheduledReport scheduledReport : dueReports) {
+            try {
+                executeScheduledReport(scheduledReport);
+            } catch (Exception e) {
+                logger.error("Failed to execute scheduled report: " + scheduledReport.getName(), e);
+            }
+        }
+    }
+
+    private void executeScheduledReport(ScheduledReport scheduledReport) {
+        logger.info("Executing scheduled report: {}", scheduledReport.getName());
+
+        try {
+            // Get report file path
+            String jrxmlPath = REPORTS_DIR + scheduledReport.getReportName();
+            File reportFile = new File(jrxmlPath);
+            
+            if (!reportFile.exists()) {
+                logger.error("Report file not found: {}", jrxmlPath);
+                return;
+            }
+
+            // Get database connection if needed
+            Connection connection = null;
+            if (scheduledReport.getDatasourceId() != null) {
+                try {
+                    connection = dataSourceService.getConnection(scheduledReport.getDatasourceId());
+                } catch (Exception e) {
+                    logger.warn("Could not get database connection for datasource ID: {}, proceeding without database", 
+                               scheduledReport.getDatasourceId());
+                }
+            }
+
+            // Parse parameters from JSON
+            Map<String, Object> parameters = new HashMap<>();
+            if (scheduledReport.getParameters() != null && !scheduledReport.getParameters().isEmpty()) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> params = objectMapper.readValue(scheduledReport.getParameters(), Map.class);
+                    parameters.putAll(params);
+                } catch (Exception e) {
+                    logger.warn("Could not parse parameters for report: {}", scheduledReport.getName(), e);
+                }
+            }
+
+            // Generate report
+            byte[] reportData = reportService.generateReport(
+                    jrxmlPath,
+                    parameters,
+                    scheduledReport.getFormat(),
+                    connection
+            );
+
+            // Close connection if it was opened
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    logger.warn("Error closing database connection", e);
+                }
+            }
+
+            // Save report to output directory
+            saveScheduledReport(scheduledReport, reportData);
+
+            // Update last run time and calculate next run time
+            scheduledReportService.updateLastRunTime(scheduledReport.getId(), LocalDateTime.now());
+
+            logger.info("Successfully executed scheduled report: {}", scheduledReport.getName());
+
+        } catch (Exception e) {
+            logger.error("Error executing scheduled report: " + scheduledReport.getName(), e);
+            
+            // Still update the next run time even if there was an error
+            try {
+                scheduledReportService.updateLastRunTime(scheduledReport.getId(), LocalDateTime.now());
+            } catch (Exception ex) {
+                logger.error("Error updating last run time", ex);
+            }
+        }
+    }
+
+    private void saveScheduledReport(ScheduledReport scheduledReport, byte[] reportData) throws Exception {
+        // Create output directory if it doesn't exist
+        String outputBasePath = scheduledReport.getOutputPath() != null && !scheduledReport.getOutputPath().isEmpty()
+                ? scheduledReport.getOutputPath()
+                : OUTPUT_DIR;
+        
+        File outputDir = new File(outputBasePath);
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+
+        // Generate filename with timestamp
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+        String timestamp = LocalDateTime.now().format(formatter);
+        String reportBaseName = scheduledReport.getReportName().replace(".jrxml", "");
+        String filename = String.format("%s_%s.%s",
+                reportBaseName,
+                timestamp,
+                scheduledReport.getFormat().toLowerCase());
+
+        // Save file
+        Path outputPath = Paths.get(outputBasePath, filename);
+        try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
+            fos.write(reportData);
+        }
+
+        logger.info("Saved scheduled report to: {}", outputPath.toString());
+    }
+
+    // Manual execution for testing or on-demand runs
+    public void executeScheduledReportNow(Long scheduledReportId) {
+        ScheduledReport scheduledReport = scheduledReportRepository.findById(scheduledReportId)
+                .orElseThrow(() -> new RuntimeException("Scheduled report not found: " + scheduledReportId));
+        
+        executeScheduledReport(scheduledReport);
+    }
+}

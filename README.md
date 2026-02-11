@@ -30,6 +30,7 @@ A comprehensive Reports Server application built with Spring Boot that supports 
 ### Advanced Features
 - **Report parameters** - Dynamic report parameters with automatic type detection
 - **Database-driven reports** - Execute SQL queries within JRXML templates
+- **Scheduled reports** - Automate report generation on Hourly, Daily, Weekly, Monthly, or Yearly intervals
 - **RESTful API** - Complete API for programmatic access
 - **Modern web interface** - Clean, responsive UI with intuitive navigation
 - **CSRF protection** - Secure forms and API endpoints
@@ -181,6 +182,31 @@ Manage database connections:
 - **Delete**: Remove unused datasources
 - **Test Connection**: Verify connectivity before saving
 - **View**: See all configured datasources in a table
+
+### Schedules Tab
+
+Automate report generation on a recurring schedule:
+
+1. **Create a Schedule**: Click "Create New Schedule" to open the schedule form
+2. **Configure Details**:
+   - **Schedule Name**: A descriptive name for the schedule
+   - **Report Template**: Select which JRXML report to generate
+   - **Output Format**: Choose the output format (PDF, Excel, Word, CSV, etc.)
+   - **Frequency**: Select how often the report should run:
+     - **Hourly** – Runs every hour at the specified minute
+     - **Daily** – Runs once per day at the specified time
+     - **Weekly** – Runs on a specific day of the week at the specified time
+     - **Monthly** – Runs on a specific day of the month at the specified time
+     - **Yearly** – Runs on a specific month and day at the specified time
+   - **Datasource** (optional): Select a database connection for database-driven reports
+   - **Output Directory** (optional): Custom path for generated files (default: `data/scheduled_output/`)
+3. **Manage Schedules**:
+   - **Pause/Resume**: Toggle a schedule on or off without deleting it
+   - **Run Now**: Trigger an immediate execution of a scheduled report
+   - **Edit**: Modify schedule configuration
+   - **Delete**: Remove a schedule permanently
+4. The scheduler checks for due reports every 60 seconds and generates them automatically
+5. Generated files are saved to the output directory with a timestamp in the filename
 
 ### User Management (Admin Only)
 
@@ -532,6 +558,93 @@ POST /api/users/{id}/toggle-admin
 curl -X POST http://localhost:8080/api/users/1/toggle-admin
 ```
 
+### Report Schedule API
+
+#### List All Schedules
+```bash
+GET /api/schedules
+
+curl http://localhost:8080/api/schedules
+```
+Returns all schedules (admins see all; regular users see only their own).
+
+#### Get Schedule by ID
+```bash
+GET /api/schedules/{id}
+
+curl http://localhost:8080/api/schedules/1
+```
+
+#### Create Schedule
+```bash
+POST /api/schedules
+Content-Type: application/json
+
+curl -X POST http://localhost:8080/api/schedules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Weekly Sales Report",
+    "reportName": "SalesReport.jrxml",
+    "format": "pdf",
+    "scheduleType": "WEEKLY",
+    "dayOfWeek": 1,
+    "hourOfDay": 8,
+    "minuteOfHour": 0,
+    "datasourceId": 1,
+    "outputPath": "data/scheduled_output/",
+    "description": "Generates sales PDF every Monday at 08:00"
+  }'
+```
+
+Schedule type options: `HOURLY`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`.
+
+| Field | Required | Used by |
+|-------|----------|---------|
+| `minuteOfHour` | All | Minute of the hour (0-59) |
+| `hourOfDay` | DAILY, WEEKLY, MONTHLY, YEARLY | Hour of the day (0-23) |
+| `dayOfWeek` | WEEKLY | Day of the week (1=Monday … 7=Sunday) |
+| `dayOfMonth` | MONTHLY, YEARLY | Day of the month (1-31) |
+| `month` | YEARLY | Month of the year (1-12) |
+
+#### Update Schedule
+```bash
+PUT /api/schedules/{id}
+Content-Type: application/json
+
+curl -X PUT http://localhost:8080/api/schedules/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Daily Sales Report",
+    "reportName": "SalesReport.jrxml",
+    "format": "xlsx",
+    "scheduleType": "DAILY",
+    "hourOfDay": 6,
+    "minuteOfHour": 30
+  }'
+```
+
+#### Delete Schedule
+```bash
+DELETE /api/schedules/{id}
+
+curl -X DELETE http://localhost:8080/api/schedules/1
+```
+
+#### Toggle Schedule (Enable/Disable)
+```bash
+POST /api/schedules/{id}/toggle?enabled=false
+
+curl -X POST "http://localhost:8080/api/schedules/1/toggle?enabled=false"
+```
+
+#### Execute Schedule Now (On-Demand)
+```bash
+POST /api/schedules/{id}/execute
+
+curl -X POST http://localhost:8080/api/schedules/1/execute
+```
+Triggers an immediate execution regardless of the next scheduled time.
+
 #### Change Own Password
 ```bash
 POST /api/change-password
@@ -857,24 +970,30 @@ ReportServer/
 │   │   │   │   ├── DataSourceController.java       # Datasource management
 │   │   │   │   ├── JrxmlEditorController.java     # JRXML editor functionality
 │   │   │   │   ├── ReportController.java           # Report generation & management
+│   │   │   │   ├── ScheduleController.java         # Report scheduling API
 │   │   │   │   └── UserController.java             # User management (Admin)
 │   │   │   ├── dto/
 │   │   │   │   ├── DataSourceDTO.java              # Datasource data transfer object
 │   │   │   │   ├── ParameterDTO.java               # Report parameter DTO
+│   │   │   │   ├── ScheduledReportDTO.java          # Scheduled report DTO
 │   │   │   │   ├── UserCreationDTO.java            # User creation DTO
 │   │   │   │   ├── UserRegistrationDTO.java        # User registration DTO
 │   │   │   │   └── VariableDTO.java                # Report variable DTO
 │   │   │   ├── model/
 │   │   │   │   ├── DataSource.java                 # Datasource entity
+│   │   │   │   ├── ScheduledReport.java            # Scheduled report entity
 │   │   │   │   └── User.java                       # User entity
 │   │   │   ├── repository/
 │   │   │   │   ├── DataSourceRepository.java       # Datasource JPA repository
+│   │   │   │   ├── ScheduledReportRepository.java  # Scheduled report JPA repository
 │   │   │   │   └── UserRepository.java             # User JPA repository
 │   │   │   └── service/
 │   │   │       ├── DatabaseConnectionService.java  # Database connectivity
 │   │   │       ├── DataSourceService.java          # Datasource business logic
 │   │   │       ├── JrxmlBuilderService.java        # Report generation from builder
+│   │   │       ├── ReportSchedulerService.java     # Scheduled report execution engine
 │   │   │       ├── ReportService.java              # Report compilation & rendering
+│   │   │       ├── ScheduledReportService.java     # Schedule CRUD & next-run calculation
 │   │   │       ├── SchemaIntrospectionService.java # Database schema discovery
 │   │   │       └── UserService.java                # User management business logic
 │   │   └── resources/
@@ -891,6 +1010,7 @@ ReportServer/
 │   │           └── user-management.html            # Admin user management
 ├── data/
 │   ├── reports/                                    # Uploaded JRXML files
+│   ├── scheduled_output/                           # Generated scheduled report files
 │   └── reportserver.mv.db                         # H2 database files
 ├── pom.xml                                         # Maven dependencies
 └── README.md                                       # This file
