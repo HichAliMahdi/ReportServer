@@ -14,17 +14,30 @@ public class DataSource {
     @Column(nullable = false, unique = true)
     private String name;
     
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private DataSourceType type = DataSourceType.JDBC;
+    
+    // JDBC fields
+    @Column
     private String url;
     
-    @Column(nullable = false)
+    @Column
     private String username;
     
-    @Column(nullable = false)
+    @Column
     private String password;
     
-    @Column(nullable = false)
+    @Column
     private String driverClassName;
+    
+    // File-based data source fields (CSV, XML, JSON)
+    @Column
+    private String filePath;
+    
+    // Additional configuration (JSON format for flexibility)
+    @Column(length = 2000)
+    private String configuration;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -46,8 +59,9 @@ public class DataSource {
     // Constructors
     public DataSource() {}
     
-    public DataSource(String name, String url, String username, String password, String driverClassName) {
+    public DataSource(String name, DataSourceType type, String url, String username, String password, String driverClassName) {
         this.name = name;
+        this.type = type;
         this.url = url;
         this.username = username;
         this.password = password;
@@ -69,6 +83,14 @@ public class DataSource {
     
     public void setName(String name) {
         this.name = name;
+    }
+    
+    public DataSourceType getType() {
+        return type;
+    }
+    
+    public void setType(DataSourceType type) {
+        this.type = type;
     }
     
     public String getUrl() {
@@ -101,6 +123,22 @@ public class DataSource {
     
     public void setDriverClassName(String driverClassName) {
         this.driverClassName = driverClassName;
+    }
+    
+    public String getFilePath() {
+        return filePath;
+    }
+    
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+    
+    public String getConfiguration() {
+        return configuration;
+    }
+    
+    public void setConfiguration(String configuration) {
+        this.configuration = configuration;
     }
     
     public LocalDateTime getCreatedAt() {

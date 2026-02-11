@@ -36,6 +36,9 @@ public class ReportSchedulerService {
 
     @Autowired
     private DataSourceService dataSourceService;
+    
+    @Autowired
+    private JRDataSourceProviderService jrDataSourceProviderService;
 
     @Autowired
     private ScheduledReportService scheduledReportService;
@@ -76,18 +79,7 @@ public class ReportSchedulerService {
                 return;
             }
 
-            // Get database connection if needed
-            Connection connection = null;
-            if (scheduledReport.getDatasourceId() != null) {
-                try {
-                    connection = dataSourceService.getConnection(scheduledReport.getDatasourceId());
-                } catch (Exception e) {
-                    logger.warn("Could not get database connection for datasource ID: {}, proceeding without database", 
-                               scheduledReport.getDatasourceId());
-                }
-            }
-
-            // Parse parameters from JSON
+            // Parse parameters from JSON first
             Map<String, Object> parameters = new HashMap<>();
             if (scheduledReport.getParameters() != null && !scheduledReport.getParameters().isEmpty()) {
                 try {
@@ -99,21 +91,34 @@ public class ReportSchedulerService {
                 }
             }
 
+            // Get database connection or datasource if needed
+            Object dataSource = null;
+            if (scheduledReport.getDatasourceId() != null) {
+                try {
+                    com.reportserver.model.DataSource ds = dataSourceService.getDataSourceById(scheduledReport.getDatasourceId())
+                            .orElseThrow(() -> new RuntimeException("Datasource not found"));
+                    dataSource = jrDataSourceProviderService.getDataSource(ds, parameters);
+                } catch (Exception e) {
+                    logger.warn("Could not get datasource for ID: {}, proceeding with empty datasource", 
+                               scheduledReport.getDatasourceId(), e);
+                }
+            }
+
             // Generate report
-            byte[] reportData = reportService.generateReport(
-                    jrxmlPath,
-                    parameters,
-                    scheduledReport.getFormat(),
-                    connection
-            );
+            byte[] reportData;
+            if (dataSource instanceof Connection) {
+                reportData = reportService.generateReport(jrxmlPath, parameters, scheduledReport.getFormat(), (Connection) dataSource);
+            } else {
+                reportData = reportService.generateReportWithDataSource(jrxmlPath, parameters, scheduledReport.getFormat(), dataSource);
+            }
 
             // Close connection if it was opened
-            if (connection != null) {
+            if (dataSource instanceof Connection) {
                 try {
-                    connection.close();
+                    ((Connection) dataSource).close();
                 } catch (Exception e) {
                     logger.warn("Error closing database connection", e);
-                }
+                                }
             }
 
             // Save report to output directory

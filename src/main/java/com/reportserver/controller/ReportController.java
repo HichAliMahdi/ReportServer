@@ -31,6 +31,9 @@ public class ReportController {
 
     @Autowired
     private DataSourceService dataSourceService;
+    
+    @Autowired
+    private com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService;
 
     private static final String UPLOAD_DIR = "data/reports/";
 
@@ -105,14 +108,16 @@ public class ReportController {
                 reportParams.putAll(parameters);
             }
 
-            // Get database connection if requested
+            // Get database connection or datasource if requested
+            Object dataSource = null;
             if (useDatabase) {
                 if (datasourceId != null) {
-                    logger.info("Getting database connection for datasource ID: {}", datasourceId);
-                    // Use the selected datasource
-                    connection = dataSourceService.getConnection(datasourceId);
-                    if (connection == null) {
-                        throw new IllegalArgumentException("Failed to connect to datasource");
+                    logger.info("Getting datasource for ID: {}", datasourceId);
+                    com.reportserver.model.DataSource ds = dataSourceService.getDataSourceById(datasourceId)
+                            .orElseThrow(() -> new IllegalArgumentException("Datasource not found"));
+                    dataSource = jrDataSourceProviderService.getDataSource(ds, reportParams);
+                    if (dataSource == null) {
+                        throw new IllegalArgumentException("Failed to create datasource");
                     }
                 } else {
                     throw new IllegalArgumentException("Please select a datasource when using database connection");
@@ -121,7 +126,14 @@ public class ReportController {
 
             // Generate report
             logger.info("Compiling and filling report...");
-            byte[] reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, connection);
+            byte[] reportBytes;
+            if (dataSource instanceof Connection) {
+                reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, (Connection) dataSource);
+            } else if (dataSource != null) {
+                reportBytes = reportService.generateReportWithDataSource(jrxmlPath, reportParams, format, dataSource);
+            } else {
+                reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, null);
+            }
             logger.info("Report generated successfully, size: {} bytes", reportBytes.length);
 
             // Set content type and extension based on format
@@ -142,9 +154,9 @@ public class ReportController {
             return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
         } finally {
             // Always close the connection if it was opened
-            if (connection != null) {
+            if (connection instanceof Connection) {
                 try {
-                    connection.close();
+                    ((Connection) connection).close();
                 } catch (Exception e) {
                     logger.error("Error closing connection", e);
                 }

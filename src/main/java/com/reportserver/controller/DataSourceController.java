@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,9 +20,13 @@ import java.util.stream.Collectors;
 public class DataSourceController {
 
     private static final Logger logger = LoggerFactory.getLogger(DataSourceController.class);
+    private static final String DATA_FILES_DIR = "data/datasource_files/";
 
     @Autowired
     private DataSourceService dataSourceService;
+    
+    @Autowired
+    private com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService;
 
     /**
      * Get all datasources (without passwords)
@@ -160,4 +165,105 @@ public class DataSourceController {
             return ResponseEntity.status(500).body(response);
         }
     }
-}
+    
+    /**
+     * Upload a data file (CSV, XML, JSON) for file-based datasources
+     */
+    @PostMapping("/upload-file")
+    public ResponseEntity<Map<String, Object>> uploadDataFile(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (file.isEmpty()) {
+                throw new IllegalArgumentException("Please select a file to upload");
+            }
+            
+            String filename = file.getOriginalFilename();
+            if (filename == null) {
+                throw new IllegalArgumentException("Invalid filename");
+            }
+            
+            // Validate file type
+            String extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+            if (!extension.matches("csv|xml|json")) {
+                throw new IllegalArgumentException("Only CSV, XML, and JSON files are supported");
+            }
+            
+            // Ensure directory exists
+            jrDataSourceProviderService.ensureDataFilesDirectoryExists();
+            
+            // Save file
+            java.nio.file.Path path = java.nio.file.Paths.get("data/datasource_files/" + filename);
+            java.nio.file.Files.write(path, file.getBytes());
+            
+            logger.info("Data file uploaded successfully: {}", filename);
+            response.put("status", "success");
+            response.put("message", "File uploaded successfully");
+            response.put("filename", filename);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error uploading data file", e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Execute a query on a datasource and return results
+     */
+    @PostMapping("/{id}/query")
+    public ResponseEntity<Map<String, Object>> executeQuery(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            String query = request.get("query");
+            if (query == null || query.trim().isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Query is required");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Get max rows parameter (default 1000)
+            int maxRows = 1000;
+            String maxRowsStr = request.get("maxRows");
+            if (maxRowsStr != null && !maxRowsStr.isEmpty()) {
+                try {
+                    maxRows = Integer.parseInt(maxRowsStr);
+                    if (maxRows < 1) maxRows = 1;
+                    if (maxRows > 10000) maxRows = 10000; // Cap at 10k rows
+                } catch (NumberFormatException e) {
+                    maxRows = 1000;
+                }
+            }
+
+            // Get datasource
+            Optional<DataSource> dataSourceOpt = dataSourceService.getDataSourceById(id);
+            if (!dataSourceOpt.isPresent()) {
+                response.put("status", "error");
+                response.put("message", "Datasource not found");
+                return ResponseEntity.status(404).body(response);
+            }
+            
+            DataSource dataSource = dataSourceOpt.get();
+
+            // Execute query and get results
+            Map<String, Object> results = dataSourceService.executeQuery(dataSource, query, maxRows);
+            
+            response.put("status", "success");
+            response.put("columns", results.get("columns"));
+            response.put("rows", results.get("rows"));
+            response.put("rowCount", results.get("rowCount"));
+            response.put("executionTime", results.get("executionTime"));
+            response.put("truncated", results.get("truncated"));
+            response.put("maxRows", maxRows);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error executing query", e);
+            response.put("status", "error");
+            response.put("message", "Query execution failed: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }}

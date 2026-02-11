@@ -10,6 +10,7 @@ import net.sf.jasperreports.engine.export.oasis.JROdtExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRDocxExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
 import net.sf.jasperreports.export.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -21,9 +22,22 @@ import java.util.stream.Collectors;
 
 @Service
 public class ReportService {
+    
+    @Autowired
+    private JRDataSourceProviderService jrDataSourceProviderService;
 
     public byte[] generateReport(String jrxmlPath, Map<String, Object> parameters, 
                                  String outputFormat, Connection connection) throws Exception {
+        return generateReportInternal(jrxmlPath, parameters, outputFormat, connection, null);
+    }
+    
+    public byte[] generateReportWithDataSource(String jrxmlPath, Map<String, Object> parameters,
+                                               String outputFormat, Object dataSource) throws Exception {
+        return generateReportInternal(jrxmlPath, parameters, outputFormat, null, dataSource);
+    }
+    
+    private byte[] generateReportInternal(String jrxmlPath, Map<String, Object> parameters, 
+                                          String outputFormat, Connection connection, Object dataSource) throws Exception {
         
         File jrxmlFile = new File(jrxmlPath);
         if (!jrxmlFile.exists()) {
@@ -33,12 +47,22 @@ public class ReportService {
         // Compile JRXML to JasperReport
         JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlPath);
         
-        // Fill report with data (use empty data source if no connection provided)
+        // Fill report with data
         JasperPrint jasperPrint;
         if (connection != null) {
+            // Use JDBC connection
             jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
+        } else if (dataSource != null) {
+            // Use JRDataSource (CSV, XML, JSON, etc.)
+            if (dataSource instanceof JRDataSource) {
+                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, (JRDataSource) dataSource);
+            } else if (dataSource instanceof Connection) {
+                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, (Connection) dataSource);
+            } else {
+                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+            }
         } else {
-            // Use empty data source when no connection is provided
+            // Use empty data source when no connection/datasource is provided
             jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
         }
         

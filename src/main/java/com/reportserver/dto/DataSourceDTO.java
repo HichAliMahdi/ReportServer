@@ -1,6 +1,7 @@
 package com.reportserver.dto;
 
 import com.reportserver.model.DataSource;
+import com.reportserver.model.DataSourceType;
 import java.time.LocalDateTime;
 
 /**
@@ -10,9 +11,12 @@ public class DataSourceDTO {
     
     private Long id;
     private String name;
+    private DataSourceType type;
     private String url;
     private String username;
     private String driverClassName;
+    private String filePath;
+    private String configuration;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -21,9 +25,12 @@ public class DataSourceDTO {
     public DataSourceDTO(DataSource dataSource) {
         this.id = dataSource.getId();
         this.name = dataSource.getName();
+        this.type = dataSource.getType();
         this.url = dataSource.getUrl();
         this.username = dataSource.getUsername();
         this.driverClassName = dataSource.getDriverClassName();
+        this.filePath = dataSource.getFilePath();
+        this.configuration = dataSource.getConfiguration();
         this.createdAt = dataSource.getCreatedAt();
         this.updatedAt = dataSource.getUpdatedAt();
     }
@@ -49,6 +56,14 @@ public class DataSourceDTO {
         this.name = name;
     }
     
+    public DataSourceType getType() {
+        return type;
+    }
+    
+    public void setType(DataSourceType type) {
+        this.type = type;
+    }
+    
     public String getUrl() {
         return url;
     }
@@ -71,6 +86,22 @@ public class DataSourceDTO {
     
     public void setDriverClassName(String driverClassName) {
         this.driverClassName = driverClassName;
+    }
+    
+    public String getFilePath() {
+        return filePath;
+    }
+    
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+    
+    public String getConfiguration() {
+        return configuration;
+    }
+    
+    public void setConfiguration(String configuration) {
+        this.configuration = configuration;
     }
     
     public LocalDateTime getCreatedAt() {

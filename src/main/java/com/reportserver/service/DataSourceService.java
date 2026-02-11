@@ -1,6 +1,7 @@
 package com.reportserver.service;
 
 import com.reportserver.model.DataSource;
+import com.reportserver.model.DataSourceType;
 import com.reportserver.repository.DataSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,11 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
+import java.sql.*;
+import java.util.*;
 
 @Service
 public class DataSourceService {
@@ -21,6 +19,9 @@ public class DataSourceService {
 
     @Autowired
     private DataSourceRepository dataSourceRepository;
+    
+    @Autowired
+    private JRDataSourceProviderService jrDataSourceProviderService;
 
     /**
      * Get all datasources
@@ -69,8 +70,11 @@ public class DataSourceService {
         }
         
         existing.setName(dataSource.getName());
+        existing.setType(dataSource.getType());
         existing.setUrl(dataSource.getUrl());
         existing.setUsername(dataSource.getUsername());
+        existing.setFilePath(dataSource.getFilePath());
+        existing.setConfiguration(dataSource.getConfiguration());
         
         // Only update password if provided (not empty)
         if (dataSource.getPassword() != null && !dataSource.getPassword().trim().isEmpty()) {
@@ -97,38 +101,19 @@ public class DataSourceService {
      * Test connection for a datasource
      */
     public boolean testConnection(DataSource dataSource) {
-        Connection connection = null;
-        try {
-            Class.forName(dataSource.getDriverClassName());
-            connection = DriverManager.getConnection(
-                dataSource.getUrl(),
-                dataSource.getUsername(),
-                dataSource.getPassword()
-            );
-            return connection != null && !connection.isClosed();
-        } catch (ClassNotFoundException e) {
-            logger.error("Driver class not found: " + dataSource.getDriverClassName(), e);
-            return false;
-        } catch (SQLException e) {
-            logger.error("Failed to connect to datasource: " + dataSource.getName(), e);
-            return false;
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error("Error closing connection", e);
-                }
-            }
-        }
+        return jrDataSourceProviderService.testDataSource(dataSource);
     }
 
     /**
-     * Get a connection for a specific datasource
+     * Get a connection for a specific datasource (JDBC only)
      */
     public Connection getConnection(Long datasourceId) throws SQLException {
         DataSource dataSource = dataSourceRepository.findById(datasourceId)
             .orElseThrow(() -> new IllegalArgumentException("Datasource not found with id: " + datasourceId));
+        
+        if (dataSource.getType() != DataSourceType.JDBC) {
+            throw new IllegalArgumentException("Datasource is not a JDBC type: " + dataSource.getType());
+        }
         
         try {
             Class.forName(dataSource.getDriverClassName());
@@ -141,5 +126,83 @@ public class DataSourceService {
             logger.error("Driver class not found: " + dataSource.getDriverClassName(), e);
             throw new SQLException("Driver not found: " + dataSource.getDriverClassName(), e);
         }
+    }
+
+    /**
+     * Execute a query on a datasource and return results
+     */
+    public Map<String, Object> executeQuery(DataSource dataSource, String query, int maxRows) throws SQLException {
+        if (dataSource.getType() != DataSourceType.JDBC) {
+            throw new IllegalArgumentException("Query execution is only supported for JDBC datasources");
+        }
+
+        long startTime = System.currentTimeMillis();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        List<Map<String, String>> columns = new ArrayList<>();
+        boolean truncated = false;
+        
+        try {
+            // Load the JDBC driver
+            Class.forName(dataSource.getDriverClassName());
+        } catch (ClassNotFoundException e) {
+            logger.error("Driver class not found: " + dataSource.getDriverClassName(), e);
+            throw new SQLException("Driver not found: " + dataSource.getDriverClassName(), e);
+        }
+        
+        try (Connection connection = DriverManager.getConnection(
+                dataSource.getUrl(),
+                dataSource.getUsername(),
+                dataSource.getPassword());
+             Statement statement = connection.createStatement()) {
+            
+            // Set max rows to prevent memory issues with large result sets
+            statement.setMaxRows(maxRows);
+            
+            try (ResultSet resultSet = statement.executeQuery(query)) {
+            
+                // Extract column metadata
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                
+                for (int i = 1; i <= columnCount; i++) {
+                    Map<String, String> column = new HashMap<>();
+                    column.put("name", metaData.getColumnName(i));
+                    column.put("type", metaData.getColumnTypeName(i));
+                    column.put("label", metaData.getColumnLabel(i));
+                    columns.add(column);
+                }
+                
+                // Extract rows (up to maxRows)
+                int rowCount = 0;
+                while (resultSet.next()) {
+                    rowCount++;
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = metaData.getColumnName(i);
+                        Object value = resultSet.getObject(i);
+                        row.put(columnName, value);
+                    }
+                    rows.add(row);
+                }
+                
+                // Check if results were truncated
+                truncated = rowCount >= maxRows;
+            }
+            
+        } catch (SQLException e) {
+            logger.error("Error executing query: " + query, e);
+            throw e;
+        }
+        
+        long executionTime = System.currentTimeMillis() - startTime;
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("columns", columns);
+        result.put("rows", rows);
+        result.put("rowCount", rows.size());
+        result.put("executionTime", executionTime);
+        result.put("truncated", truncated);
+        
+        return result;
     }
 }

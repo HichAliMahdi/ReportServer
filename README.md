@@ -13,11 +13,13 @@ A comprehensive Reports Server application built with Spring Boot that supports 
 - **Generate reports in 10+ formats** - PDF, HTML, Excel (XLSX/XLS), Word (DOCX), RTF, ODT, CSV, XML, TXT
 
 ### Database & Datasources
-- **Multiple datasource management** - Configure and manage multiple database connections through UI
+- **Multiple datasource types** - Support for JDBC, CSV, XML, JSON, empty, and collection datasources
+- **JDBC databases** - MySQL, PostgreSQL, and other relational databases
+- **File-based sources** - CSV, XML, and JSON file data sources
+- **JavaBeans & Collections** - Support for POJOs and Java collections
 - **Dynamic datasource selection** - Select which datasource to use when generating reports
-- **MySQL and PostgreSQL support** - Connect to popular database systems
-- **Test connections** - Verify database connectivity before saving
-- **Schema introspection** - Automatically discover tables and columns for Report Builder
+- **Test connections** - Verify database connectivity and file accessibility
+- **Schema introspection** - Automatically discover tables and columns for Report Builder (JDBC)
 
 ### User Management & Security
 - **User authentication** - Secure login system with encrypted passwords
@@ -175,13 +177,50 @@ Edit report templates directly in the browser:
 
 ### Datasources Tab
 
-Manage database connections:
+Manage multiple types of datasources:
 
-- **Add Datasource**: Configure new database connections
+#### Datasource Types
+
+1. **JDBC (Relational Databases)**
+   - Connect to MySQL, PostgreSQL, H2, and other JDBC-compliant databases
+   - Requires: JDBC URL, username, password, driver class
+   - Supports full SQL queries and database operations
+
+2. **CSV (Comma-Separated Values)**
+   - Use CSV files as data sources
+   - Upload CSV files via the file upload feature
+   - Automatically uses first row as column headers
+   - Configure field delimiters if needed
+
+3. **XML (eXtensible Markup Language)**
+   - Use XML files as structured data sources
+   - Upload XML files via the file upload feature
+   - Configure XPath expressions to select data nodes
+   - Default XPath: `/data/record`
+
+4. **JSON (JavaScript Object Notation)**
+   - Use JSON files as data sources
+   - Upload JSON files via the file upload feature
+   - Configure JSONPath expressions to select data
+   - Default JSONPath: `$.*`
+
+5. **EMPTY**
+   - No external data source
+   - Useful for static reports, charts without data, or parameter-driven reports
+
+6. **COLLECTION (JavaBeans/POJOs)**
+   - Pass Java collections or custom objects programmatically
+   - Used primarily via API
+   - Supports List, ArrayList, and custom Java objects
+
+#### Operations
+
+- **Add Datasource**: Configure new datasources of any supported type
 - **Edit**: Modify existing datasource settings
 - **Delete**: Remove unused datasources
-- **Test Connection**: Verify connectivity before saving
-- **View**: See all configured datasources in a table
+- **Test Connection**: Verify JDBC connectivity or file accessibility
+- **Upload Files**: Upload CSV, XML, or JSON data files
+- **View**: See all configured datasources with their types
 
 ### Schedules Tab
 
@@ -440,14 +479,45 @@ curl http://localhost:8080/api/datasources/1
 POST /api/datasources
 Content-Type: application/json
 
+# Create JDBC datasource
 curl -X POST http://localhost:8080/api/datasources \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "My Database",
+    "name": "My MySQL Database",
+    "type": "JDBC",
     "url": "jdbc:mysql://localhost:3306/mydb",
     "username": "user",
     "password": "pass",
     "driverClassName": "com.mysql.cj.jdbc.Driver"
+  }'
+
+# Create CSV datasource
+curl -X POST http://localhost:8080/api/datasources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sales Data CSV",
+    "type": "CSV",
+    "filePath": "sales_2024.csv"
+  }'
+
+# Create XML datasource with XPath
+curl -X POST http://localhost:8080/api/datasources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Customer XML",
+    "type": "XML",
+    "filePath": "customers.xml",
+    "configuration": "/customers/customer"
+  }'
+
+# Create JSON datasource
+curl -X POST http://localhost:8080/api/datasources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Orders JSON",
+    "type": "JSON",
+    "filePath": "orders.json",
+    "configuration": "$.orders[*]"
   }'
 ```
 
@@ -479,16 +549,38 @@ curl -X DELETE http://localhost:8080/api/datasources/1
 POST /api/datasources/test
 Content-Type: application/json
 
+# Test JDBC connection
 curl -X POST http://localhost:8080/api/datasources/test \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Test",
+    "name": "Test MySQL",
+    "type": "JDBC",
     "url": "jdbc:mysql://localhost:3306/mydb",
     "username": "user",
     "password": "pass",
     "driverClassName": "com.mysql.cj.jdbc.Driver"
   }'
+
+# Test CSV file datasource
+curl -X POST http://localhost:8080/api/datasources/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sales CSV",
+    "type": "CSV",
+    "filePath": "sales_data.csv"
+  }'
 ```
+
+#### Upload Data File (CSV/XML/JSON)
+```bash
+POST /api/datasources/upload-file
+Content-Type: multipart/form-data
+
+curl -F "file=@data.csv" http://localhost:8080/api/datasources/upload-file
+curl -F "file=@records.xml" http://localhost:8080/api/datasources/upload-file
+curl -F "file=@data.json" http://localhost:8080/api/datasources/upload-file
+```
+Files are uploaded to `data/datasource_files/` directory.
 
 ### List Available Reports
 
@@ -654,6 +746,132 @@ curl -X POST http://localhost:8080/api/change-password \
   -d "currentPassword=oldpass" \
   -d "newPassword=newpass123" \
   -d "confirmPassword=newpass123"
+```
+
+## Using Multiple Datasource Types in Reports
+
+The application supports various datasource types beyond JDBC databases:
+
+### JDBC Database Sources
+
+Standard relational database connectivity:
+
+1. Design your report with a SQL query in JasperReports Studio or iReport
+2. Upload the JRXML file to the server
+3. Create a JDBC datasource in the "Datasources" tab
+4. When generating the report, select the JDBC datasource
+
+### CSV File Sources
+
+Use CSV files as data sources:
+
+1. **Upload CSV File**: Upload your CSV file via `/api/datasources/upload-file`
+2. **Create Datasource**: Create a CSV-type datasource with the filename
+3. **Design Report**: In your JRXML, define fields matching your CSV column names
+4. **No Query Needed**: CSV datasources don't use SQL queries
+
+**Example JRXML for CSV**:
+```xml
+<field name="ProductName" class="java.lang.String"/>
+<field name="Price" class="java.math.BigDecimal"/>
+<field name="Quantity" class="java.lang.Integer"/>
+
+<!-- No queryString needed for CSV -->
+
+<detail>
+    <band height="20">
+        <textField>
+            <reportElement x="0" y="0" width="200" height="20"/>
+            <textFieldExpression><![CDATA[$F{ProductName}]]></textFieldExpression>
+        </textField>
+    </band>
+</detail>
+```
+
+### XML File Sources
+
+Use XML files with XPath expressions:
+
+1. **Upload XML File**: Upload your XML file
+2. **Create Datasource**: Specify the file and XPath expression (e.g., `/data/record`)
+3. **Design Report**: Define fields matching XML node names
+
+**Example XML Data**:
+```xml
+<data>
+    <record>
+        <name>John Doe</name>
+        <email>john@example.com</email>
+        <age>30</age>
+    </record>
+    <record>
+        <name>Jane Smith</name>
+        <email>jane@example.com</email>
+        <age>25</age>
+    </record>
+</data>
+```
+
+**Example JRXML for XML**:
+```xml
+<field name="name" class="java.lang.String">
+    <fieldDescription><![CDATA[name]]></fieldDescription>
+</field>
+<field name="email" class="java.lang.String">
+    <fieldDescription><![CDATA[email]]></fieldDescription>
+</field>
+<field name="age" class="java.lang.Integer">
+    <fieldDescription><![CDATA[age]]></fieldDescription>
+</field>
+```
+
+### JSON File Sources
+
+Use JSON files with JSONPath expressions:
+
+1. **Upload JSON File**: Upload your JSON file
+2. **Create Datasource**: Specify the file and JSONPath expression (e.g., `$.users[*]`)
+3. **Design Report**: Define fields matching JSON property names
+
+**Example JSON Data**:
+```json
+{
+    "users": [
+        {"id": 1, "name": "Alice", "role": "Admin"},
+        {"id": 2, "name": "Bob", "role": "User"}
+    ]
+}
+```
+
+**Example JRXML for JSON**:
+```xml
+<field name="id" class="java.lang.Integer">
+    <fieldDescription><![CDATA[id]]></fieldDescription>
+</field>
+<field name="name" class="java.lang.String">
+    <fieldDescription><![CDATA[name]]></fieldDescription>
+</field>
+<field name="role" class="java.lang.String">
+    <fieldDescription><![CDATA[role]]></fieldDescription>
+</field>
+```
+
+### Empty Datasource
+
+For static reports without external data:
+
+1. Create an EMPTY-type datasource or don't select any datasource
+2. Use parameters and hard-coded values
+3. Useful for certificates, forms, or parameter-driven reports
+
+### Collection Datasource (API Only)
+
+Pass Java collections programmatically:
+
+```java
+List<MyBean> dataList = getMyData();
+JRBeanCollectionDataSource beanDS = new JRBeanCollectionDataSource(dataList);
+// Pass to report API
 ```
 
 ## Using Database in Reports
@@ -981,6 +1199,7 @@ ReportServer/
 │   │   │   │   └── VariableDTO.java                # Report variable DTO
 │   │   │   ├── model/
 │   │   │   │   ├── DataSource.java                 # Datasource entity
+│   │   │   │   ├── DataSourceType.java             # Datasource type enum
 │   │   │   │   ├── ScheduledReport.java            # Scheduled report entity
 │   │   │   │   └── User.java                       # User entity
 │   │   │   ├── repository/
@@ -990,6 +1209,7 @@ ReportServer/
 │   │   │   └── service/
 │   │   │       ├── DatabaseConnectionService.java  # Database connectivity
 │   │   │       ├── DataSourceService.java          # Datasource business logic
+│   │   │       ├── JRDataSourceProviderService.java # Multi-type datasource provider
 │   │   │       ├── JrxmlBuilderService.java        # Report generation from builder
 │   │   │       ├── ReportSchedulerService.java     # Scheduled report execution engine
 │   │   │       ├── ReportService.java              # Report compilation & rendering
@@ -1010,10 +1230,331 @@ ReportServer/
 │   │           └── user-management.html            # Admin user management
 ├── data/
 │   ├── reports/                                    # Uploaded JRXML files
+│   ├── datasource_files/                           # CSV, XML, JSON data files
 │   ├── scheduled_output/                           # Generated scheduled report files
 │   └── reportserver.mv.db                         # H2 database files
 ├── pom.xml                                         # Maven dependencies
 └── README.md                                       # This file
+```
+
+## Advanced Data Handling Patterns
+
+This section covers advanced datasource usage patterns, multiple datasources per report, and custom implementations.
+
+### Hibernate Integration
+
+The Hibernate datasource type allows seamless integration with Hibernate ORM:
+
+**Option 1: Using Hibernate Session (Recommended)**
+```java
+// In your custom report generation logic
+Session session = sessionFactory.openSession();
+Map<String, Object> parameters = new HashMap<>();
+parameters.put("HIBERNATE_SESSION", session);
+
+// Use HIBERNATE datasource type - it will use the session from parameters
+reportService.generateReport(reportName, parameters, datasourceId);
+```
+
+**Option 2: JDBC Connection with Hibernate**
+Configure the datasource with Hibernate JDBC settings:
+```json
+{
+  "type": "HIBERNATE",
+  "name": "Hibernate DB",
+  "url": "jdbc:mysql://localhost:3306/mydb",
+  "username": "user",
+  "password": "pass",
+  "driverClassName": "com.mysql.cj.jdbc.Driver"
+}
+```
+
+### Custom Datasource Implementation
+
+To implement a custom datasource provider:
+
+1. **Extend JRDataSource** or use existing implementations
+2. **Modify JRDataSourceProviderService** to add your custom type
+
+Example: adding a custom MongoDB implementation:
+```java
+private JRDataSource getMongoDBDataSource(DataSource dataSource, Map<String, Object> parameters) {
+    // Parse configuration JSON
+    String config = dataSource.getConfiguration();
+    JSONObject jsonConfig = new JSONObject(config);
+    
+    // Connect to MongoDB
+    MongoClient mongoClient = MongoClients.create(dataSource.getUrl());
+    MongoDatabase database = mongoClient.getDatabase(jsonConfig.getString("database"));
+    MongoCollection<Document> collection = database.getCollection(jsonConfig.getString("collection"));
+    
+    // Query documents
+    String queryString = jsonConfig.optString("query", "{}");
+    Bson query = BsonDocument.parse(queryString);
+    List<Document> documents = collection.find(query).into(new ArrayList<>());
+    
+    // Convert to Map list for JRBeanCollectionDataSource
+    List<Map<String, Object>> data = documents.stream()
+        .map(doc -> new HashMap<String, Object>(doc))
+        .collect(Collectors.toList());
+    
+    return new JRBeanCollectionDataSource(data);
+}
+```
+
+### Multiple Datasources in One Report with Subreports
+
+Use subreports to combine data from different sources:
+
+**Main Report JRXML** (main_report.jrxml):
+```xml
+<jasperReport>
+    <parameter name="SUBREPORT_DIR" class="java.lang.String"/>
+    <parameter name="SUBREPORT_DATASOURCE" class="net.sf.jasperreports.engine.JRDataSource"/>
+    
+    <detail>
+        <band height="200">
+            <!-- Main datasource data -->
+            <textField>
+                <reportElement x="0" y="0" width="200" height="20"/>
+                <textFieldExpression>
+                    <![CDATA[$F{mainField}]]>
+                </textFieldExpression>
+            </textField>
+            
+            <!-- Subreport with different datasource -->
+            <subreport>
+                <reportElement x="0" y="30" width="500" height="150"/>
+                <dataSourceExpression>
+                    <![CDATA[$P{SUBREPORT_DATASOURCE}]]>
+                </dataSourceExpression>
+                <subreportExpression>
+                    <![CDATA[$P{SUBREPORT_DIR} + "subreport.jasper"]]>
+                </subreportExpression>
+            </subreport>
+        </band>
+    </detail>
+</jasperReport>
+```
+
+**Generate Report with Multiple Datasources:**
+```bash
+# Create parameters for subreport datasource
+curl -X POST http://localhost:8080/api/reports/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reportName": "main_report",
+    "format": "PDF",
+    "datasourceId": 1,
+    "parameters": {
+      "SUBREPORT_DIR": "/path/to/reports/",
+      "SUBREPORT_DATASOURCE": "@datasource:2"
+    }
+  }'
+```
+
+### Using Datasets for Complex Reports
+
+Datasets allow organizing multiple queries within a single report:
+
+```xml
+<jasperReport>
+    <!-- Main query -->
+    <queryString>
+        <![CDATA[SELECT * FROM customers WHERE active = true]]>
+    </queryString>
+    
+    <!-- Subdataset for orders -->
+    <subDataset name="OrdersDataset">
+        <parameter name="CustomerId" class="java.lang.Integer"/>
+        <queryString>
+            <![CDATA[SELECT * FROM orders WHERE customer_id = $P{CustomerId}]]>
+        </queryString>
+        <field name="order_id" class="java.lang.Integer"/>
+        <field name="order_date" class="java.util.Date"/>
+        <field name="amount" class="java.math.BigDecimal"/>
+    </subDataset>
+    
+    <!-- Main dataset fields -->
+    <field name="customer_id" class="java.lang.Integer"/>
+    <field name="customer_name" class="java.lang.String"/>
+    
+    <detail>
+        <band height="300">
+            <textField>
+                <reportElement x="0" y="0" width="200" height="20"/>
+                <textFieldExpression>
+                    <![CDATA[$F{customer_name}]]>
+                </textFieldExpression>
+            </textField>
+            
+            <!-- Table using subdataset -->
+            <componentElement>
+                <reportElement x="0" y="30" width="500" height="250"/>
+                <jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components">
+                    <datasetRun subDataset="OrdersDataset">
+                        <datasetParameter name="CustomerId">
+                            <datasetParameterExpression>
+                                <![CDATA[$F{customer_id}]]>
+                            </datasetParameterExpression>
+                        </datasetParameter>
+                        <connectionExpression>
+                            <![CDATA[$P{REPORT_CONNECTION}]]>
+                        </connectionExpression>
+                    </datasetRun>
+                    <jr:column width="100">
+                        <jr:detailCell height="20">
+                            <textField>
+                                <reportElement x="0" y="0" width="100" height="20"/>
+                                <textFieldExpression>
+                                    <![CDATA[$F{order_id}]]>
+                                </textFieldExpression>
+                            </textField>
+                        </jr:detailCell>
+                    </jr:column>
+                </jr:table>
+            </componentElement>
+        </band>
+    </detail>
+</jasperReport>
+```
+
+### EJB and JavaBeans Support
+
+Use the COLLECTION datasource type for JavaBeans and EJBs:
+
+**Example: Passing POJOs to Report**
+```java
+// Define your POJO
+public class Customer {
+    private String name;
+    private String email;
+    private Double totalPurchases;
+    // Getters and setters
+}
+
+// Create collection
+List<Customer> customers = customerService.findAll();
+
+// Pass to JasperReports
+Map<String, Object> parameters = new HashMap<>();
+parameters.put("REPORT_DATA_SOURCE", new JRBeanCollectionDataSource(customers));
+
+// Generate report using COLLECTION datasource type
+reportService.generateReport("customer_report", parameters, collectionDatasourceId);
+```
+
+**JRXML for POJO fields:**
+```xml
+<jasperReport>
+    <field name="name" class="java.lang.String"/>
+    <field name="email" class="java.lang.String"/>
+    <field name="totalPurchases" class="java.lang.Double"/>
+    
+    <detail>
+        <band height="20">
+            <textField>
+                <reportElement x="0" y="0" width="150" height="20"/>
+                <textFieldExpression>
+                    <![CDATA[$F{name}]]>
+                </textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="150" y="0" width="150" height="20"/>
+                <textFieldExpression>
+                    <![CDATA[$F{email}]]>
+                </textFieldExpression>
+            </textField>
+            <textField pattern="#,##0.00">
+                <reportElement x="300" y="0" width="100" height="20"/>
+                <textFieldExpression>
+                    <![CDATA[$F{totalPurchases}]]>
+                </textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+</jasperReport>
+```
+
+### REST API with Authentication
+
+For REST APIs requiring authentication:
+
+```json
+{
+  "type": "REST_API",
+  "name": "External API",
+  "url": "https://api.example.com/data",
+  "username": "api_user",
+  "password": "api_token",
+  "configuration": "$.results[*]"
+}
+```
+
+The system will:
+- Add Basic Authentication headers automatically
+- Parse JSON response using JSONPath expression
+- Support both JSON and XML responses (auto-detected from Content-Type)
+
+### Big Data and Non-Relational Sources
+
+**For Big Data sources:**
+1. Query data from your Big Data platform (Hadoop, Spark, etc.)
+2. Convert to List<Map<String, Object>> or List<YourPOJO>
+3. Use COLLECTION datasource type
+4. Pass collection via parameters
+
+**Example with Spark:**
+```java
+// Query Spark
+Dataset<Row> df = sparkSession.sql("SELECT * FROM big_table WHERE date = current_date()");
+List<Row> rows = df.collectAsList();
+
+// Convert to Maps
+List<Map<String, Object>> data = rows.stream()
+    .map(row -> {
+        Map<String, Object> map = new HashMap<>();
+        for (String field : row.schema().fieldNames()) {
+            map.put(field, row.getAs(field));
+        }
+        return map;
+    })
+    .collect(Collectors.toList());
+
+// Create datasource
+JRDataSource dataSource = new JRBeanCollectionDataSource(data);
+parameters.put("REPORT_DATA_SOURCE", dataSource);
+```
+
+### Rewindable Data Sources
+
+JasperReports automatically handles rewindable datasources for features like:
+- **Crosstabs** - Require multiple passes through data
+- **Charts with calculations** - May need to scan data twice
+- **Report totals** - Calculate before detail rendering
+
+For custom datasources, ensure they implement the rewind capability:
+```java
+public class CustomRewindableDataSource implements JRRewindableDataSource {
+    private List<Record> records;
+    private int index = -1;
+    
+    @Override
+    public boolean next() {
+        index++;
+        return index < records.size();
+    }
+    
+    @Override
+    public Object getFieldValue(JRField field) {
+        return records.get(index).get(field.getName());
+    }
+    
+    @Override
+    public void moveFirst() {
+        index = -1; // Reset for rewind
+    }
+}
 ```
 
 ## Technologies Used
@@ -1022,12 +1563,25 @@ ReportServer/
 - **Spring Security** - Authentication and authorization
 - **Spring Data JPA** - Database access layer
 - **H2 Database** - Embedded database for application data
-- **JasperReports 6.20.6** - Report generation engine
+- **JasperReports 6.20.6** - Report generation engine with multi-datasource support
+- **JRDataSource API** - Support for JDBC, CSV, XML, JSON, MongoDB, REST API, Hibernate, and collection datasources
 - **Thymeleaf** - Server-side templating
 - **Monaco Editor** - Browser-based code editor
 - **MySQL Connector** - MySQL database driver
 - **PostgreSQL Driver** - PostgreSQL database driver
 - **Maven** - Build and dependency management
+
+### Supported Datasource Types
+
+1. **JDBC** - MySQL, PostgreSQL, H2, Oracle, SQL Server, and any JDBC-compliant database
+2. **CSV** - Comma-separated values files with configurable delimiters
+3. **XML** - XML files with XPath selector expressions
+4. **JSON** - JSON files and APIs with JSONPath selector expressions
+5. **MongoDB** - NoSQL database (requires custom implementation or REST API wrapper)
+6. **REST API** - HTTP/HTTPS endpoints returning JSON or XML (with authentication support)
+7. **Hibernate** - Hibernate ORM sessions or JDBC connections
+8. **Empty** - Static reports without external data
+9. **Collection** - JavaBeans, POJOs, EJBs, Lists, and Java collections
 
 ## Contributing
 
