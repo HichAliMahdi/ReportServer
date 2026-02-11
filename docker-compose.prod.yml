@@ -1,0 +1,71 @@
+# Production Docker Compose Configuration
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  reportserver:
+    # Use pre-built image or specify version tag
+    image: reportserver:${VERSION:-latest}
+    
+    # Always restart on failure
+    restart: always
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    environment:
+      # Production JVM settings
+      - JAVA_OPTS=-Xmx1536m -Xms768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
+      
+      # Production logging
+      - LOGGING_LEVEL_ROOT=WARN
+      - LOGGING_LEVEL_COM_REPORTSERVER=INFO
+      
+      # Disable H2 console in production
+      - SPRING_H2_CONSOLE_ENABLED=false
+      
+      # Production database URL (use absolute path for reliability)
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/app/data/reportserver;AUTO_SERVER=TRUE;MODE=PostgreSQL
+      
+      # Higher file upload limits for production
+      - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=100MB
+      - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=100MB
+      
+      # Actuator security
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=when-authorized
+    
+    # More aggressive health check for production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    
+    # Use named volumes instead of bind mounts for better performance
+    volumes:
+      - reportserver-data-prod:/app/data
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  reportserver-data-prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data-production

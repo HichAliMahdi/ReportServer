@@ -288,13 +288,96 @@ java -jar target/jasper-report-server-1.0.0.jar --server.port=9090
 
 The application will start on `http://localhost:8080` (or your custom port)
 
-### Docker (Optional)
-```bash
-# Build image
-docker build -t jasper-report-server .
+## Docker Deployment
 
-# Run container
-docker run -p 8080:8080 jasper-report-server
+### Using Docker Compose (Recommended)
+
+The easiest way to run the application is with Docker Compose:
+
+```bash
+# Build and start the container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the container
+docker-compose down
+
+# Rebuild after code changes
+docker-compose up -d --build
+```
+
+The application will be available at `http://localhost:8080`
+
+**Data Persistence**: The `./data` directory is mounted as a volume, so your database, reports, and uploaded files persist between container restarts.
+
+### Using Docker Manually
+
+```bash
+# Build the image
+docker build -t reportserver:latest .
+
+# Run the container
+docker run -d \
+  --name jasper-report-server \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -e JAVA_OPTS="-Xmx1g -Xms512m" \
+  reportserver:latest
+
+# View logs
+docker logs -f jasper-report-server
+
+# Stop the container
+docker stop jasper-report-server
+
+# Remove the container
+docker rm jasper-report-server
+```
+
+### Configuration
+
+You can customize the deployment by modifying `docker-compose.yml`:
+
+**Memory Settings**:
+```yaml
+environment:
+  - JAVA_OPTS=-Xmx2g -Xms1g  # Increase memory for large reports
+```
+
+**Port Mapping**:
+```yaml
+ports:
+  - "9090:8080"  # Run on port 9090 instead
+```
+
+**File Upload Limits**:
+```yaml
+environment:
+  - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=100MB
+  - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=100MB
+```
+
+### Multi-Stage Build
+
+The Dockerfile uses a multi-stage build for optimal image size:
+- **Stage 1**: Builds the application with Maven (builder)
+- **Stage 2**: Creates a lightweight runtime image with only the JRE
+
+Final image size: ~350MB (compared to ~800MB with full JDK)
+
+### Health Check
+
+The container includes a health check that monitors application status:
+- **Interval**: 30 seconds
+- **Timeout**: 10 seconds
+- **Start Period**: 60 seconds (time for app to start)
+
+Check container health:
+```bash
+docker ps  # Look for "healthy" status
+docker inspect jasper-report-server --format='{{.State.Health.Status}}'
 ```
 
 ## API Endpoints

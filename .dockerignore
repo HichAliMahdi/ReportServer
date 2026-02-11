@@ -1,0 +1,47 @@
+# Maven build output
+target/
+!target/*.jar
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# Data files (will be mounted as volumes)
+data/reportserver.*.db
+data/reportserver.*.db.tmp
+data/datasource_files/*
+
+# Logs
+*.log
+logs/
+
+# Test files
+src/test/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+docker-compose.prod.yml
+.dockerignore
+.env
+.env.example
+DOCKER.md
