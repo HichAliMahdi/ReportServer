@@ -486,6 +486,97 @@
         .confirm-modal-btn-confirm:hover {
             background: #c82333;
         }
+        
+        /* Visual Builder Styles */
+        .toolbox-item {
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: move;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .toolbox-item:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+        .canvas-element {
+            position: absolute;
+            border: 1px solid #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            cursor: move;
+            padding: 5px;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        .canvas-element.selected {
+            border: 2px solid #667eea;
+            background: rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+        .canvas-element:hover {
+            border-color: #4c5de5;
+        }
+        .image-gallery-item {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .image-gallery-item:hover {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+        .image-gallery-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        .image-gallery-item .image-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px;
+            display: flex;
+            justify-content: space-between;
+            gap: 5px;
+        }
+        .image-gallery-item button {
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .template-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: white;
+            transition: all 0.2s;
+        }
+        .template-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .template-item h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+        .template-item .template-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -603,6 +694,20 @@
 
         <!-- Report Builder Tab -->
         <div id="builderTab" class="tab-content">
+            <!-- Builder Mode Toggle -->
+            <div class="card" style="padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button class="btn" id="formBuilderBtn" onclick="switchBuilderMode('form')" style="flex: 1; max-width: 200px; background: #667eea;">
+                        📝 Form Builder
+                    </button>
+                    <button class="btn" id="visualBuilderBtn" onclick="switchBuilderMode('visual')" style="flex: 1; max-width: 200px; background: #6c757d;">
+                        🎨 Visual Builder
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Form Builder (existing) -->
+            <div id="formBuilderSection">
             <div class="card">
                 <h2>🔧 Report Builder</h2>
                 <p style="color: #666; margin-bottom: 20px;">Build a simple report from database tables</p>
@@ -729,6 +834,118 @@
                     
                     <div id="builderMessage" style="margin-top: 15px;"></div>
                 </form>
+            </div>
+            </div>
+            
+            <!-- Visual Builder Section -->
+            <div id="visualBuilderSection" style="display: none;">
+                <div class="card">
+                    <h2>🎨 Visual Report Builder</h2>
+                    <p style="color: #666; margin-bottom: 20px;">Design your report visually with drag-and-drop elements</p>
+                    
+                    <!-- Data Source Configuration -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; font-size: 16px; color: #667eea;">📊 Data Source Configuration</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="visualDatasource">Datasource:</label>
+                                <select id="visualDatasource" onchange="loadVisualBuilderTables()" style="width: 100%;">
+                                    <option value="">-- Select datasource --</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="visualTable">Table:</label>
+                                <select id="visualTable" onchange="loadVisualBuilderColumns()" style="width: 100%;">
+                                    <option value="">-- Select table --</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="visualSqlQuery">Custom SQL Query:</label>
+                                <button class="btn" onclick="openQueryEditor()" style="width: 100%; padding: 8px; font-size: 13px;">✏️ Edit Query</button>
+                            </div>
+                        </div>
+                        <div id="visualFieldsList" style="display: none; margin-top: 15px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+                            <strong style="color: #667eea; display: block; margin-bottom: 10px;">📋 Available Fields:</strong>
+                            <div id="visualFieldsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Toolbar -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="text" id="visualReportName" placeholder="Report Name" style="flex: 1; min-width: 200px;" />
+                        <button class="btn" onclick="openTemplateManager()" style="background: #17a2b8;">📋 Templates</button>
+                        <button class="btn" onclick="openImageManager()" style="background: #28a745;">🖼️ Images</button>
+                        <button class="btn" onclick="openPageSettings()" style="background: #6c757d;">⚙️ Page Settings</button>
+                        <button class="btn" onclick="saveAsTemplate()" style="background: #ffc107; color: #333;">💾 Save as Template</button>
+                        <button class="btn" onclick="generateFromVisualDesign()">🚀 Generate Report</button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 20px; min-height: 600px;">
+                        <!-- Left: Toolbox -->
+                        <div style="width: 200px; border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                            <h3 style="margin-top: 0; color: #667eea; font-size: 16px;">🧰 Toolbox</h3>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button class="toolbox-item" onclick="addElement('text')" draggable="true" ondragstart="handleToolboxDrag(event, 'text')">
+                                    📝 Text Label
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('image')" draggable="true" ondragstart="handleToolboxDrag(event, 'image')">
+                                    🖼️ Image
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('line')" draggable="true" ondragstart="handleToolboxDrag(event, 'line')">
+                                    ➖ Line
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('rectangle')" draggable="true" ondragstart="handleToolboxDrag(event, 'rectangle')">
+                                    ▭ Rectangle
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('field')" draggable="true" ondragstart="handleToolboxDrag(event, 'field')" title="Add a database field">
+                                    🔤 Database Field
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('pageNumber')" draggable="true" ondragstart="handleToolboxDrag(event, 'pageNumber')" title="Add page number">
+                                    📄 Page Number
+                                </button>
+                                <button class="toolbox-item" onclick="addElement('currentDate')" draggable="true" ondragstart="handleToolboxDrag(event, 'currentDate')" title="Add current date">
+                                    📅 Current Date
+                                </button>
+                            </div>
+                            
+                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+                                <h4 style="font-size: 14px; color: #667eea; margin-bottom: 10px;">📏 Canvas Band:</h4>
+                                <select id="currentBand" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+                                    <option value="title">Title</option>
+                                    <option value="pageHeader">Page Header</option>
+                                    <option value="columnHeader">Column Header</option>
+                                    <option value="detail" selected>Detail</option>
+                                    <option value="columnFooter">Column Footer</option>
+                                    <option value="pageFooter">Page Footer</option>
+                                    <option value="summary">Summary</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Center: Canvas -->
+                        <div style="flex: 1; border: 2px dashed #ccc; border-radius: 8px; background: white; position: relative; overflow: auto; min-height: 600px;" 
+                             id="visualCanvas" 
+                             ondrop="handleDrop(event)" 
+                             ondragover="handleDragOver(event)"
+                             onclick="selectElement(null)">
+                            <div style="text-align: center; padding: 40px; color: #999;">
+                                <p style="font-size: 24px;">📄</p>
+                                <p>Drag elements from the toolbox to start designing</p>
+                                <p style="font-size: 12px; margin-top: 10px;">Current Band: <span id="bandIndicator">Detail</span></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Right: Properties Panel -->
+                        <div style="width: 250px; border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa; overflow-y: auto;">
+                            <h3 style="margin-top: 0; color: #667eea; font-size: 16px;">⚙️ Properties</h3>
+                            <div id="propertiesPanel">
+                                <p style="color: #999; font-size: 13px;">Select an element to edit its properties</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="visualBuilderMessage" style="margin-top: 15px;"></div>
+                </div>
             </div>
         </div>
 
@@ -1328,6 +1545,121 @@
                 </div>
                 
                 <div id="modalQueryError" style="display: none; margin-top: 20px; padding: 15px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 6px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Manager Modal -->
+    <div id="imageManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeImageManager()">&times;</span>
+                <h3>🖼️ Image Manager</h3>
+            </div>
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 20px;">
+                    <input type="file" id="imageUploadInput" accept="image/*" onchange="uploadImage()" style="display: none;">
+                    <button class="btn" onclick="document.getElementById('imageUploadInput').click()">📤 Upload Image</button>
+                    <p style="color: #666; font-size: 12px; margin-top: 5px;">Supported formats: JPG, PNG, GIF, BMP, SVG</p>
+                </div>
+                
+                <div id="imageGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; max-height: 400px; overflow-y: auto;">
+                    <p style="color: #999;">Loading images...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Manager Modal -->
+    <div id="templateManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeTemplateManager()">&times;</span>
+                <h3>📋 Template Manager</h3>
+            </div>
+            <div style="padding: 20px;">
+                <p style="color: #666; margin-bottom: 15px;">Load or delete saved report templates</p>
+                
+                <div id="templateList" style="max-height: 400px; overflow-y: auto;">
+                    <p style="color: #999;">Loading templates...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Settings Modal -->
+    <div id="pageSettingsModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="close" onclick="closePageSettings()">&times;</span>
+                <h3>⚙️ Page Settings</h3>
+            </div>
+            <form onsubmit="applyPageSettings(event)" style="padding: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="pageWidth">Page Width (px):</label>
+                        <input type="number" id="pageWidth" value="595" min="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pageHeight">Page Height (px):</label>
+                        <input type="number" id="pageHeight" value="842" min="100" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pageOrientation">Orientation:</label>
+                    <select id="pageOrientation">
+                        <option value="Portrait">Portrait</option>
+                        <option value="Landscape">Landscape</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="marginTop">Top Margin:</label>
+                        <input type="number" id="marginTop" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginBottom">Bottom Margin:</label>
+                        <input type="number" id="marginBottom" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginLeft">Left Margin:</label>
+                        <input type="number" id="marginLeft" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginRight">Right Margin:</label>
+                        <input type="number" id="marginRight" value="20" min="0" required>
+                    </div>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closePageSettings()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Apply Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Query Editor Modal -->
+    <div id="queryEditorModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeQueryEditor()">&times;</span>
+                <h3>✏️ Custom SQL Query</h3>
+            </div>
+            <div style="padding: 20px;">
+                <p style="color: #666; margin-bottom: 15px;">Write a custom SQL query to fetch data for your report. The query will override the selected table.</p>
+                
+                <div class="form-group">
+                    <label for="customSqlQuery">SQL Query:</label>
+                    <textarea id="customSqlQuery" rows="12" placeholder="SELECT * FROM tablename&#10;WHERE condition = value&#10;ORDER BY column" style="font-family: 'Courier New', monospace; padding: 12px; width: 100%; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closeQueryEditor()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="button" class="btn" onclick="applyCustomQuery()">Apply Query</button>
+                </div>
             </div>
         </div>
     </div>
@@ -3455,6 +3787,1021 @@
                 .catch(err => {
                     alert('Error executing schedule: ' + err.message);
                 });
+        }
+
+        // ========== Visual Builder Functions ==========
+        
+        let visualBuilder = {
+            elements: [],
+            selectedElement: null,
+            nextId: 1,
+            currentBand: 'detail',
+            datasourceId: null,
+            tableName: '',
+            availableFields: [],
+            customQuery: '',
+            pageSettings: {
+                width: 595,
+                height: 842,
+                leftMargin: 20,
+                rightMargin: 20,
+                topMargin: 20,
+                bottomMargin: 20,
+                orientation: 'Portrait'
+            }
+        };
+
+        function switchBuilderMode(mode) {
+            const formSection = document.getElementById('formBuilderSection');
+            const visualSection = document.getElementById('visualBuilderSection');
+            const formBtn = document.getElementById('formBuilderBtn');
+            const visualBtn = document.getElementById('visualBuilderBtn');
+            
+            if (mode === 'form') {
+                formSection.style.display = 'block';
+                visualSection.style.display = 'none';
+                formBtn.style.background = '#667eea';
+                visualBtn.style.background = '#6c757d';
+            } else {
+                formSection.style.display = 'none';
+                visualSection.style.display = 'block';
+                formBtn.style.background = '#6c757d';
+                visualBtn.style.background = '#667eea';
+                // Load datasources when switching to visual builder
+                loadVisualBuilderDatasources();
+            }
+        }
+
+        function loadVisualBuilderDatasources() {
+            fetch('/api/datasources')
+                .then(response => response.json())
+                .then(datasources => {
+                    const select = document.getElementById('visualDatasource');
+                    select.innerHTML = '<option value="">-- Select datasource --</option>';
+                    datasources.forEach(ds => {
+                        const option = document.createElement('option');
+                        option.value = ds.id;
+                        option.textContent = ds.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading datasources:', error);
+                });
+        }
+
+        function loadVisualBuilderTables() {
+            const datasourceSelect = document.getElementById('visualDatasource');
+            const datasourceId = datasourceSelect.value;
+            const tableSelect = document.getElementById('visualTable');
+            
+            tableSelect.innerHTML = '<option value="">-- Select table --</option>';
+            document.getElementById('visualFieldsList').style.display = 'none';
+            visualBuilder.datasourceId = datasourceId ? parseInt(datasourceId) : null;
+            visualBuilder.availableFields = [];
+            
+            if (!datasourceId) return;
+            
+            fetch(`/api/builder/datasources/${datasourceId}/tables`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.tables) {
+                        data.tables.forEach(table => {
+                            const option = document.createElement('option');
+                            option.value = table;
+                            option.textContent = table;
+                            tableSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading tables:', error);
+                    showMessage('Error loading tables: ' + error, 'error');
+                });
+        }
+
+        function loadVisualBuilderColumns() {
+            const tableSelect = document.getElementById('visualTable');
+            const tableName = tableSelect.value;
+            const datasourceId = visualBuilder.datasourceId;
+            
+            visualBuilder.tableName = tableName;
+            visualBuilder.availableFields = [];
+            document.getElementById('visualFieldsList').style.display = 'none';
+            
+            if (!datasourceId || !tableName) return;
+            
+            fetch(`/api/builder/datasources/${datasourceId}/tables/${tableName}/columns`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.columns) {
+                        visualBuilder.availableFields = data.columns;
+                        displayVisualBuilderFields();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading columns:', error);
+                    showMessage('Error loading columns: ' + error, 'error');
+                });
+        }
+
+        function displayVisualBuilderFields() {
+            const container = document.getElementById('visualFieldsContainer');
+            const fieldsList = document.getElementById('visualFieldsList');
+            
+            if (visualBuilder.availableFields.length === 0) {
+                fieldsList.style.display = 'none';
+                return;
+            }
+            
+            container.innerHTML = '';
+            visualBuilder.availableFields.forEach(field => {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'padding: 5px 10px; background: #667eea; color: white; border-radius: 4px; font-size: 12px; cursor: pointer;';
+                badge.textContent = field.name;
+                badge.title = `${field.type} - Drag to canvas or click to add`;
+                badge.draggable = true;
+                badge.onclick = () => addFieldElement(field);
+                badge.ondragstart = (e) => {
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('elementType', 'field');
+                    e.dataTransfer.setData('fieldName', field.name);
+                    e.dataTransfer.setData('fieldType', field.type);
+                };
+                container.appendChild(badge);
+            });
+            
+            fieldsList.style.display = 'block';
+        }
+
+        function addFieldElement(field) {
+            const band = document.getElementById('currentBand').value;
+            const element = {
+                id: visualBuilder.nextId++,
+                type: 'field',
+                band: band,
+                x: 50 + (visualBuilder.elements.filter(e => e.band === band).length * 20),
+                y: 50 + (visualBuilder.elements.filter(e => e.band === band).length * 20),
+                width: 100,
+                height: 20,
+                text: '',
+                fieldName: field.name,
+                fieldType: field.type,
+                fontName: 'Arial',
+                fontSize: 10,
+                bold: false,
+                italic: false,
+                alignment: 'Left',
+                color: '#000000'
+            };
+            
+            visualBuilder.elements.push(element);
+            renderCanvas();
+            selectElement(element.id);
+            showMessage(`Field "${field.name}" added to canvas`, 'success');
+        }
+
+        function addElement(type) {
+            const band = document.getElementById('currentBand').value;
+            
+            let element = {
+                id: visualBuilder.nextId++,
+                type: type,
+                band: band,
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 30,
+                fontName: 'Arial',
+                fontSize: 12,
+                bold: false,
+                italic: false,
+                alignment: 'Left',
+                color: '#000000'
+            };
+            
+            switch(type) {
+                case 'text':
+                    element.text = 'Text Label';
+                    break;
+                case 'line':
+                    element.width = 200;
+                    element.height = 2;
+                    break;
+                case 'rectangle':
+                    element.width = 150;
+                    element.height = 100;
+                    break;
+                case 'image':
+                    element.imagePath = '';
+                    element.text = '';
+                    break;
+                case 'pageNumber':
+                    element.text = 'Page ';
+                    element.expression = '$V{PAGE_NUMBER}';
+                    break;
+                case 'currentDate':
+                    element.text = '';
+                    element.expression = 'new java.util.Date()';
+                    element.pattern = 'dd/MM/yyyy';
+                    break;
+                case 'field':
+                    element.fieldName = 'fieldName';
+                    element.fieldType = 'String';
+                    element.height = 20;
+                    element.fontSize = 10;
+                    break;
+                default:
+                    element.text = type.toUpperCase();
+            }
+            
+            visualBuilder.elements.push(element);
+            renderCanvas();
+            selectElement(element.id);
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('visualCanvas');
+            canvas.innerHTML = '';
+            
+            const currentBand = document.getElementById('currentBand').value;
+            document.getElementById('bandIndicator').textContent = currentBand.charAt(0).toUpperCase() + currentBand.slice(1);
+            
+            // Filter elements by current band
+            const bandElements = visualBuilder.elements.filter(el => el.band === currentBand);
+            
+            if (bandElements.length === 0) {
+                canvas.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        <p style="font-size: 24px;">📄</p>
+                        <p>Drag elements from the toolbox to start designing</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Current Band: ${currentBand.charAt(0).toUpperCase() + currentBand.slice(1)}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            bandElements.forEach(element => {
+                const div = document.createElement('div');
+                div.className = 'canvas-element';
+                if (visualBuilder.selectedElement === element.id) {
+                    div.classList.add('selected');
+                }
+                div.style.left = element.x + 'px';
+                div.style.top = element.y + 'px';
+                div.style.width = element.width + 'px';
+                div.style.height = element.height + 'px';
+                
+                // Content based on type
+                if (element.type === 'text') {
+                    div.textContent = element.text;
+                    div.style.fontFamily = element.fontName;
+                    div.style.fontSize = element.fontSize + 'px';
+                    div.style.fontWeight = element.bold ? 'bold' : 'normal';
+                    div.style.fontStyle = element.italic ? 'italic' : 'normal';
+                    div.style.textAlign = element.alignment.toLowerCase();
+                    div.style.color = element.color;
+                } else if (element.type === 'field') {
+                    div.textContent = '$F{' + (element.fieldName || 'fieldName') + '}';
+                    div.style.fontFamily = element.fontName;
+                    div.style.fontSize = element.fontSize + 'px';
+                    div.style.fontWeight = element.bold ? 'bold' : 'normal';
+                    div.style.fontStyle = element.italic ? 'italic' : 'normal';
+                    div.style.textAlign = element.alignment.toLowerCase();
+                    div.style.color = element.color;
+                    div.style.background = 'rgba(40, 167, 69, 0.1)';
+                } else if (element.type === 'pageNumber') {
+                    div.textContent = element.text + '$V{PAGE_NUMBER}';
+                    div.style.fontFamily = element.fontName;
+                    div.style.fontSize = element.fontSize + 'px';
+                    div.style.textAlign = element.alignment.toLowerCase();
+                    div.style.background = 'rgba(23, 162, 184, 0.1)';
+                } else if (element.type === 'currentDate') {
+                    const now = new Date();
+                    div.textContent = now.toLocaleDateString();
+                    div.style.fontFamily = element.fontName;
+                    div.style.fontSize = element.fontSize + 'px';
+                    div.style.textAlign = element.alignment.toLowerCase();
+                    div.style.background = 'rgba(255, 193, 7, 0.1)';
+                } else if (element.type === 'image') {
+                    if (element.imagePath) {
+                        const img = document.createElement('img');
+                        img.src = '/' + element.imagePath;
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'contain';
+                        div.appendChild(img);
+                    } else {
+                        div.textContent = '🖼️ Image';
+                        div.style.display = 'flex';
+                        div.style.alignItems = 'center';
+                        div.style.justifyContent = 'center';
+                    }
+                } else if (element.type === 'line') {
+                    div.style.background = '#000';
+                } else if (element.type === 'rectangle') {
+                    div.style.background = 'transparent';
+                    div.style.border = '2px solid #000';
+                } else {
+                    div.textContent = element.type.toUpperCase();
+                }
+                
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    selectElement(element.id);
+                };
+                
+                div.onmousedown = (e) => startDrag(e, element.id);
+                
+                canvas.appendChild(div);
+            });
+        }
+
+        let dragState = null;
+
+        function startDrag(e, elementId) {
+            e.stopPropagation();
+            const element = visualBuilder.elements.find(el => el.id === elementId);
+            if (!element) return;
+            
+            dragState = {
+                elementId: elementId,
+                startX: e.clientX,
+                startY: e.clientY,
+                originalX: element.x,
+                originalY: element.y
+            };
+            
+            document.onmousemove = continueDrag;
+            document.onmouseup = endDrag;
+        }
+
+        function continueDrag(e) {
+            if (!dragState) return;
+            
+            const deltaX = e.clientX - dragState.startX;
+            const deltaY = e.clientY - dragState.startY;
+            
+            const element = visualBuilder.elements.find(el => el.id === dragState.elementId);
+            if (element) {
+                element.x = Math.max(0, dragState.originalX + deltaX);
+                element.y = Math.max(0, dragState.originalY + deltaY);
+                renderCanvas();
+            }
+        }
+
+        function endDrag() {
+            dragState = null;
+            document.onmousemove = null;
+            document.onmouseup = null;
+        }
+
+        function selectElement(elementId) {
+            visualBuilder.selectedElement = elementId;
+            renderCanvas();
+            updatePropertiesPanel();
+        }
+
+        function updatePropertiesPanel() {
+            const panel = document.getElementById('propertiesPanel');
+            
+            if (!visualBuilder.selectedElement) {
+                panel.innerHTML = '<p style="color: #999; font-size: 13px;">Select an element to edit its properties</p>';
+                return;
+            }
+            
+            const element = visualBuilder.elements.find(el => el.id === visualBuilder.selectedElement);
+            if (!element) return;
+            
+            let html = `
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #667eea;">${element.type.toUpperCase()}</strong>
+                    <button onclick="deleteSelectedElement()" style="float: right; background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Delete</button>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size: 12px;">Position X:</label>
+                    <input type="number" value="${element.x}" onchange="updateElementProperty('x', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size: 12px;">Position Y:</label>
+                    <input type="number" value="${element.y}" onchange="updateElementProperty('y', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size: 12px;">Width:</label>
+                    <input type="number" value="${element.width}" onchange="updateElementProperty('width', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size: 12px;">Height:</label>
+                    <input type="number" value="${element.height}" onchange="updateElementProperty('height', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                </div>
+            `;
+            
+            if (element.type === 'text') {
+                html += `
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Text:</label>
+                        <textarea onchange="updateElementProperty('text', this.value)" style="width: 100%; padding: 5px; font-size: 12px; min-height: 60px;">${element.text}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Font:</label>
+                        <select onchange="updateElementProperty('fontName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                            <option ${element.fontName === 'Arial' ? 'selected' : ''}>Arial</option>
+                            <option ${element.fontName === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
+                            <option ${element.fontName === 'Courier' ? 'selected' : ''}>Courier</option>
+                            <option ${element.fontName === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Font Size:</label>
+                        <input type="number" value="${element.fontSize}" onchange="updateElementProperty('fontSize', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px; display: flex; align-items: center;">
+                            <input type="checkbox" ${element.bold ? 'checked' : ''} onchange="updateElementProperty('bold', this.checked)" style="margin-right: 5px;">
+                            Bold
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px; display: flex; align-items: center;">
+                            <input type="checkbox" ${element.italic ? 'checked' : ''} onchange="updateElementProperty('italic', this.checked)" style="margin-right: 5px;">
+                            Italic
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Alignment:</label>
+                        <select onchange="updateElementProperty('alignment', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                            <option ${element.alignment === 'Left' ? 'selected' : ''}>Left</option>
+                            <option ${element.alignment === 'Center' ? 'selected' : ''}>Center</option>
+                            <option ${element.alignment === 'Right' ? 'selected' : ''}>Right</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Color:</label>
+                        <input type="color" value="${element.color}" onchange="updateElementProperty('color', this.value)" style="width: 100%; height: 35px;">
+                    </div>
+                `;
+            } else if (element.type === 'field') {
+                html += `
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Field Name:</label>
+                        <input type="text" value="${element.fieldName || ''}" onchange="updateElementProperty('fieldName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Field Type:</label>
+                        <select onchange="updateElementProperty('fieldType', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                            <option ${element.fieldType === 'String' ? 'selected' : ''}>String</option>
+                            <option ${element.fieldType === 'Integer' ? 'selected' : ''}>Integer</option>
+                            <option ${element.fieldType === 'Long' ? 'selected' : ''}>Long</option>
+                            <option ${element.fieldType === 'Double' ? 'selected' : ''}>Double</option>
+                            <option ${element.fieldType === 'BigDecimal' ? 'selected' : ''}>BigDecimal</option>
+                            <option ${element.fieldType === 'Date' ? 'selected' : ''}>Date</option>
+                            <option ${element.fieldType === 'Boolean' ? 'selected' : ''}>Boolean</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Font:</label>
+                        <select onchange="updateElementProperty('fontName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                            <option ${element.fontName === 'Arial' ? 'selected' : ''}>Arial</option>
+                            <option ${element.fontName === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
+                            <option ${element.fontName === 'Courier' ? 'selected' : ''}>Courier</option>
+                            <option ${element.fontName === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Font Size:</label>
+                        <input type="number" value="${element.fontSize}" onchange="updateElementProperty('fontSize', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Alignment:</label>
+                        <select onchange="updateElementProperty('alignment', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
+                            <option ${element.alignment === 'Left' ? 'selected' : ''}>Left</option>
+                            <option ${element.alignment === 'Center' ? 'selected' : ''}>Center</option>
+                            <option ${element.alignment === 'Right' ? 'selected' : ''}>Right</option>
+                        </select>
+                    </div>
+                `;
+            } else if (element.type === 'image') {
+                html += `
+                    <div class="form-group">
+                        <label style="font-size: 12px;">Image:</label>
+                        <button onclick="selectImageForElement()" class="btn" style="width: 100%; padding: 8px; font-size: 12px; margin-top: 5px;">Select Image</button>
+                        ${element.imagePath ? `<p style="font-size: 11px; color: #666; margin-top: 5px;">${element.imagePath}</p>` : ''}
+                    </div>
+                `;
+            }
+            
+            panel.innerHTML = html;
+        }
+
+        function updateElementProperty(property, value) {
+            const element = visualBuilder.elements.find(el => el.id === visualBuilder.selectedElement);
+            if (!element) return;
+            
+            // Convert to appropriate type
+            if (property === 'x' || property === 'y' || property === 'width' || property === 'height' || property === 'fontSize') {
+                value = parseInt(value);
+            }
+            
+            element[property] = value;
+            renderCanvas();
+        }
+
+        function deleteSelectedElement() {
+            if (!visualBuilder.selectedElement) return;
+            
+            visualBuilder.elements = visualBuilder.elements.filter(el => el.id !== visualBuilder.selectedElement);
+            visualBuilder.selectedElement = null;
+            renderCanvas();
+            updatePropertiesPanel();
+        }
+
+        function handleToolboxDrag(e, elementType) {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('elementType', elementType);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const elementType = e.dataTransfer.getData('elementType');
+            if (!elementType) return;
+            
+            // Get canvas position
+            const canvas = document.getElementById('visualCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Special handling for field elements with specific field data
+            if (elementType === 'field') {
+                const fieldName = e.dataTransfer.getData('fieldName');
+                const fieldType = e.dataTransfer.getData('fieldType');
+                if (fieldName && fieldType) {
+                    addFieldElementAtPosition(fieldName, fieldType, Math.max(0, x - 50), Math.max(0, y - 10));
+                    return;
+                }
+            }
+            
+            // Add element at drop position
+            addElementAtPosition(elementType, Math.max(0, x - 50), Math.max(0, y - 15));
+        }
+
+        function addFieldElementAtPosition(fieldName, fieldType, x, y) {
+            const band = document.getElementById('currentBand').value;
+            const element = {
+                id: visualBuilder.nextId++,
+                type: 'field',
+                band: band,
+                x: x,
+                y: y,
+                width: 100,
+                height: 20,
+                text: '',
+                fieldName: fieldName,
+                fieldType: fieldType,
+                fontName: 'Arial',
+                fontSize: 10,
+                bold: false,
+                italic: false,
+                alignment: 'Left',
+                color: '#000000'
+            };
+            
+            visualBuilder.elements.push(element);
+            renderCanvas();
+            selectElement(element.id);
+        }
+
+        function addElementAtPosition(type, x, y) {
+            const band = document.getElementById('currentBand').value;
+            
+            let element = {
+                id: visualBuilder.nextId++,
+                type: type,
+                band: band,
+                x: x,
+                y: y,
+                width: 100,
+                height: 30,
+                fontName: 'Arial',
+                fontSize: 12,
+                bold: false,
+                italic: false,
+                alignment: 'Left',
+                color: '#000000'
+            };
+            
+            switch(type) {
+                case 'text':
+                    element.text = 'Text Label';
+                    break;
+                case 'line':
+                    element.width = 200;
+                    element.height = 2;
+                    break;
+                case 'rectangle':
+                    element.width = 150;
+                    element.height = 100;
+                    break;
+                case 'image':
+                    element.imagePath = '';
+                    element.text = '';
+                    break;
+                case 'pageNumber':
+                    element.text = 'Page ';
+                    element.expression = '$V{PAGE_NUMBER}';
+                    break;
+                case 'currentDate':
+                    element.text = '';
+                    element.expression = 'new java.util.Date()';
+                    element.pattern = 'dd/MM/yyyy';
+                    break;
+                case 'field':
+                    element.fieldName = 'fieldName';
+                    element.fieldType = 'String';
+                    element.height = 20;
+                    element.fontSize = 10;
+                    break;
+                default:
+                    element.text = type.toUpperCase();
+            }
+            
+            visualBuilder.elements.push(element);
+            renderCanvas();
+            selectElement(element.id);
+        }
+
+        // Change band listener
+        document.addEventListener('DOMContentLoaded', function() {
+            const bandSelect = document.getElementById('currentBand');
+            if (bandSelect) {
+                bandSelect.addEventListener('change', function() {
+                    visualBuilder.currentBand = this.value;
+                    visualBuilder.selectedElement = null;
+                    renderCanvas();
+                    updatePropertiesPanel();
+                });
+            }
+        });
+
+        // ========== Image Manager Functions ==========
+        
+        function openImageManager() {
+            document.getElementById('imageManagerModal').style.display = 'block';
+            loadImages();
+        }
+
+        function closeImageManager() {
+            document.getElementById('imageManagerModal').style.display = 'none';
+        }
+
+        function uploadImage() {
+            const fileInput = document.getElementById('imageUploadInput');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/api/builder/upload-image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Image uploaded successfully', 'success');
+                    loadImages();
+                    fileInput.value = '';
+                } else {
+                    showMessage(data.message || 'Failed to upload image', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error uploading image: ' + error, 'error');
+            });
+        }
+
+        function loadImages() {
+            fetch('/api/builder/images')
+                .then(response => response.json())
+                .then(data => {
+                    const gallery = document.getElementById('imageGallery');
+                    
+                    if (data.images && data.images.length > 0) {
+                        gallery.innerHTML = '';
+                        data.images.forEach(image => {
+                            const div = document.createElement('div');
+                            div.className = 'image-gallery-item';
+                            div.innerHTML = `
+                                <img src="/${image.path}" alt="${image.name}">
+                                <div class="image-actions">
+                                    <button onclick="useImage('${image.path}')" style="background: #28a745; color: white;">Use</button>
+                                    <button onclick="deleteImage('${image.name}')" style="background: #dc3545; color: white;">Delete</button>
+                                </div>
+                            `;
+                            gallery.appendChild(div);
+                        });
+                    } else {
+                        gallery.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No images uploaded yet</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading images:', error);
+                });
+        }
+
+        function useImage(imagePath) {
+            if (visualBuilder.selectedElement) {
+                const element = visualBuilder.elements.find(el => el.id === visualBuilder.selectedElement);
+                if (element && element.type === 'image') {
+                    element.imagePath = imagePath;
+                    renderCanvas();
+                    updatePropertiesPanel();
+                    closeImageManager();
+                }
+            } else {
+                showMessage('Please select an image element first', 'error');
+            }
+        }
+
+        function selectImageForElement() {
+            openImageManager();
+        }
+
+        function deleteImage(fileName) {
+            if (!confirm('Are you sure you want to delete this image?')) return;
+            
+            fetch('/api/builder/images/' + fileName, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Image deleted successfully', 'success');
+                    loadImages();
+                } else {
+                    showMessage(data.message || 'Failed to delete image', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error deleting image: ' + error, 'error');
+            });
+        }
+
+        // ========== Template Manager Functions ==========
+        
+        function openTemplateManager() {
+            document.getElementById('templateManagerModal').style.display = 'block';
+            loadTemplates();
+        }
+
+        function closeTemplateManager() {
+            document.getElementById('templateManagerModal').style.display = 'none';
+        }
+
+        function loadTemplates() {
+            fetch('/api/builder/templates')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('templateList');
+                    
+                    if (data.templates && data.templates.length > 0) {
+                        list.innerHTML = '';
+                        data.templates.forEach(template => {
+                            const div = document.createElement('div');
+                            div.className = 'template-item';
+                            div.innerHTML = `
+                                <h4>${template.name || 'Unnamed Template'}</h4>
+                                <p style="font-size: 12px; color: #666; margin: 5px 0;">${template.description || 'No description'}</p>
+                                <div class="template-actions">
+                                    <button class="btn" onclick="loadTemplate('${template.fileName}')" style="flex: 1; padding: 6px; font-size: 12px;">Load</button>
+                                    <button class="btn" onclick="deleteTemplate('${template.fileName}')" style="flex: 1; padding: 6px; font-size: 12px; background: #dc3545;">Delete</button>
+                                </div>
+                            `;
+                            list.appendChild(div);
+                        });
+                    } else {
+                        list.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No templates saved yet</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading templates:', error);
+                });
+        }
+
+        function loadTemplate(fileName) {
+            fetch('/api/builder/templates/' + fileName)
+                .then(response => response.json())
+                .then(data => {
+                    visualBuilder.elements = data.elements || [];
+                    visualBuilder.pageSettings = data.pageSettings || visualBuilder.pageSettings;
+                    visualBuilder.nextId = Math.max(...visualBuilder.elements.map(el => el.id), 0) + 1;
+                    
+                    document.getElementById('visualReportName').value = data.name || '';
+                    
+                    // Update page settings form
+                    document.getElementById('pageWidth').value = visualBuilder.pageSettings.width;
+                    document.getElementById('pageHeight').value = visualBuilder.pageSettings.height;
+                    document.getElementById('marginTop').value = visualBuilder.pageSettings.topMargin;
+                    document.getElementById('marginBottom').value = visualBuilder.pageSettings.bottomMargin;
+                    document.getElementById('marginLeft').value = visualBuilder.pageSettings.leftMargin;
+                    document.getElementById('marginRight').value = visualBuilder.pageSettings.rightMargin;
+                    document.getElementById('pageOrientation').value = visualBuilder.pageSettings.orientation;
+                    
+                    renderCanvas();
+                    closeTemplateManager();
+                    showMessage('Template loaded successfully', 'success');
+                })
+                .catch(error => {
+                    showMessage('Error loading template: ' + error, 'error');
+                });
+        }
+
+        function deleteTemplate(fileName) {
+            if (!confirm('Are you sure you want to delete this template?')) return;
+            
+            fetch('/api/builder/templates/' + fileName, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Template deleted successfully', 'success');
+                    loadTemplates();
+                } else {
+                    showMessage(data.message || 'Failed to delete template', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error deleting template: ' + error, 'error');
+            });
+        }
+
+        function saveAsTemplate() {
+            const name = prompt('Enter template name:');
+            if (!name) return;
+            
+            const description = prompt('Enter template description (optional):');
+            
+            const templateData = {
+                name: name,
+                description: description || '',
+                elements: visualBuilder.elements,
+                pageSettings: visualBuilder.pageSettings
+            };
+            
+            fetch('/api/builder/templates/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(templateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Template saved successfully', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to save template', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error saving template: ' + error, 'error');
+            });
+        }
+
+        // ========== Page Settings Functions ==========
+        
+        function openPageSettings() {
+            document.getElementById('pageSettingsModal').style.display = 'block';
+        }
+
+        function closePageSettings() {
+            document.getElementById('pageSettingsModal').style.display = 'none';
+        }
+
+        function applyPageSettings(event) {
+            event.preventDefault();
+            
+            visualBuilder.pageSettings = {
+                width: parseInt(document.getElementById('pageWidth').value),
+                height: parseInt(document.getElementById('pageHeight').value),
+                leftMargin: parseInt(document.getElementById('marginLeft').value),
+                rightMargin: parseInt(document.getElementById('marginRight').value),
+                topMargin: parseInt(document.getElementById('marginTop').value),
+                bottomMargin: parseInt(document.getElementById('marginBottom').value),
+                orientation: document.getElementById('pageOrientation').value
+            };
+            
+            closePageSettings();
+            showMessage('Page settings applied', 'success');
+        }
+
+        // ========== Query Editor Functions ==========
+        
+        function openQueryEditor() {
+            const queryTextarea = document.getElementById('customSqlQuery');
+            if (visualBuilder.customQuery) {
+                queryTextarea.value = visualBuilder.customQuery;
+            } else if (visualBuilder.tableName) {
+                queryTextarea.value = `SELECT * FROM ${visualBuilder.tableName}`;
+            } else {
+                queryTextarea.value = '';
+            }
+            
+            document.getElementById('queryEditorModal').style.display = 'block';
+        }
+
+        function closeQueryEditor() {
+            document.getElementById('queryEditorModal').style.display = 'none';
+        }
+
+        function applyCustomQuery() {
+            const query = document.getElementById('customSqlQuery').value.trim();
+            visualBuilder.customQuery = query;
+            closeQueryEditor();
+            showMessage('Custom query applied', 'success');
+        }
+
+        // ========== Generate Report from Visual Design ==========
+        
+        function generateFromVisualDesign() {
+            const reportName = document.getElementById('visualReportName').value.trim();
+            
+            if (!reportName) {
+                showMessage('Please enter a report name', 'error');
+                return;
+            }
+            
+            if (!visualBuilder.datasourceId) {
+                showMessage('Please select a datasource', 'error');
+                return;
+            }
+            
+            // Build SQL query
+            let sqlQuery = visualBuilder.customQuery;
+            if (!sqlQuery && visualBuilder.tableName) {
+                sqlQuery = `SELECT * FROM ${visualBuilder.tableName}`;
+            }
+            
+            if (!sqlQuery && visualBuilder.elements.some(el => el.type === 'field')) {
+                showMessage('Please select a table or provide a custom query for database fields', 'error');
+                return;
+            }
+            
+            const designData = {
+                reportName: reportName,
+                elements: visualBuilder.elements,
+                pageSettings: visualBuilder.pageSettings,
+                datasourceId: visualBuilder.datasourceId,
+                sqlQuery: sqlQuery,
+                fields: visualBuilder.availableFields
+            };
+            
+            fetch('/api/builder/visual/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(designData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('✓ ' + data.message, 'success');
+                    // Reload reports list
+                    if (typeof loadReports === 'function') {
+                        setTimeout(loadReports, 1000);
+                    }
+                } else {
+                    showMessage('✗ ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error generating report: ' + error, 'error');
+            });
         }
 
     </script>
