@@ -577,6 +577,154 @@
             gap: 10px;
             margin-top: 10px;
         }
+        
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        .spinner-large {
+            width: 40px;
+            height: 40px;
+            border-width: 4px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10000;
+            color: white;
+        }
+        .loading-overlay .spinner {
+            width: 60px;
+            height: 60px;
+            border-width: 6px;
+            border-color: rgba(255,255,255,.3);
+            border-top-color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-card {
+            height: 120px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .skeleton-text {
+            height: 20px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .empty-state p {
+            color: #999;
+            margin-bottom: 25px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                box-shadow: none;
+            }
+            .container {
+                margin-left: 0;
+                width: 100%;
+            }
+            .sidebar-nav {
+                display: flex;
+                flex-wrap: wrap;
+                padding: 0;
+            }
+            .nav-item {
+                flex: 1;
+                text-align: center;
+                padding: 15px 10px;
+            }
+            .nav-item span:last-child {
+                display: none;
+            }
+            .sidebar-footer {
+                display: flex;
+                gap: 10px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .report-item {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .report-item-actions {
+                flex-wrap: wrap;
+            }
+        }
+        
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        button:focus, a:focus, input:focus, select:focus, textarea:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+        .disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -589,25 +737,25 @@
                 <span sec:authentication="name">User</span>
             </div>
         </div>
-        <nav class="sidebar-nav">
-            <div class="nav-item active" onclick="switchTab('reports')">
-                <span class="nav-item-icon">📄</span>
+        <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+            <div class="nav-item active" data-tab="reports" onclick="switchTab('reports')" role="button" tabindex="0" aria-label="Reports section" title="View and generate reports">
+                <span class="nav-item-icon" aria-hidden="true">📄</span>
                 <span>Reports</span>
             </div>
-            <div class="nav-item" onclick="switchTab('builder')">
-                <span class="nav-item-icon">🔨</span>
+            <div class="nav-item" data-tab="builder" onclick="switchTab('builder')" role="button" tabindex="0" aria-label="Report Builder section" title="Build custom reports">
+                <span class="nav-item-icon" aria-hidden="true">🔨</span>
                 <span>Report Builder</span>
             </div>
-            <div class="nav-item" onclick="switchTab('datasources')">
-                <span class="nav-item-icon">🗄️</span>
+            <div class="nav-item" data-tab="datasources" onclick="switchTab('datasources')" role="button" tabindex="0" aria-label="Datasources section" title="Manage data connections">
+                <span class="nav-item-icon" aria-hidden="true">🗄️</span>
                 <span>Datasources</span>
             </div>
-            <div class="nav-item" onclick="switchTab('schedules')">
-                <span class="nav-item-icon">⏰</span>
+            <div class="nav-item" data-tab="schedules" onclick="switchTab('schedules')" role="button" tabindex="0" aria-label="Schedules section" title="Manage scheduled reports">
+                <span class="nav-item-icon" aria-hidden="true">⏰</span>
                 <span>Schedules</span>
             </div>
-            <div class="nav-item" sec:authorize="hasRole('ADMIN')" onclick="switchTab('users')">
-                <span class="nav-item-icon">👥</span>
+            <div class="nav-item" data-tab="users" sec:authorize="hasRole('ADMIN')" onclick="switchTab('users')" role="button" tabindex="0" aria-label="User Management section" title="Manage users and permissions">
+                <span class="nav-item-icon" aria-hidden="true">👥</span>
                 <span>User Management</span>
             </div>
         </nav>
@@ -1674,6 +1822,16 @@
             loadReports();
             loadDatasources();
             
+            // Attach click event listeners to nav items
+            document.querySelectorAll('.nav-item').forEach(navItem => {
+                const tabName = navItem.getAttribute('data-tab');
+                if (tabName) {
+                    navItem.addEventListener('click', function() {
+                        switchTab(tabName);
+                    });
+                }
+            });
+            
             // Close modal when clicking outside
             window.onclick = function(event) {
                 const modal = document.getElementById('deleteConfirmModal');
@@ -1693,28 +1851,34 @@
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
-            document.querySelectorAll('.nav-item').forEach(tab => {
-                tab.classList.remove('active');
+            document.querySelectorAll('.nav-item').forEach(navItem => {
+                navItem.classList.remove('active');
             });
 
             // Show selected tab
-            if (tabName === 'reports') {
-                document.getElementById('reportsTab').classList.add('active');
-                document.querySelectorAll('.nav-item')[0].classList.add('active');
-            } else if (tabName === 'builder') {
-                document.getElementById('builderTab').classList.add('active');
-                document.querySelectorAll('.nav-item')[1].classList.add('active');
+            if (tabName === 'users') {
+                window.location.href = '/users';
+                return;
+            }
+
+            const tabElement = document.getElementById(tabName + 'Tab');
+            const navElement = document.querySelector('.nav-item[data-tab="' + tabName + '"]');
+            
+            if (tabElement) {
+                tabElement.classList.add('active');
+            }
+            
+            if (navElement) {
+                navElement.classList.add('active');
+            }
+
+            // Load data for specific tabs
+            if (tabName === 'builder') {
                 loadBuilderDatasources();
             } else if (tabName === 'datasources') {
-                document.getElementById('datasourcesTab').classList.add('active');
-                document.querySelectorAll('.nav-item')[2].classList.add('active');
                 loadDatasources();
             } else if (tabName === 'schedules') {
-                document.getElementById('schedulesTab').classList.add('active');
-                document.querySelectorAll('.nav-item')[3].classList.add('active');
                 loadSchedules();
-            } else if (tabName === 'users') {
-                window.location.href = '/users';
             }
         }
 
@@ -1738,6 +1902,13 @@
                 showMessage('Please select a .jrxml file', 'error');
                 return;
             }
+            
+            // Check file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                showMessage('File is too large. Maximum size is 5MB.', 'error');
+                return;
+            }
 
             const formData = new FormData();
             formData.append('file', file);
@@ -1750,6 +1921,8 @@
             if (token && header) {
                 headers[header] = token;
             }
+            
+            showLoading('Uploading file...');
 
             fetch('/upload', {
                 method: 'POST',
@@ -1765,28 +1938,47 @@
                 return response.text();
             })
             .then(data => {
+                hideLoading();
                 showMessage(data, 'success');
                 loadReports();
                 fileInput.value = '';
             })
             .catch(error => {
-                showMessage('Upload failed: ' + error.message, 'error');
+                hideLoading();
+                showMessage('Upload error: ' + error.message, 'error');
             });
         }
 
         function loadReports() {
+            const list = document.getElementById('reportList');
+            
+            // Show loading skeletons
+            list.innerHTML = `
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+            `;
+            
             fetch('/reports')
             .then(response => response.json())
             .then(reports => {
                 const select = document.getElementById('reportSelect');
-                const list = document.getElementById('reportList');
                 
                 // Clear existing options (keep first one)
                 select.innerHTML = '<option value="">-- Select a report --</option>';
                 list.innerHTML = '';
                 
                 if (reports.length === 0) {
-                    list.innerHTML = '<p style="color: #999;">No reports uploaded yet</p>';
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <h3>No Reports Yet</h3>
+                            <p>Upload your first JRXML report file to get started</p>
+                            <button class="btn" onclick="document.getElementById('fileInput').click()">
+                                📄 Upload Report
+                            </button>
+                        </div>
+                    `;
                     return;
                 }
 
@@ -1813,15 +2005,21 @@
                     downloadLink.download = report;
                     downloadLink.className = 'report-action-btn report-action-download';
                     downloadLink.innerHTML = '📥 Download';
+                    downloadLink.title = 'Download JRXML file';
+                    downloadLink.setAttribute('aria-label', `Download ${report}`);
                     
                     const editBtn = document.createElement('button');
                     editBtn.className = 'report-action-btn report-action-edit';
                     editBtn.innerHTML = '✏️ Edit';
+                    editBtn.title = 'Edit in JRXML editor';
+                    editBtn.setAttribute('aria-label', `Edit ${report}`);
                     editBtn.onclick = () => openJrxmlEditor(report);
                     
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'report-action-btn report-action-delete';
                     deleteBtn.innerHTML = '🗑️ Delete';
+                    deleteBtn.title = 'Delete report';
+                    deleteBtn.setAttribute('aria-label', `Delete ${report}`);
                     deleteBtn.onclick = () => confirmDeleteReport(report);
                     
                     actionsDiv.appendChild(downloadLink);
@@ -1832,6 +2030,18 @@
                     item.appendChild(actionsDiv);
                     list.appendChild(item);
                 });
+            })
+            .catch(error => {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3>Error Loading Reports</h3>
+                        <p>${error.message || 'Unable to load reports. Please try again.'}</p>
+                        <button class="btn" onclick="loadReports()">
+                            🔄 Retry
+                        </button>
+                    </div>
+                `;
             });
         }
 
@@ -1961,18 +2171,35 @@
         });
 
         function loadDatasources() {
+            const tableBody = document.getElementById('datasourceTableBody');
+            const select = document.getElementById('datasourceSelect');
+            
+            // Show loading state
+            tableBody.innerHTML = '<tr><td colspan="4"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></td></tr>';
+            
             fetch('/api/datasources')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to load datasources');
+                return response.json();
+            })
             .then(datasources => {
-                const tableBody = document.getElementById('datasourceTableBody');
-                const select = document.getElementById('datasourceSelect');
-                
                 // Clear existing
                 tableBody.innerHTML = '';
                 select.innerHTML = '<option value="">-- Use default datasource --</option>';
                 
                 if (datasources.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;">No datasources configured</td></tr>';
+                    tableBody.innerHTML = `
+                        <tr><td colspan="4">
+                            <div class="empty-state" style="padding: 40px 20px;">
+                                <div class="empty-state-icon">\ud83d\uddc4\ufe0f</div>
+                                <h3>No Datasources Configured</h3>
+                                <p>Create your first datasource to connect to databases</p>
+                                <button class="btn" onclick="openDatasourceModal()" style="margin-top: 15px;">
+                                    \u2795 Add Datasource
+                                </button>
+                            </div>
+                        </td></tr>
+                    `;
                     return;
                 }
 
@@ -2007,11 +2234,15 @@
                     const editBtn = document.createElement('button');
                     editBtn.className = 'btn-small';
                     editBtn.textContent = 'Edit';
+                    editBtn.title = 'Edit datasource';
+                    editBtn.setAttribute('aria-label', `Edit ${ds.name}`);
                     editBtn.onclick = () => editDatasource(ds.id);
                     
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'btn-small btn-danger';
                     deleteBtn.textContent = 'Delete';
+                    deleteBtn.title = 'Delete datasource';
+                    deleteBtn.setAttribute('aria-label', `Delete ${ds.name}`);
                     deleteBtn.onclick = () => deleteDatasource(ds.id);
                     
                     actionsCell.appendChild(editBtn);
@@ -2023,6 +2254,8 @@
                         testQueryBtn.className = 'btn-small';
                         testQueryBtn.textContent = 'Test Query';
                         testQueryBtn.style.background = '#17a2b8';
+                        testQueryBtn.title = 'Test SQL query';
+                        testQueryBtn.setAttribute('aria-label', `Test query on ${ds.name}`);
                         testQueryBtn.onclick = () => openQueryTesterModal(ds.id, ds.name);
                         actionsCell.appendChild(testQueryBtn);
                     }
@@ -2040,6 +2273,20 @@
                     option.textContent = ds.name;
                     select.appendChild(option);
                 });
+            })
+            .catch(error => {
+                tableBody.innerHTML = `
+                    <tr><td colspan="4">
+                        <div class="empty-state" style="padding: 30px 20px;">
+                            <div class="empty-state-icon">\u26a0\ufe0f</div>
+                            <h3>Error Loading Datasources</h3>
+                            <p>${error.message || 'Unable to load datasources. Please try again.'}</p>
+                            <button class="btn" onclick="loadDatasources()" style="margin-top: 15px;">
+                                \ud83d\udd04 Retry
+                            </button>
+                        </div>
+                    </td></tr>
+                `;
             });
         }
 
@@ -2092,7 +2339,9 @@
                 headers[header] = token;
             }
 
-            showMessage('Generating report...', 'success');
+            showLoading('Generating report...');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
 
             fetch('/generate?' + params.toString(), {
                 method: 'POST',
@@ -2108,6 +2357,8 @@
                 return response.blob();
             })
             .then(blob => {
+                hideLoading();
+                if (submitBtn) submitBtn.disabled = false;
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -2118,10 +2369,12 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
                 a.remove();
-                showMessage('Report generated successfully!', 'success');
+                showMessage('✓ Report generated successfully!', 'success');
             })
             .catch(error => {
-                showMessage('Generation failed: ' + error.message, 'error');
+                hideLoading();
+                if (submitBtn) submitBtn.disabled = false;
+                showMessage('✗ Generation failed: ' + error.message, 'error');
                 console.error('Report generation error:', error);
             });
         };
@@ -2467,6 +2720,19 @@
             msg.textContent = text;
             msg.className = type;
             msg.style.display = 'block';
+        }
+        
+        // Loading overlay utilities
+        function showLoading(message = 'Processing...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const msgElement = document.getElementById('loadingMessage');
+            if (msgElement) msgElement.textContent = message;
+            if (overlay) overlay.style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
         // ========== Query Tester Functions ==========
@@ -4752,11 +5018,17 @@
             
             if (!reportName) {
                 showMessage('Please enter a report name', 'error');
+                document.getElementById('visualReportName').focus();
                 return;
             }
             
             if (!visualBuilder.datasourceId) {
-                showMessage('Please select a datasource', 'error');
+                showMessage('Please select a datasource first', 'error');
+                return;
+            }
+            
+            if (visualBuilder.elements.length === 0) {
+                showMessage('Please add at least one element to your report', 'error');
                 return;
             }
             
@@ -4780,6 +5052,8 @@
                 fields: visualBuilder.availableFields
             };
             
+            showLoading('Generating visual report...');
+            
             fetch('/api/builder/visual/generate', {
                 method: 'POST',
                 headers: {
@@ -4787,8 +5061,16 @@
                 },
                 body: JSON.stringify(designData)
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Generation failed');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
+                hideLoading();
                 if (data.success) {
                     showMessage('✓ ' + data.message, 'success');
                     // Reload reports list
@@ -4800,7 +5082,8 @@
                 }
             })
             .catch(error => {
-                showMessage('Error generating report: ' + error, 'error');
+                hideLoading();
+                showMessage('✗ Error generating report: ' + error.message, 'error');
             });
         }
 
@@ -4822,6 +5105,12 @@
                 <button id="deleteConfirmBtn" class="confirm-modal-btn confirm-modal-btn-confirm">Delete</button>
             </div>
         </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Processing...</p>
     </div>
     
     <!-- Monaco Editor Loader -->
