@@ -1900,10 +1900,39 @@
                     document.getElementById('dsUsername').value = ds.username || '';
                     document.getElementById('dsDriver').value = ds.driverClassName || '';
                     document.getElementById('dsConfiguration').value = ds.configuration || '';
+                    
+                    // Handle file path for file-based datasources
+                    if (ds.filePath) {
+                        // Create a note showing current file
+                        const fileNote = document.createElement('small');
+                        fileNote.style.color = '#667eea';
+                        fileNote.style.display = 'block';
+                        fileNote.style.marginTop = '5px';
+                        fileNote.textContent = `Current file: ${ds.filePath.split('/').pop()}`;
+                        fileNote.id = 'currentFileNote';
+                        
+                        // Remove any existing note
+                        const existingNote = document.getElementById('currentFileNote');
+                        if (existingNote) existingNote.remove();
+                        
+                        // Add note after file input
+                        const fileInput = document.getElementById('dsFile');
+                        fileInput.parentElement.insertBefore(fileNote, fileInput.nextSibling);
+                    }
+                    
                     // Password is not set - user must enter it again if they want to change it
                     passwordField.placeholder = "Leave blank to keep current password";
                     passwordField.required = false;
+                    passwordField.value = ''; // Ensure password is empty for security
+                    
                     toggleDatasourceFields();
+                    
+                    // Show modal only after data is loaded
+                    modal.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error loading datasource:', error);
+                    alert('Failed to load datasource data');
                 });
             } else {
                 title.textContent = 'Add Datasource';
@@ -1912,9 +1941,10 @@
                 passwordField.placeholder = "";
                 passwordField.required = true;
                 toggleDatasourceFields();
+                
+                // Show modal immediately for new datasource
+                modal.style.display = 'block';
             }
-            
-            modal.style.display = 'block';
         }
 
         function closeDatasourceModal() {
