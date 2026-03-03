@@ -152,7 +152,7 @@ The Report Builder allows you to create reports visually without writing JRXML c
    - Parameters can be used in SQL WHERE clauses
 6. **Add Variables** (Optional): Define calculated fields
    - Aggregations: Sum, Average, Count, Min, Max, etc.
-   - Custom expressions using JasperReports syntax
+  - Custom expressions using ReportServer syntax
 7. **Generate**: Creates a .jrxml file automatically
 
 **Example Use Case**: Create a customer report with date range parameters:
@@ -267,7 +267,7 @@ mvn clean package
 mvn clean package -DskipTests
 ```
 
-The JAR file will be created in `target/jasper-report-server-1.0.0.jar`
+The JAR file will be created in `target/report-server-1.0.0.jar`
 
 ## Running the Application
 
@@ -278,12 +278,12 @@ mvn spring-boot:run
 
 ### Option 2: Using the JAR file
 ```bash
-java -jar target/jasper-report-server-1.0.0.jar
+java -jar target/report-server-1.0.0.jar
 ```
 
 ### Option 3: With custom port
 ```bash
-java -jar target/jasper-report-server-1.0.0.jar --server.port=9090
+java -jar target/report-server-1.0.0.jar --server.port=9090
 ```
 
 The application will start on `http://localhost:8080` (or your custom port)
@@ -320,20 +320,20 @@ docker build -t reportserver:latest .
 
 # Run the container
 docker run -d \
-  --name jasper-report-server \
+  --name report-server \
   -p 8080:8080 \
   -v $(pwd)/data:/app/data \
   -e JAVA_OPTS="-Xmx1g -Xms512m" \
   reportserver:latest
 
 # View logs
-docker logs -f jasper-report-server
+docker logs -f report-server
 
 # Stop the container
-docker stop jasper-report-server
+docker stop report-server
 
 # Remove the container
-docker rm jasper-report-server
+docker rm report-server
 ```
 
 ### Configuration
@@ -377,7 +377,7 @@ The container includes a health check that monitors application status:
 Check container health:
 ```bash
 docker ps  # Look for "healthy" status
-docker inspect jasper-report-server --format='{{.State.Health.Status}}'
+docker inspect report-server --format='{{.State.Health.Status}}'
 ```
 
 ## API Endpoints
@@ -839,7 +839,7 @@ The application supports various datasource types beyond JDBC databases:
 
 Standard relational database connectivity:
 
-1. Design your report with a SQL query in JasperReports Studio or iReport
+1. Design your report with a SQL query in JRXML Studio or iReport
 2. Upload the JRXML file to the server
 3. Create a JDBC datasource in the "Datasources" tab
 4. When generating the report, select the JDBC datasource
@@ -961,7 +961,7 @@ JRBeanCollectionDataSource beanDS = new JRBeanCollectionDataSource(dataList);
 
 To use database connection in your JRXML reports:
 
-1. Design your report with a SQL query in JasperReports Studio or iReport
+1. Design your report with a SQL query in JRXML Studio or iReport
 2. Upload the JRXML file to the server
 3. Create a datasource in the "Datasources" tab
 4. When generating the report, check "Use Database Connection" and select your datasource
@@ -1025,7 +1025,7 @@ Create calculated variables:
 </variable>
 ```
 
-The application will automatically provide the selected database connection to JasperReports engine.
+The application will automatically provide the selected database connection to the ReportServer engine.
 
 ## Configuration Options
 
@@ -1061,7 +1061,7 @@ Used for storing datasource configurations and user data:
 - **Default Login Page**: `/login`
 - **Default Logout URL**: `/logout`
 
-### JasperReports Configuration
+### ReportServer Reporting Configuration
 Configured in `jasperreports.properties` and `jasperreports_extension.properties`:
 - **Font Extensions**: Support for custom fonts
 - **Export Configurations**: Settings for various export formats
@@ -1109,7 +1109,7 @@ spring.h2.console.path=/h2-console
 - JRXML file has syntax errors
 - Open in JRXML editor to check and fix errors
 - Validate XML structure
-- Test in JasperReports Studio first
+- Test in JRXML Studio first
 
 **"Error generating report"**
 - Check application logs for detailed error message
@@ -1217,7 +1217,7 @@ spring.h2.console.path=/h2-console
 ## Best Practices
 
 ### Report Design
-- **Test JRXML locally first**: Use JasperReports Studio to design and test reports before uploading
+- **Test JRXML locally first**: Use JRXML Studio to design and test reports before uploading
 - **Use parameters for filtering**: Makes reports reusable with different criteria
 - **Optimize SQL queries**: Add indexes, use WHERE clauses, limit result sets
 - **Name fields clearly**: Use descriptive names for fields and variables
@@ -1240,7 +1240,7 @@ spring.h2.console.path=/h2-console
 
 ### Performance
 - **Limit result sets**: Use pagination or date ranges in SQL queries
-- **Cache compiled reports**: JasperReports compiles reports on first use
+- **Cache compiled reports**: ReportServer compiles reports on first use
 - **Connection pooling**: Consider implementing connection pooling for high-load scenarios
 - **Monitor resources**: Watch CPU, memory, and disk usage
 - **Regular cleanup**: Remove unused reports and datasources
@@ -1259,11 +1259,11 @@ ReportServer/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/reportserver/
-│   │   │   ├── JasperReportServerApplication.java  # Main application class
+│   │   │   ├── ReportServerApplication.java        # Main application class
 │   │   │   ├── config/
 │   │   │   │   ├── DataInitializer.java            # First-time setup
 │   │   │   │   ├── FirstLoginFilter.java           # Password change enforcement
-│   │   │   │   ├── JasperReportsConfig.java        # JasperReports configuration
+│   │   │   │   ├── ReportServerConfig.java         # ReportServer configuration
 │   │   │   │   └── SecurityConfig.java             # Spring Security configuration
 │   │   │   ├── controller/
 │   │   │   │   ├── AuthController.java             # Login, register, password reset
@@ -1301,8 +1301,8 @@ ReportServer/
 │   │   │       └── UserService.java                # User management business logic
 │   │   └── resources/
 │   │       ├── application.properties              # Application configuration
-│   │       ├── jasperreports.properties            # JasperReports settings
-│   │       ├── jasperreports_extension.properties  # JasperReports extensions
+│   │       ├── jasperreports.properties            # Report engine settings
+│   │       ├── jasperreports_extension.properties  # Report engine extensions
 │   │       └── templates/                          # Thymeleaf HTML templates
 │   │           ├── change-password.html            # Password change page
 │   │           ├── forgot-password.html            # Password reset request
@@ -1519,7 +1519,7 @@ public class Customer {
 // Create collection
 List<Customer> customers = customerService.findAll();
 
-// Pass to JasperReports
+// Pass to ReportServer engine
 Map<String, Object> parameters = new HashMap<>();
 parameters.put("REPORT_DATA_SOURCE", new JRBeanCollectionDataSource(customers));
 
@@ -1611,7 +1611,7 @@ parameters.put("REPORT_DATA_SOURCE", dataSource);
 
 ### Rewindable Data Sources
 
-JasperReports automatically handles rewindable datasources for features like:
+The ReportServer engine automatically handles rewindable datasources for features like:
 - **Crosstabs** - Require multiple passes through data
 - **Charts with calculations** - May need to scan data twice
 - **Report totals** - Calculate before detail rendering
@@ -1646,7 +1646,7 @@ public class CustomRewindableDataSource implements JRRewindableDataSource {
 - **Spring Security** - Authentication and authorization
 - **Spring Data JPA** - Database access layer
 - **H2 Database** - Embedded database for application data
-- **JasperReports 6.20.6** - Report generation engine with multi-datasource support
+- **Report engine 6.20.6** - Report generation engine with multi-datasource support
 - **JRDataSource API** - Support for JDBC, CSV, XML, JSON, MongoDB, REST API, Hibernate, and collection datasources
 - **Thymeleaf** - Server-side templating
 - **Monaco Editor** - Browser-based code editor
@@ -1681,7 +1681,7 @@ Contributions are welcome! Please follow these guidelines:
 1. Clone the repository
 2. Import as Maven project in your IDE
 3. Run `mvn clean install`
-4. Run `JasperReportServerApplication.java`
+4. Run `ReportServerApplication.java`
 5. Access at `http://localhost:8080`
 
 ## License

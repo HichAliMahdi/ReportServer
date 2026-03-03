@@ -1,12 +1,12 @@
 #!/bin/bash
-# Quick start script for JasperReports Server
+# Quick start script for ReportServer
 # Usage: ./start.sh [dev|prod]
 
 set -e
 
 MODE=${1:-dev}
 
-echo "🚀 Starting JasperReports Server in $MODE mode..."
+echo "🚀 Starting ReportServer in $MODE mode..."
 
 # Create data directory if it doesn't exist
 if [ ! -d "data" ]; then
@@ -28,15 +28,15 @@ echo "⏳ Waiting for application to be healthy..."
 sleep 5
 
 # Check container status
-if docker ps --filter "name=jasper-report-server" --filter "status=running" | grep -q jasper-report-server; then
+if docker ps --filter "name=report-server" --filter "status=running" | grep -q report-server; then
     echo "✅ Container is running!"
     
     # Wait for health check
     for i in {1..30}; do
-        if docker inspect jasper-report-server --format='{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; then
+        if docker inspect report-server --format='{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; then
             echo "✅ Application is healthy!"
             echo ""
-            echo "🎉 JasperReports Server is ready!"
+            echo "🎉 ReportServer is ready!"
             echo "🌐 Access the application at: http://localhost:8080"
             echo "👤 Default credentials: admin / admin123"
             echo ""

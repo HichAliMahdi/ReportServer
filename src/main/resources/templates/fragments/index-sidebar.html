@@ -16,11 +16,11 @@
                 <span class="nav-item-icon" aria-hidden="true">📄</span>
                 <span>Reports</span>
             </div>
-            <div class="nav-item" data-tab="builder" onclick="switchTab('builder')" role="button" tabindex="0" aria-label="Report Builder section" title="Build custom reports">
+            <div class="nav-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="builder" onclick="switchTab('builder')" role="button" tabindex="0" aria-label="Report Builder section" title="Build custom reports">
                 <span class="nav-item-icon" aria-hidden="true">🔨</span>
                 <span>Report Builder</span>
             </div>
-            <div class="nav-item" data-tab="datasources" onclick="switchTab('datasources')" role="button" tabindex="0" aria-label="Datasources section" title="Manage data connections">
+            <div class="nav-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="datasources" onclick="switchTab('datasources')" role="button" tabindex="0" aria-label="Datasources section" title="Manage data connections">
                 <span class="nav-item-icon" aria-hidden="true">🗄️</span>
                 <span>Datasources</span>
             </div>

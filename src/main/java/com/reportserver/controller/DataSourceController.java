@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -32,6 +33,7 @@ public class DataSourceController {
      * Get all datasources (without passwords)
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<List<DataSourceDTO>> getAllDataSources() {
         try {
             List<DataSourceDTO> dataSources = dataSourceService.getAllDataSources()
@@ -49,6 +51,7 @@ public class DataSourceController {
      * Get datasource by ID (without password)
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<DataSourceDTO> getDataSourceById(@PathVariable Long id) {
         try {
             return dataSourceService.getDataSourceById(id)
@@ -65,6 +68,7 @@ public class DataSourceController {
      * Create a new datasource
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> createDataSource(@RequestBody DataSource dataSource) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -90,6 +94,7 @@ public class DataSourceController {
      * Update an existing datasource
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> updateDataSource(
             @PathVariable Long id,
             @RequestBody DataSource dataSource) {
@@ -117,6 +122,7 @@ public class DataSourceController {
      * Delete a datasource
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> deleteDataSource(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -141,6 +147,7 @@ public class DataSourceController {
      * Test datasource connection
      */
     @PostMapping("/test")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> testConnection(@RequestBody DataSource dataSource) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -170,6 +177,7 @@ public class DataSourceController {
      * Upload a data file (CSV, XML, JSON) for file-based datasources
      */
     @PostMapping("/upload-file")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> uploadDataFile(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -212,6 +220,7 @@ public class DataSourceController {
      * Execute a query on a datasource and return results
      */
     @PostMapping("/{id}/query")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<Map<String, Object>> executeQuery(
             @PathVariable Long id,
             @RequestBody Map<String, String> request) {

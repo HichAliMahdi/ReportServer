@@ -58,7 +58,7 @@ public class SchemaIntrospectionService {
                     columnInfo.put("size", String.valueOf(rs.getInt("COLUMN_SIZE")));
                     columnInfo.put("nullable", rs.getInt("NULLABLE") == DatabaseMetaData.columnNullable ? "YES" : "NO");
                     
-                    // Map SQL type to Java class name for JasperReports
+                    // Map SQL type to Java class name for report generation
                     int sqlType = rs.getInt("DATA_TYPE");
                     columnInfo.put("javaClass", mapSqlTypeToJavaClass(sqlType));
                     

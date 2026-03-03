@@ -43,7 +43,7 @@ public class User {
     private LocalDateTime resetTokenExpiry;
     
     @Column(nullable = false)
-    private String role = "USER"; // Default role
+    private String role = "READ_ONLY"; // Default role
     
     @Column(name = "first_login", nullable = false)
     private boolean firstLogin = true; // Force password change on first login

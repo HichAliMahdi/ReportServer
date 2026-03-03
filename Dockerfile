@@ -15,7 +15,7 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine
 
 LABEL maintainer="ReportServer"
-LABEL description="JasperReports Server - Lightweight reporting solution with JRXML support"
+LABEL description="ReportServer - Lightweight reporting solution with JRXML support"
 
 # Install fonts for PDF generation
 RUN apk add --no-cache \

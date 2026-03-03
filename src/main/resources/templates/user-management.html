@@ -226,6 +226,14 @@
             background: #e0e0e0;
             color: #666;
         }
+        .badge-operator {
+            background: #17a2b8;
+            color: white;
+        }
+        .badge-read-only {
+            background: #6c757d;
+            color: white;
+        }
         .badge-enabled {
             background: #28a745;
             color: white;
@@ -421,7 +429,8 @@
                 <div class="form-group">
                     <label for="role">Role:</label>
                     <select id="role" name="role" required>
-                        <option value="USER">User</option>
+                        <option value="READ_ONLY">Read Only</option>
+                        <option value="OPERATOR">Operator</option>
                         <option value="ADMIN">Admin</option>
                     </select>
                 </div>
@@ -467,7 +476,13 @@
                     
                     const roleCell = document.createElement('td');
                     const roleBadge = document.createElement('span');
-                    roleBadge.className = user.role === 'ADMIN' ? 'badge badge-admin' : 'badge badge-user';
+                    if (user.role === 'ADMIN') {
+                        roleBadge.className = 'badge badge-admin';
+                    } else if (user.role === 'OPERATOR') {
+                        roleBadge.className = 'badge badge-operator';
+                    } else {
+                        roleBadge.className = 'badge badge-read-only';
+                    }
                     roleBadge.textContent = user.role;
                     roleCell.appendChild(roleBadge);
                     

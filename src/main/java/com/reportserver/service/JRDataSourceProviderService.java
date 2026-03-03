@@ -23,7 +23,7 @@ import java.sql.SQLException;
 import java.util.Map;
 
 /**
- * Service for providing different types of JRData Sources for JasperReports
+ * Service for providing different types of JRData Sources for ReportServer
  */
 @Service
 public class JRDataSourceProviderService {

@@ -1,6 +1,6 @@
 # Docker Quick Start Guide
 
-This guide will help you quickly deploy the JasperReports Server using Docker.
+This guide will help you quickly deploy ReportServer using Docker.
 
 ## Prerequisites
 
@@ -190,7 +190,7 @@ sudo chown -R 1000:1000 ./data
 
 Wait 60 seconds for the application to fully start, then check:
 ```bash
-docker inspect jasper-report-server --format='{{.State.Health.Status}}'
+docker inspect report-server --format='{{.State.Health.Status}}'
 ```
 
 If still unhealthy:
@@ -214,4 +214,4 @@ After deployment:
 4. Configure datasources
 5. Generate your first report
 
-Enjoy using JasperReports Server! 🎉
+Enjoy using ReportServer! 🎉

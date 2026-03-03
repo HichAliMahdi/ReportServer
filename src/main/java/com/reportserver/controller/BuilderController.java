@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +38,7 @@ import java.util.stream.Stream;
 
 @Controller
 @RequestMapping("/api/builder")
+@PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
 public class BuilderController {
     
     private static final Logger logger = LoggerFactory.getLogger(BuilderController.class);

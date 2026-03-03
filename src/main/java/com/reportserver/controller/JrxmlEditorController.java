@@ -152,7 +152,7 @@ public class JrxmlEditorController {
             String name = paramElement.getAttribute("name");
             String className = paramElement.getAttribute("class");
 
-            // Skip built-in JasperReports parameters
+            // Skip built-in report engine parameters
             if (name.startsWith("REPORT_") || name.equals("JASPER_REPORT")) {
                 continue;
             }

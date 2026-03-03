@@ -28,7 +28,7 @@ public class JrxmlBuilderService {
         
         // Header
         jrxml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-        jrxml.append("<!-- Generated with JasperReports Report Builder -->\n");
+        jrxml.append("<!-- Generated with ReportServer Report Builder -->\n");
         jrxml.append("<jasperReport xmlns=\"http://jasperreports.sourceforge.net/jasperreports\" ");
         jrxml.append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
         jrxml.append("xsi:schemaLocation=\"http://jasperreports.sourceforge.net/jasperreports ");
@@ -38,7 +38,7 @@ public class JrxmlBuilderService {
         jrxml.append("columnWidth=\"802\" leftMargin=\"20\" rightMargin=\"20\" topMargin=\"20\" bottomMargin=\"20\" ");
         jrxml.append("uuid=\"").append(UUID.randomUUID().toString()).append("\">\n");
         
-        // Parameter Definitions (must come BEFORE queryString per JasperReports XSD)
+        // Parameter Definitions (must come BEFORE queryString per report XSD)
         if (parameters != null && !parameters.isEmpty()) {
             logger.info("Adding {} parameter(s) to JRXML", parameters.size());
             for (ParameterDTO parameter : parameters) {
@@ -201,7 +201,7 @@ public class JrxmlBuilderService {
         jrxml.append("\t\t</band>\n");
         jrxml.append("\t</pageFooter>\n");
         
-        // Close jasperReport tag
+        // Close report root tag
         jrxml.append("</jasperReport>\n");
         
         logger.info("Generated JRXML for table {} with {} columns", tableName, selectedColumns.size());

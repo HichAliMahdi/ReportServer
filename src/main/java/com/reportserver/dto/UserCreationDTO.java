@@ -16,8 +16,8 @@ public class UserCreationDTO {
     @Size(min = 8, message = "Password must be at least 8 characters long")
     private String password;
     
-    @Pattern(regexp = "^(ADMIN|USER)$", message = "Role must be either ADMIN or USER")
-    private String role = "USER";
+    @Pattern(regexp = "^(ADMIN|OPERATOR|READ_ONLY|USER)$", message = "Role must be ADMIN, OPERATOR, or READ_ONLY")
+    private String role = "READ_ONLY";
     
     // Constructors
     public UserCreationDTO() {}

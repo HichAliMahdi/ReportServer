@@ -36,7 +36,7 @@ public class UserService implements UserDetailsService {
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
                 .disabled(!user.isEnabled())
-                .authorities("ROLE_" + user.getRole())
+            .authorities(getAuthoritiesForRole(user.getRole()))
                 .build();
     }
     
@@ -142,7 +142,7 @@ public class UserService implements UserDetailsService {
         // Trim username and email
         username = username.trim();
         email = email.trim();
-        role = role != null ? role.trim() : "USER";
+        role = normalizeRole(role != null ? role.trim() : "READ_ONLY");
         
         // Validate email format
         if (!isValidEmail(email)) {
@@ -193,8 +193,9 @@ public class UserService implements UserDetailsService {
         
         if (role != null) {
             // Validate role
-            validateRole(role);
-            user.setRole(role);
+            String normalizedRole = normalizeRole(role);
+            validateRole(normalizedRole);
+            user.setRole(normalizedRole);
         }
         
         if (enabled != null) {
@@ -269,9 +270,27 @@ public class UserService implements UserDetailsService {
             throw new IllegalArgumentException("Role is required");
         }
         
-        if (!role.equals("ADMIN") && !role.equals("USER")) {
-            throw new IllegalArgumentException("Invalid role. Must be ADMIN or USER");
+        if (!role.equals("ADMIN") && !role.equals("OPERATOR") && !role.equals("READ_ONLY")) {
+            throw new IllegalArgumentException("Invalid role. Must be ADMIN, OPERATOR, or READ_ONLY");
         }
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null || role.trim().isEmpty()) {
+            return "READ_ONLY";
+        }
+        if ("USER".equals(role)) {
+            return "READ_ONLY";
+        }
+        return role;
+    }
+
+    private String[] getAuthoritiesForRole(String role) {
+        String normalizedRole = normalizeRole(role);
+        if ("READ_ONLY".equals(normalizedRole)) {
+            return new String[]{"ROLE_READ_ONLY", "ROLE_USER"};
+        }
+        return new String[]{"ROLE_" + normalizedRole};
     }
     
     // Helper method to validate basic input fields

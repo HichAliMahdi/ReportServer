@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: reportserver:latest
-    container_name: jasper-report-server
+    container_name: report-server
     ports:
       - "8080:8080"
     volumes:

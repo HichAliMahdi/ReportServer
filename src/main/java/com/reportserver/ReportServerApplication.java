@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class JasperReportServerApplication {
+public class ReportServerApplication {
     public static void main(String[] args) {
-        SpringApplication.run(JasperReportServerApplication.class, args);
+        SpringApplication.run(ReportServerApplication.class, args);
     }
 }

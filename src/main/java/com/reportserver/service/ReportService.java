@@ -44,26 +44,26 @@ public class ReportService {
             throw new FileNotFoundException("Report file not found: " + jrxmlPath);
         }
         
-        // Compile JRXML to JasperReport
-        JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlPath);
+        // Compile JRXML to report definition
+        JasperReport compiledReport = JasperCompileManager.compileReport(jrxmlPath);
         
         // Fill report with data
-        JasperPrint jasperPrint;
+        JasperPrint filledReport;
         if (connection != null) {
             // Use JDBC connection
-            jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
+            filledReport = JasperFillManager.fillReport(compiledReport, parameters, connection);
         } else if (dataSource != null) {
             // Use JRDataSource (CSV, XML, JSON, etc.)
             if (dataSource instanceof JRDataSource) {
-                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, (JRDataSource) dataSource);
+                filledReport = JasperFillManager.fillReport(compiledReport, parameters, (JRDataSource) dataSource);
             } else if (dataSource instanceof Connection) {
-                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, (Connection) dataSource);
+                filledReport = JasperFillManager.fillReport(compiledReport, parameters, (Connection) dataSource);
             } else {
-                jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+                filledReport = JasperFillManager.fillReport(compiledReport, parameters, new JREmptyDataSource());
             }
         } else {
             // Use empty data source when no connection/datasource is provided
-            jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+            filledReport = JasperFillManager.fillReport(compiledReport, parameters, new JREmptyDataSource());
         }
         
         // Export based on format
@@ -72,21 +72,21 @@ public class ReportService {
         switch (outputFormat.toLowerCase()) {
             case "pdf":
                 JRPdfExporter pdfExporter = new JRPdfExporter();
-                pdfExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                pdfExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 pdfExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
                 pdfExporter.exportReport();
                 break;
                 
             case "html":
                 HtmlExporter htmlExporter = new HtmlExporter();
-                htmlExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                htmlExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 htmlExporter.setExporterOutput(new SimpleHtmlExporterOutput(outputStream));
                 htmlExporter.exportReport();
                 break;
                 
             case "xlsx":
                 JRXlsxExporter xlsxExporter = new JRXlsxExporter();
-                xlsxExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                xlsxExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 xlsxExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
                 SimpleXlsxReportConfiguration xlsxConfig = new SimpleXlsxReportConfiguration();
                 xlsxConfig.setOnePagePerSheet(false);
@@ -96,47 +96,47 @@ public class ReportService {
                 
             case "xls":
                 JRXlsExporter xlsExporter = new JRXlsExporter();
-                xlsExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                xlsExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 xlsExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
                 xlsExporter.exportReport();
                 break;
                 
             case "docx":
                 JRDocxExporter docxExporter = new JRDocxExporter();
-                docxExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                docxExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 docxExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
                 docxExporter.exportReport();
                 break;
                 
             case "rtf":
                 JRRtfExporter rtfExporter = new JRRtfExporter();
-                rtfExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                rtfExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 rtfExporter.setExporterOutput(new SimpleWriterExporterOutput(outputStream));
                 rtfExporter.exportReport();
                 break;
                 
             case "odt":
                 JROdtExporter odtExporter = new JROdtExporter();
-                odtExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                odtExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 odtExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
                 odtExporter.exportReport();
                 break;
                 
             case "csv":
                 JRCsvExporter csvExporter = new JRCsvExporter();
-                csvExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                csvExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 csvExporter.setExporterOutput(new SimpleWriterExporterOutput(outputStream));
                 csvExporter.exportReport();
                 break;
                 
             case "xml":
-                JasperExportManager.exportReportToXmlStream(jasperPrint, outputStream);
+                JasperExportManager.exportReportToXmlStream(filledReport, outputStream);
                 break;
                 
             case "txt":
             case "text":
                 JRTextExporter textExporter = new JRTextExporter();
-                textExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                textExporter.setExporterInput(new SimpleExporterInput(filledReport));
                 textExporter.setExporterOutput(new SimpleWriterExporterOutput(outputStream));
                 textExporter.exportReport();
                 break;

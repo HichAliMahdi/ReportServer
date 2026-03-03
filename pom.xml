@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.reportserver</groupId>
-    <artifactId>jasper-report-server</artifactId>
+    <artifactId>report-server</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
@@ -44,21 +44,21 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- JasperReports -->
+        <!-- Report engine -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
             <version>${jasperreports.version}</version>
         </dependency>
 
-        <!-- JasperReports Fonts -->
+        <!-- Report engine fonts -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-fonts</artifactId>
             <version>6.21.3</version>
         </dependency>
 
-        <!-- JasperReports Functions (provides DATEFORMAT and other utility functions) -->
+        <!-- Report engine functions (provides DATEFORMAT and other utility functions) -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-functions</artifactId>

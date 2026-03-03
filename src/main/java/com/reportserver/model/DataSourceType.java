@@ -1,7 +1,7 @@
 package com.reportserver.model;
 
 /**
- * Enum representing different types of data sources supported by JasperReports
+ * Enum representing different types of data sources supported by ReportServer
  */
 public enum DataSourceType {
     /**

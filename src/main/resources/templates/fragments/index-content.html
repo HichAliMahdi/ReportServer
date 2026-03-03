@@ -8,7 +8,7 @@
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content active">
             <!-- Generate Report Section -->
-            <div class="card">
+            <div class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                 <h2>⚡ Generate Report</h2>
                 <form id="generateForm">
                     <div class="form-group">
@@ -57,7 +57,7 @@
             </div>
 
             <!-- Upload Section -->
-            <div class="card">
+            <div class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                 <h2>📤 Upload JRXML Report</h2>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
@@ -76,7 +76,7 @@
         </div>
 
         <!-- Report Builder Tab -->
-        <div id="builderTab" class="tab-content">
+        <div id="builderTab" class="tab-content" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
             <!-- Builder Mode Toggle -->
             <div class="card" style="padding: 15px; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: center; gap: 10px;">
@@ -283,7 +283,7 @@
         </div>
 
         <!-- Datasources Tab -->
-        <div id="datasourcesTab" class="tab-content">
+        <div id="datasourcesTab" class="tab-content" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
             <div class="card">
                 <h2>🗄️ Datasource Management</h2>
                 <button class="btn" onclick="openDatasourceModal()">➕ Add New Datasource</button>

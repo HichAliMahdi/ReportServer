@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +44,7 @@ public class ReportController {
     }
 
     @PostMapping("/upload")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     @ResponseBody
     public ResponseEntity<String> uploadReport(@RequestParam("file") MultipartFile file) {
         try {
@@ -80,6 +82,7 @@ public class ReportController {
     }
 
     @PostMapping("/generate")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<byte[]> generateReport(
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
@@ -176,6 +179,7 @@ public class ReportController {
     }
 
     @DeleteMapping("/reports/{reportName}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     @ResponseBody
     public ResponseEntity<String> deleteReport(@PathVariable String reportName) {
         try {
