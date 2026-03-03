@@ -1,0 +1,65 @@
+/* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                box-shadow: none;
+            }
+            .container {
+                margin-left: 0;
+                width: 100%;
+            }
+            .sidebar-nav {
+                display: flex;
+                flex-wrap: wrap;
+                padding: 0;
+            }
+            .nav-item {
+                flex: 1;
+                text-align: center;
+                padding: 15px 10px;
+            }
+            .nav-item span:last-child {
+                display: none;
+            }
+            .sidebar-footer {
+                display: flex;
+                gap: 10px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .report-item {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .report-item-actions {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        button:focus, a:focus, input:focus, select:focus, textarea:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+        .disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }

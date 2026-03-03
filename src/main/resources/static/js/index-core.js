@@ -1,0 +1,921 @@
+// Get CSRF token from meta tags
+const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+// Load data on page load
+window.onload = function() {
+    loadReports();
+    loadDatasources();
+
+    // Attach click event listeners to nav items
+    document.querySelectorAll('.nav-item').forEach(navItem => {
+        const tabName = navItem.getAttribute('data-tab');
+        if (tabName) {
+            navItem.addEventListener('click', function() {
+                switchTab(tabName);
+            });
+        }
+    });
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('deleteConfirmModal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+        const scheduleModal = document.getElementById('scheduleModal');
+        if (event.target === scheduleModal) {
+            scheduleModal.style.display = 'none';
+        }
+    };
+};
+
+// Tab switching
+function switchTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.nav-item').forEach(navItem => {
+        navItem.classList.remove('active');
+    });
+
+    // Show selected tab
+    if (tabName === 'users') {
+        window.location.href = '/users';
+        return;
+    }
+
+    const tabElement = document.getElementById(tabName + 'Tab');
+    const navElement = document.querySelector('.nav-item[data-tab="' + tabName + '"]');
+
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
+
+    if (navElement) {
+        navElement.classList.add('active');
+    }
+
+    // Load data for specific tabs
+    if (tabName === 'builder') {
+        loadBuilderDatasources();
+    } else if (tabName === 'datasources') {
+        loadDatasources();
+    } else if (tabName === 'schedules') {
+        loadSchedules();
+    }
+}
+
+// Toggle datasource dropdown visibility
+document.getElementById('useDatabaseCheck').addEventListener('change', function() {
+    const datasourceGroup = document.getElementById('datasourceGroup');
+    datasourceGroup.style.display = this.checked ? 'block' : 'none';
+});
+
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showMessage('Please select a file', 'error');
+        return;
+    }
+
+    // Check if it's a .jrxml file
+    if (!file.name.toLowerCase().endsWith('.jrxml')) {
+        showMessage('Please select a .jrxml file', 'error');
+        return;
+    }
+
+    // Check file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+        showMessage('File is too large. Maximum size is 5MB.', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Add CSRF token
+    const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+    const headers = {};
+    if (token && header) {
+        headers[header] = token;
+    }
+
+    showLoading('Uploading file...');
+
+    fetch('/upload', {
+        method: 'POST',
+        headers: headers,
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(text || 'Upload failed');
+            });
+        }
+        return response.text();
+    })
+    .then(data => {
+        hideLoading();
+        showMessage(data, 'success');
+        loadReports();
+        fileInput.value = '';
+    })
+    .catch(error => {
+        hideLoading();
+        showMessage('Upload error: ' + error.message, 'error');
+    });
+}
+
+function loadReports() {
+    const list = document.getElementById('reportList');
+
+    // Show loading skeletons
+    list.innerHTML = `
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+    `;
+
+    fetch('/reports')
+    .then(response => response.json())
+    .then(reports => {
+        const select = document.getElementById('reportSelect');
+
+        // Clear existing options (keep first one)
+        select.innerHTML = '<option value="">-- Select a report --</option>';
+        list.innerHTML = '';
+
+        if (reports.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>No Reports Yet</h3>
+                    <p>Upload your first JRXML report file to get started</p>
+                    <button class="btn" onclick="document.getElementById('fileInput').click()">
+                        📄 Upload Report
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        reports.forEach(report => {
+            // Add to dropdown
+            const option = document.createElement('option');
+            option.value = report;
+            option.textContent = report;
+            select.appendChild(option);
+
+            // Add to list with buttons
+            const item = document.createElement('div');
+            item.className = 'report-item';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'report-item-name';
+            nameDiv.textContent = report;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'report-item-actions';
+
+            const downloadLink = document.createElement('a');
+            downloadLink.href = `/api/builder/download/${encodeURIComponent(report)}`;
+            downloadLink.download = report;
+            downloadLink.className = 'report-action-btn report-action-download';
+            downloadLink.innerHTML = '📥 Download';
+            downloadLink.title = 'Download JRXML file';
+            downloadLink.setAttribute('aria-label', `Download ${report}`);
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'report-action-btn report-action-edit';
+            editBtn.innerHTML = '✏️ Edit';
+            editBtn.title = 'Edit in JRXML editor';
+            editBtn.setAttribute('aria-label', `Edit ${report}`);
+            editBtn.onclick = () => openJrxmlEditor(report);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'report-action-btn report-action-delete';
+            deleteBtn.innerHTML = '🗑️ Delete';
+            deleteBtn.title = 'Delete report';
+            deleteBtn.setAttribute('aria-label', `Delete ${report}`);
+            deleteBtn.onclick = () => confirmDeleteReport(report);
+
+            actionsDiv.appendChild(downloadLink);
+            actionsDiv.appendChild(editBtn);
+            actionsDiv.appendChild(deleteBtn);
+
+            item.appendChild(nameDiv);
+            item.appendChild(actionsDiv);
+            list.appendChild(item);
+        });
+    })
+    .catch(error => {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <h3>Error Loading Reports</h3>
+                <p>${error.message || 'Unable to load reports. Please try again.'}</p>
+                <button class="btn" onclick="loadReports()">
+                    🔄 Retry
+                </button>
+            </div>
+        `;
+    });
+}
+
+function confirmDeleteReport(reportName) {
+    const modal = document.getElementById('deleteConfirmModal');
+    const modalMessage = document.getElementById('deleteConfirmMessage');
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
+
+    modalMessage.textContent = `Are you sure you want to delete "${reportName}"?`;
+    modal.style.display = 'block';
+
+    // Remove old event listener and add new one
+    confirmBtn.onclick = () => {
+        modal.style.display = 'none';
+        deleteReport(reportName);
+    };
+}
+
+function closeDeleteConfirm() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+}
+
+function deleteReport(reportName) {
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    if (csrfToken && csrfHeader) {
+        headers[csrfHeader] = csrfToken;
+    }
+
+    fetch(`/reports/${encodeURIComponent(reportName)}`, {
+        method: 'DELETE',
+        headers: headers
+    })
+    .then(response => {
+        return response.text().then(message => ({
+            ok: response.ok,
+            message: message
+        }));
+    })
+    .then(result => {
+        showMessage(result.message, result.ok ? 'success' : 'error');
+        if (result.ok) {
+            loadReports();
+        }
+    })
+    .catch(error => {
+        showMessage('Error deleting report: ' + error.message, 'error');
+    });
+}
+
+function loadReportParameters(reportName) {
+    const parametersSection = document.getElementById('parametersSection');
+    const parametersContainer = document.getElementById('parametersContainer');
+
+    if (!reportName) {
+        parametersSection.style.display = 'none';
+        parametersContainer.innerHTML = '';
+        return;
+    }
+
+    fetch(`/api/jrxml/parameters/${encodeURIComponent(reportName)}`)
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success || data.parameters.length === 0) {
+            parametersSection.style.display = 'none';
+            return;
+        }
+
+        parametersContainer.innerHTML = '';
+        parametersSection.style.display = 'block';
+
+        data.parameters.forEach(param => {
+            const formGroup = document.createElement('div');
+            formGroup.className = 'form-group';
+
+            const label = document.createElement('label');
+            label.textContent = param.name + ' (' + param.class.split('.').pop() + ')';
+            label.setAttribute('for', 'param_' + param.name);
+
+            let input;
+            if (param.inputType === 'checkbox') {
+                input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = 'param_' + param.name;
+                input.name = param.name;
+                input.setAttribute('data-param-type', param.class);
+            } else if (param.inputType === 'date') {
+                input = document.createElement('input');
+                input.type = 'date';
+                input.id = 'param_' + param.name;
+                input.name = param.name;
+                input.setAttribute('data-param-type', param.class);
+            } else if (param.inputType === 'number') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.step = 'any';
+                input.id = 'param_' + param.name;
+                input.name = param.name;
+                input.setAttribute('data-param-type', param.class);
+            } else {
+                input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'param_' + param.name;
+                input.name = param.name;
+                input.setAttribute('data-param-type', param.class);
+            }
+
+            formGroup.appendChild(label);
+            formGroup.appendChild(input);
+            parametersContainer.appendChild(formGroup);
+        });
+    })
+    .catch(error => {
+        console.error('Error loading report parameters:', error);
+        parametersSection.style.display = 'none';
+    });
+}
+
+// Add event listener to load parameters when report is selected
+document.getElementById('reportSelect').addEventListener('change', function() {
+    loadReportParameters(this.value);
+});
+
+function loadDatasources() {
+    const tableBody = document.getElementById('datasourceTableBody');
+    const select = document.getElementById('datasourceSelect');
+
+    // Show loading state
+    tableBody.innerHTML = '<tr><td colspan="4"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></td></tr>';
+
+    fetch('/api/datasources')
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to load datasources');
+        return response.json();
+    })
+    .then(datasources => {
+        // Clear existing
+        tableBody.innerHTML = '';
+        select.innerHTML = '<option value="">-- Use default datasource --</option>';
+
+        if (datasources.length === 0) {
+            tableBody.innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state" style="padding: 40px 20px;">
+                        <div class="empty-state-icon">\ud83d\uddc4\ufe0f</div>
+                        <h3>No Datasources Configured</h3>
+                        <p>Create your first datasource to connect to databases</p>
+                        <button class="btn" onclick="openDatasourceModal()" style="margin-top: 15px;">
+                            \u2795 Add Datasource
+                        </button>
+                    </div>
+                </td></tr>
+            `;
+            return;
+        }
+
+        datasources.forEach(ds => {
+            // Add to table
+            const row = document.createElement('tr');
+
+            // Create cells with text content (prevents XSS)
+            const nameCell = document.createElement('td');
+            nameCell.textContent = ds.name;
+
+            const typeCell = document.createElement('td');
+            const typeValue = ds.type || 'JDBC';
+            typeCell.textContent = typeValue;
+
+            const detailsCell = document.createElement('td');
+            if (typeValue === 'JDBC' || typeValue === 'HIBERNATE') {
+                detailsCell.textContent = `${ds.url || ''} (${ds.username || ''})`;
+            } else if (typeValue === 'MONGODB') {
+                detailsCell.textContent = ds.url || 'MongoDB connection';
+            } else if (typeValue === 'REST_API') {
+                detailsCell.textContent = ds.url || 'REST API endpoint';
+            } else if (typeValue === 'CSV' || typeValue === 'XML' || typeValue === 'JSON') {
+                detailsCell.textContent = ds.filePath ? `File: ${ds.filePath.split('/').pop()}` : 'No file';
+            } else if (typeValue === 'EMPTY') {
+                detailsCell.textContent = 'Empty datasource';
+            } else if (typeValue === 'COLLECTION') {
+                detailsCell.textContent = 'JavaBeans/POJOs/Collections';
+            }
+
+            const actionsCell = document.createElement('td');
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn-small';
+            editBtn.textContent = 'Edit';
+            editBtn.title = 'Edit datasource';
+            editBtn.setAttribute('aria-label', `Edit ${ds.name}`);
+            editBtn.onclick = () => editDatasource(ds.id);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-small btn-danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.title = 'Delete datasource';
+            deleteBtn.setAttribute('aria-label', `Delete ${ds.name}`);
+            deleteBtn.onclick = () => deleteDatasource(ds.id);
+
+            actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(deleteBtn);
+
+            // Add Test Query button for JDBC datasources
+            if (typeValue === 'JDBC') {
+                const testQueryBtn = document.createElement('button');
+                testQueryBtn.className = 'btn-small';
+                testQueryBtn.textContent = 'Test Query';
+                testQueryBtn.style.background = '#17a2b8';
+                testQueryBtn.title = 'Test SQL query';
+                testQueryBtn.setAttribute('aria-label', `Test query on ${ds.name}`);
+                testQueryBtn.onclick = () => openQueryTesterModal(ds.id, ds.name);
+                actionsCell.appendChild(testQueryBtn);
+            }
+
+            row.appendChild(nameCell);
+            row.appendChild(typeCell);
+            row.appendChild(detailsCell);
+            row.appendChild(actionsCell);
+
+            tableBody.appendChild(row);
+
+            // Add to select
+            const option = document.createElement('option');
+            option.value = ds.id;
+            option.textContent = ds.name;
+            select.appendChild(option);
+        });
+    })
+    .catch(error => {
+        tableBody.innerHTML = `
+            <tr><td colspan="4">
+                <div class="empty-state" style="padding: 30px 20px;">
+                    <div class="empty-state-icon">\u26a0\ufe0f</div>
+                    <h3>Error Loading Datasources</h3>
+                    <p>${error.message || 'Unable to load datasources. Please try again.'}</p>
+                    <button class="btn" onclick="loadDatasources()" style="margin-top: 15px;">
+                        \ud83d\udd04 Retry
+                    </button>
+                </div>
+            </td></tr>
+        `;
+    });
+}
+
+document.getElementById('generateForm').onsubmit = function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+
+    const reportName = formData.get('reportName');
+    if (!reportName) {
+        showMessage('Please select a report', 'error');
+        return;
+    }
+
+    params.append('reportName', reportName);
+    params.append('format', formData.get('format'));
+
+    const useDatabase = document.getElementById('useDatabaseCheck').checked;
+    params.append('useDatabase', useDatabase);
+
+    if (useDatabase) {
+        const datasourceId = formData.get('datasourceId');
+        if (!datasourceId) {
+            showMessage('Please select a datasource when using database connection', 'error');
+            return;
+        }
+        params.append('datasourceId', datasourceId);
+    }
+
+    // Collect report parameters
+    const parametersContainer = document.getElementById('parametersContainer');
+    if (parametersContainer && parametersContainer.children.length > 0) {
+        const paramInputs = parametersContainer.querySelectorAll('input, select, textarea');
+        paramInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                params.append(input.name, input.checked ? 'true' : 'false');
+            } else if (input.value) {
+                params.append(input.name, input.value);
+            }
+        });
+    }
+
+    // Add CSRF token
+    const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+    const headers = {};
+    if (token && header) {
+        headers[header] = token;
+    }
+
+    showLoading('Generating report...');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    fetch('/generate?' + params.toString(), {
+        method: 'POST',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Try to extract error message from response
+            return response.text().then(text => {
+                throw new Error(text || 'Generation failed');
+            });
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        hideLoading();
+        if (submitBtn) submitBtn.disabled = false;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const format = formData.get('format');
+        const reportNameOnly = reportName.replace('.jrxml', '');
+        a.download = reportNameOnly + '.' + format;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        showMessage('✓ Report generated successfully!', 'success');
+    })
+    .catch(error => {
+        hideLoading();
+        if (submitBtn) submitBtn.disabled = false;
+        showMessage('✗ Generation failed: ' + error.message, 'error');
+        console.error('Report generation error:', error);
+    });
+};
+
+// Datasource Modal Functions
+function toggleDatasourceFields() {
+    const type = document.getElementById('dsType').value;
+    const jdbcFields = document.getElementById('jdbcFields');
+    const fileFields = document.getElementById('fileFields');
+    const emptyCollectionInfo = document.getElementById('emptyCollectionInfo');
+    const configurationGroup = document.getElementById('configurationGroup');
+    const testBtn = document.getElementById('testBtn');
+    const emptyCollectionText = document.getElementById('emptyCollectionText');
+    const fileHelpText = document.getElementById('fileHelpText');
+    const configHelpText = document.getElementById('configHelpText');
+
+    // Reset all fields
+    jdbcFields.style.display = 'none';
+    fileFields.style.display = 'none';
+    emptyCollectionInfo.style.display = 'none';
+    configurationGroup.style.display = 'none';
+
+    // Clear required attributes
+    document.getElementById('dsUrl').required = false;
+    document.getElementById('dsUsername').required = false;
+    document.getElementById('dsPassword').required = false;
+    document.getElementById('dsDriver').required = false;
+    document.getElementById('dsFile').required = false;
+
+    if (type === 'JDBC' || type === 'HIBERNATE') {
+        jdbcFields.style.display = 'block';
+        document.getElementById('dsUrl').required = true;
+        document.getElementById('dsUsername').required = true;
+        document.getElementById('dsDriver').required = true;
+        testBtn.style.display = 'inline-block';
+        if (type === 'HIBERNATE') {
+            document.getElementById('dsUrl').placeholder = 'jdbc:mysql://localhost:3306/mydb (Hibernate will use JDBC)';
+        } else {
+            document.getElementById('dsUrl').placeholder = 'jdbc:mysql://localhost:3306/mydb';
+        }
+    } else if (type === 'MONGODB') {
+        jdbcFields.style.display = 'block';
+        document.getElementById('dsUrl').required = true;
+        document.getElementById('dsUrl').placeholder = 'mongodb://localhost:27017';
+        document.getElementById('dsDriver').parentElement.style.display = 'none';
+        testBtn.style.display = 'inline-block';
+    } else if (type === 'REST_API') {
+        jdbcFields.style.display = 'block';
+        document.getElementById('dsUrl').required = true;
+        document.getElementById('dsUrl').placeholder = 'https://api.example.com/data';
+        document.getElementById('dsDriver').parentElement.style.display = 'none';
+        configurationGroup.style.display = 'block';
+        document.getElementById('dsConfiguration').placeholder = '$.data[*] or /root/item';
+        configHelpText.innerHTML = 'JSONPath for JSON APIs (e.g., $.data[*]) or XPath for XML APIs (e.g., /root/item)';
+        testBtn.style.display = 'inline-block';
+    } else if (type === 'CSV' || type === 'XML' || type === 'JSON') {
+        fileFields.style.display = 'block';
+        testBtn.style.display = 'inline-block';
+
+        // Update file help text based on type
+        fileHelpText.textContent = `Upload a ${type} file for this datasource`;
+
+        if (type === 'XML' || type === 'JSON') {
+            configurationGroup.style.display = 'block';
+            if (type === 'XML') {
+                document.getElementById('dsConfiguration').placeholder = '/root/items/item';
+                configHelpText.innerHTML = 'XPath expression to select nodes (e.g., /root/items/item)';
+            } else {
+                document.getElementById('dsConfiguration').placeholder = '$.data.items[*]';
+                configHelpText.innerHTML = 'JSONPath expression to select data (e.g., $.data.items[*])';
+            }
+        }
+    } else if (type === 'EMPTY') {
+        emptyCollectionInfo.style.display = 'block';
+        emptyCollectionText.textContent = 'Empty datasource - used for reports that don\'t require external data or use subreports/scriptlets.';
+        testBtn.style.display = 'none';
+    } else if (type === 'COLLECTION') {
+        emptyCollectionInfo.style.display = 'block';
+        emptyCollectionText.textContent = 'Collection datasource - JavaBeans, POJOs, EJBs, or Java collections (List, Set, etc.) passed programmatically.';
+        testBtn.style.display = 'none';
+    }
+
+    // Show driver field for JDBC and Hibernate
+    if (type === 'JDBC' || type === 'HIBERNATE') {
+        document.getElementById('dsDriver').parentElement.style.display = 'block';
+    }
+}
+
+function openDatasourceModal(datasourceId = null) {
+    const modal = document.getElementById('datasourceModal');
+    const form = document.getElementById('datasourceForm');
+    const title = document.getElementById('modalTitle');
+    const passwordField = document.getElementById('dsPassword');
+
+    form.reset();
+    document.getElementById('datasourceMessage').innerHTML = '';
+
+    if (datasourceId) {
+        title.textContent = 'Edit Datasource';
+        // Load datasource data (password will not be returned from API)
+        fetch('/api/datasources/' + datasourceId)
+        .then(response => response.json())
+        .then(ds => {
+            document.getElementById('datasourceId').value = ds.id;
+            document.getElementById('dsName').value = ds.name;
+            document.getElementById('dsType').value = ds.type || 'JDBC';
+            document.getElementById('dsUrl').value = ds.url || '';
+            document.getElementById('dsUsername').value = ds.username || '';
+            document.getElementById('dsDriver').value = ds.driverClassName || '';
+            document.getElementById('dsConfiguration').value = ds.configuration || '';
+
+            // Handle file path for file-based datasources
+            if (ds.filePath) {
+                // Create a note showing current file
+                const fileNote = document.createElement('small');
+                fileNote.style.color = '#667eea';
+                fileNote.style.display = 'block';
+                fileNote.style.marginTop = '5px';
+                fileNote.textContent = `Current file: ${ds.filePath.split('/').pop()}`;
+                fileNote.id = 'currentFileNote';
+
+                // Remove any existing note
+                const existingNote = document.getElementById('currentFileNote');
+                if (existingNote) existingNote.remove();
+
+                // Add note after file input
+                const fileInput = document.getElementById('dsFile');
+                fileInput.parentElement.insertBefore(fileNote, fileInput.nextSibling);
+            }
+
+            // Password is not set - user must enter it again if they want to change it
+            passwordField.placeholder = "Leave blank to keep current password";
+            passwordField.required = false;
+            passwordField.value = ''; // Ensure password is empty for security
+
+            toggleDatasourceFields();
+
+            // Show modal only after data is loaded
+            modal.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading datasource:', error);
+            alert('Failed to load datasource data');
+        });
+    } else {
+        title.textContent = 'Add Datasource';
+        document.getElementById('datasourceId').value = '';
+        document.getElementById('dsType').value = 'JDBC';
+        passwordField.placeholder = "";
+        passwordField.required = true;
+        toggleDatasourceFields();
+
+        // Show modal immediately for new datasource
+        modal.style.display = 'block';
+    }
+}
+
+function closeDatasourceModal() {
+    document.getElementById('datasourceModal').style.display = 'none';
+}
+
+function editDatasource(id) {
+    openDatasourceModal(id);
+}
+
+function deleteDatasource(id) {
+    if (!confirm('Are you sure you want to delete this datasource?')) return;
+
+    fetch('/api/datasources/' + id, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showMessage(data.message, 'success');
+            loadDatasources();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage('Failed to delete datasource: ' + error, 'error');
+    });
+}
+
+document.getElementById('datasourceForm').onsubmit = async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('datasourceId').value;
+    const type = document.getElementById('dsType').value;
+    const fileInput = document.getElementById('dsFile');
+
+    // Handle file upload for CSV/XML/JSON types
+    if ((type === 'CSV' || type === 'XML' || type === 'JSON') && fileInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const uploadResponse = await fetch('/api/datasources/upload-file', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('File upload failed');
+            }
+
+            const uploadData = await uploadResponse.json();
+            if (uploadData.status !== 'success') {
+                showDatasourceMessage('File upload failed: ' + uploadData.message, 'error');
+                return;
+            }
+
+            // Continue with datasource creation using uploaded file path
+            await saveDatasourceWithFilePath(id, type, uploadData.filePath);
+        } catch (error) {
+            showDatasourceMessage('Failed to upload file: ' + error, 'error');
+            return;
+        }
+    } else {
+        // Save datasource without file upload
+        await saveDatasourceWithFilePath(id, type, null);
+    }
+};
+
+async function saveDatasourceWithFilePath(id, type, filePath) {
+    const formData = {
+        type: type,
+        name: document.getElementById('dsName').value
+    };
+
+    // Add type-specific fields
+    if (type === 'JDBC' || type === 'HIBERNATE') {
+        formData.url = document.getElementById('dsUrl').value;
+        formData.username = document.getElementById('dsUsername').value;
+        formData.password = document.getElementById('dsPassword').value;
+        formData.driverClassName = document.getElementById('dsDriver').value;
+    } else if (type === 'MONGODB' || type === 'REST_API') {
+        formData.url = document.getElementById('dsUrl').value;
+        formData.username = document.getElementById('dsUsername').value;
+        formData.password = document.getElementById('dsPassword').value;
+        const config = document.getElementById('dsConfiguration').value;
+        if (config) {
+            formData.configuration = config;
+        }
+    } else if (type === 'CSV' || type === 'XML' || type === 'JSON') {
+        if (filePath) {
+            formData.filePath = filePath;
+        }
+        const config = document.getElementById('dsConfiguration').value;
+        if (config) {
+            formData.configuration = config;
+        }
+    }
+    // EMPTY and COLLECTION types need no additional fields
+
+    const url = id ? '/api/datasources/' + id : '/api/datasources';
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            showDatasourceMessage(data.message, 'success');
+            setTimeout(() => {
+                closeDatasourceModal();
+                loadDatasources();
+            }, 1500);
+        } else {
+            showDatasourceMessage(data.message, 'error');
+        }
+    } catch (error) {
+        showDatasourceMessage('Failed to save datasource: ' + error, 'error');
+    }
+}
+
+function testDatasourceConnection() {
+    const id = document.getElementById('datasourceId').value;
+    const type = document.getElementById('dsType').value;
+    const formData = {
+        type: type,
+        name: document.getElementById('dsName').value || 'test'
+    };
+
+    if (type === 'JDBC' || type === 'HIBERNATE') {
+        formData.url = document.getElementById('dsUrl').value;
+        formData.username = document.getElementById('dsUsername').value;
+        formData.password = document.getElementById('dsPassword').value;
+        formData.driverClassName = document.getElementById('dsDriver').value;
+    } else if (type === 'MONGODB' || type === 'REST_API') {
+        formData.url = document.getElementById('dsUrl').value;
+        formData.username = document.getElementById('dsUsername').value;
+        formData.password = document.getElementById('dsPassword').value;
+        formData.configuration = document.getElementById('dsConfiguration').value;
+    } else if (type === 'CSV' || type === 'XML' || type === 'JSON') {
+        // For file types, test requires file upload first
+        showDatasourceMessage('For file-based datasources, save the datasource first to test it.', 'info');
+        return;
+    }
+
+    // Include ID for existing datasources so backend can retrieve stored password if needed
+    if (id) {
+        formData.id = parseInt(id);
+    }
+
+    fetch('/api/datasources/test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showDatasourceMessage('✓ ' + data.message, 'success');
+        } else {
+            showDatasourceMessage('✗ ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showDatasourceMessage('Test failed: ' + error, 'error');
+    });
+}
+
+function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = type;
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 5000);
+}
+
+function showDatasourceMessage(text, type) {
+    const msg = document.getElementById('datasourceMessage');
+    msg.textContent = text;
+    msg.className = type;
+    msg.style.display = 'block';
+}
+
+// Loading overlay utilities
+function showLoading(message = 'Processing...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const msgElement = document.getElementById('loadingMessage');
+    if (msgElement) msgElement.textContent = message;
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}

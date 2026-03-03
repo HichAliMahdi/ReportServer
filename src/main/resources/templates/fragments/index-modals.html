@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<th:block th:fragment="modals">
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeScheduleModal()">&times;</span>
+                <h3 id="scheduleModalTitle">Create Scheduled Report</h3>
+            </div>
+            <form id="scheduleForm" onsubmit="saveSchedule(event)">
+                <input type="hidden" id="scheduleId">
+                
+                <div class="form-group">
+                    <label for="scheduleName">Schedule Name: *</label>
+                    <input type="text" id="scheduleName" required placeholder="e.g. Weekly Sales Report">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="scheduleReportName">Report Template: *</label>
+                        <select id="scheduleReportName" required>
+                            <option value="">-- Select a report --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleFormat">Output Format: *</label>
+                        <select id="scheduleFormat" required>
+                            <option value="pdf">PDF</option>
+                            <option value="html">HTML</option>
+                            <option value="xlsx">Excel (XLSX)</option>
+                            <option value="xls">Excel (XLS)</option>
+                            <option value="docx">Word (DOCX)</option>
+                            <option value="csv">CSV</option>
+                            <option value="xml">XML</option>
+                            <option value="txt">Plain Text</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduleType">Frequency: *</label>
+                    <select id="scheduleType" required onchange="updateScheduleFields()">
+                        <option value="HOURLY">Hourly</option>
+                        <option value="DAILY">Daily</option>
+                        <option value="WEEKLY" selected>Weekly</option>
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="YEARLY">Yearly</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic schedule fields -->
+                <div id="scheduleFieldsContainer" style="background: #f8f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div id="scheduleFieldMonth" class="form-group" style="display: none;">
+                        <label for="scheduleMonth">Month:</label>
+                        <select id="scheduleMonth">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div id="scheduleFieldDayOfMonth" class="form-group" style="display: none;">
+                        <label for="scheduleDayOfMonth">Day of Month:</label>
+                        <select id="scheduleDayOfMonth"></select>
+                    </div>
+                    <div id="scheduleFieldDayOfWeek" class="form-group" style="display: none;">
+                        <label for="scheduleDayOfWeek">Day of Week:</label>
+                        <select id="scheduleDayOfWeek">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div id="scheduleFieldHour" class="form-group" style="display: none;">
+                            <label for="scheduleHour">Hour (0-23):</label>
+                            <select id="scheduleHour"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleMinute">Minute (0-59):</label>
+                            <select id="scheduleMinute"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduleDatasource">Datasource (optional):</label>
+                    <select id="scheduleDatasource">
+                        <option value="">-- No datasource --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduleOutputPath">Output Directory (optional):</label>
+                    <input type="text" id="scheduleOutputPath" placeholder="data/scheduled_output/">
+                    <small style="color: #666;">Leave empty for default: data/scheduled_output/</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduleDescription">Description (optional):</label>
+                    <textarea id="scheduleDescription" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="Brief description of this scheduled report"></textarea>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeScheduleModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Datasource Modal -->
+    <div id="datasourceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeDatasourceModal()">&times;</span>
+                <h3 id="modalTitle">Add Datasource</h3>
+            </div>
+            <form id="datasourceForm" enctype="multipart/form-data">
+                <input type="hidden" id="datasourceId">
+                <div class="form-group">
+                    <label for="dsType">Datasource Type:</label>
+                    <select id="dsType" name="type" required onchange="toggleDatasourceFields()">
+                        <option value="JDBC">JDBC (Relational Database)</option>
+                        <option value="CSV">CSV File</option>
+                        <option value="XML">XML File</option>
+                        <option value="JSON">JSON File</option>
+                        <option value="MONGODB">MongoDB (NoSQL Database)</option>
+                        <option value="REST_API">REST API (JSON/XML)</option>
+                        <option value="HIBERNATE">Hibernate ORM</option>
+                        <option value="EMPTY">Empty Datasource</option>
+                        <option value="COLLECTION">Java Collection (JavaBeans/POJOs)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dsName">Name:</label>
+                    <input type="text" id="dsName" name="name" required placeholder="My Database">
+                </div>
+                
+                <!-- JDBC Fields -->
+                <div id="jdbcFields">
+                    <div class="form-group">
+                        <label for="dsUrl">JDBC URL:</label>
+                        <input type="text" id="dsUrl" name="url" 
+                               placeholder="jdbc:mysql://localhost:3306/mydb">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsUsername">Username:</label>
+                        <input type="text" id="dsUsername" name="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsPassword">Password:</label>
+                        <input type="password" id="dsPassword" name="password" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label for="dsDriver">Driver Class:</label>
+                        <select id="dsDriver" name="driverClassName">
+                            <option value="com.mysql.cj.jdbc.Driver">MySQL (com.mysql.cj.jdbc.Driver)</option>
+                            <option value="org.postgresql.Driver">PostgreSQL (org.postgresql.Driver)</option>
+                            <option value="org.h2.Driver">H2 (org.h2.Driver)</option>
+                            <option value="oracle.jdbc.OracleDriver">Oracle (oracle.jdbc.OracleDriver)</option>
+                            <option value="com.microsoft.sqlserver.jdbc.SQLServerDriver">SQL Server (com.microsoft.sqlserver.jdbc.SQLServerDriver)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- File Fields for CSV/XML/JSON -->
+                <div id="fileFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="dsFile">Upload File:</label>
+                        <input type="file" id="dsFile" name="file" accept=".csv,.xml,.json">
+                        <small style="color: #666; display: block; margin-top: 5px;" id="fileHelpText">
+                            Upload a CSV, XML, or JSON file for this datasource
+                        </small>
+                    </div>
+                    <div class="form-group" id="configurationGroup" style="display: none;">
+                        <label for="dsConfiguration">Configuration:</label>
+                        <input type="text" id="dsConfiguration" name="configuration" 
+                               placeholder="XPath or JSONPath expression">
+                        <small style="color: #666; display: block; margin-top: 5px;" id="configHelpText">
+                            For XML: XPath expression (e.g., /root/items/item)<br>
+                            For JSON: JSONPath expression (e.g., $.data.items[*])
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Empty/Collection Fields -->
+                <div id="emptyCollectionInfo" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 6px; margin: 15px 0;">
+                    <p style="margin: 0; color: #666; font-size: 14px;" id="emptyCollectionText">
+                        This datasource type is used for reports that don't require external data.
+                    </p>
+                </div>
+                
+                <button type="button" class="btn" onclick="testDatasourceConnection()" id="testBtn">Test Connection</button>
+                <button type="submit" class="btn">Save</button>
+                <div id="datasourceMessage" style="margin-top: 15px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JRXML Editor Modal -->
+    <div id="jrxmlEditorModal" class="modal">
+        <div class="modal-content" style="max-width: 90%; width: 1200px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeJrxmlEditor()">&times;</span>
+                <h3 id="jrxmlEditorTitle">Edit JRXML File</h3>
+            </div>
+            <div id="editorContainer"></div>
+            <div class="editor-actions">
+                <button type="button" class="btn" onclick="closeJrxmlEditor()" style="background: #6c757d;">Cancel</button>
+                <button type="button" class="btn" onclick="downloadEditedJrxml()" style="background: #17a2b8;">💾 Download</button>
+                <button type="button" class="btn" onclick="saveJrxmlFile()">✅ Save</button>
+            </div>
+            <div id="editorMessage" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- Parameter Modal -->
+    <div id="parameterModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeParameterModal()">&times;</span>
+                <h3 id="parameterModalTitle">Add Parameter</h3>
+            </div>
+            <form id="parameterForm" onsubmit="saveParameter(event)">
+                <input type="hidden" id="parameterEditIndex">
+                
+                <div class="form-group">
+                    <label for="paramName">Parameter Name: *</label>
+                    <input type="text" id="paramName" required placeholder="startDate" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                    <small style="color: #666;">Use in SQL as $P{parameterName} or in expressions as $P{parameterName}</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramClass">Java Class: *</label>
+                    <select id="paramClass" required onchange="updateParameterExamples()">
+                        <option value="java.lang.String">String</option>
+                        <option value="java.lang.Integer">Integer</option>
+                        <option value="java.lang.Long">Long</option>
+                        <option value="java.lang.Double">Double</option>
+                        <option value="java.math.BigDecimal">BigDecimal</option>
+                        <option value="java.lang.Boolean">Boolean</option>
+                        <option value="java.util.Date">Date</option>
+                        <option value="java.sql.Timestamp">Timestamp</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramDefaultValue">Default Value Expression:</label>
+                    <input type="text" id="paramDefaultValue" placeholder='null or "Default Text"'>
+                    <small id="paramExamples" style="color: #666; display: block; margin-top: 5px;">
+                        <strong>Examples:</strong> null | "My Text" | "" (empty string)
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paramDescription">Description (Optional):</label>
+                    <textarea id="paramDescription" rows="2" placeholder="Brief description of this parameter"></textarea>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeParameterModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Parameter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Variable Modal -->
+    <div id="variableModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeVariableModal()">&times;</span>
+                <h3 id="variableModalTitle">Add Variable</h3>
+            </div>
+            <form id="variableForm" onsubmit="saveVariable(event)">
+                <input type="hidden" id="variableEditIndex">
+                
+                <div class="form-group">
+                    <label for="varName">Variable Name: *</label>
+                    <input type="text" id="varName" required placeholder="myVariable" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                    <small style="color: #666;">Use in expressions as $V{variableName}</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varClass">Java Class: *</label>
+                        <select id="varClass" required>
+                            <option value="java.lang.String">String</option>
+                            <option value="java.lang.Integer">Integer</option>
+                            <option value="java.lang.Long">Long</option>
+                            <option value="java.lang.Double">Double</option>
+                            <option value="java.math.BigDecimal">BigDecimal</option>
+                            <option value="java.lang.Boolean">Boolean</option>
+                            <option value="java.util.Date">Date</option>
+                            <option value="java.sql.Timestamp">Timestamp</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="varCalculation">Calculation Type: *</label>
+                        <select id="varCalculation" required onchange="updateVariableFormFields()">
+                            <option value="Nothing">Nothing</option>
+                            <option value="Count">Count</option>
+                            <option value="DistinctCount">Distinct Count</option>
+                            <option value="Sum">Sum</option>
+                            <option value="Average">Average</option>
+                            <option value="Lowest">Lowest</option>
+                            <option value="Highest">Highest</option>
+                            <option value="StandardDeviation">Standard Deviation</option>
+                            <option value="Variance">Variance</option>
+                            <option value="First">First</option>
+                            <option value="System">System</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="varExpression">Variable Expression: *</label>
+                    <input type="text" id="varExpression" required placeholder="$F{fieldName} or custom expression">
+                    <small style="color: #666;">Use $F{fieldName} for fields, $P{paramName} for parameters, $V{varName} for other variables</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="varInitialValue">Initial Value Expression:</label>
+                    <input type="text" id="varInitialValue" placeholder="0 or null or &quot;Initial&quot;">
+                    <small style="color: #666;">Starting value before the expression is first computed</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varResetType">Reset Type: *</label>
+                        <select id="varResetType" required onchange="updateVariableFormFields()">
+                            <option value="Report">Report</option>
+                            <option value="Page">Page</option>
+                            <option value="Column">Column</option>
+                            <option value="Group">Group</option>
+                            <option value="None">None</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="varResetGroupDiv" style="display: none;">
+                        <label for="varResetGroup">Reset Group:</label>
+                        <input type="text" id="varResetGroup" placeholder="GroupName">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="varIncrementType">Increment Type: *</label>
+                        <select id="varIncrementType" required onchange="updateVariableFormFields()">
+                            <option value="None">None</option>
+                            <option value="Report">Report</option>
+                            <option value="Page">Page</option>
+                            <option value="Column">Column</option>
+                            <option value="Group">Group</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="varIncrementGroupDiv" style="display: none;">
+                        <label for="varIncrementGroup">Increment Group:</label>
+                        <input type="text" id="varIncrementGroup" placeholder="GroupName">
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeVariableModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Variable</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dataset Modal -->
+    <div id="datasetModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeDatasetModal()">&times;</span>
+                <h3 id="datasetModalTitle">Add Dataset</h3>
+            </div>
+            <form id="datasetForm" onsubmit="saveDataset(event)">
+                <input type="hidden" id="datasetEditIndex">
+                
+                <div class="form-group">
+                    <label for="datasetName">Dataset Name: *</label>
+                    <input type="text" id="datasetName" required placeholder="MyDataset" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           title="Must start with a letter or underscore">
+                    <small style="color: #666;">Unique name to identify this dataset (e.g., SalesDataset, CategoryData)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="datasetQuery">SQL Query: *</label>
+                    <textarea id="datasetQuery" required placeholder="SELECT * FROM table WHERE condition" 
+                              style="width: 100%; min-height: 120px; font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                    <small style="color: #666;">SQL query for this dataset. Can use parameters: WHERE date >= $P{startDate}</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="datasetFields">Fields (comma-separated): *</label>
+                    <input type="text" id="datasetFields" required placeholder="field1, field2, field3">
+                    <small style="color: #666;">Field names returned by the query (e.g., product_name, quantity, price)</small>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeDatasetModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Dataset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subreport Modal -->
+    <div id="subreportModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeSubreportModal()">&times;</span>
+                <h3 id="subreportModalTitle">Add Subreport</h3>
+            </div>
+            <form id="subreportForm" onsubmit="saveSubreport(event)">
+                <input type="hidden" id="subreportEditIndex">
+                
+                <div class="form-group">
+                    <label for="subreportName">Subreport Name: *</label>
+                    <input type="text" id="subreportName" required placeholder="OrderDetails" pattern="[a-zA-Z_][a-zA-Z0-9_]*">
+                    <small style="color: #666;">Descriptive name for this subreport</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="subreportFile">Subreport JRXML File: *</label>
+                    <input type="text" id="subreportFile" required placeholder="subreport.jrxml">
+                    <small style="color: #666;">Filename of the subreport (must be uploaded to data/reports/ first)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="subreportDatasource">Datasource (Optional):</label>
+                    <select id="subreportDatasource">
+                        <option value="">-- Use same as main report --</option>
+                    </select>
+                    <small style="color: #666;">Choose a different datasource for this subreport, or leave blank to use same</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="subreportParameters">Parameters to Pass (comma-separated):</label>
+                    <input type="text" id="subreportParameters" placeholder="customerId, orderDate">
+                    <small style="color: #666;">Main report fields/parameters to pass to subreport (e.g., $F{customer_id}, $P{dateParam})</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="subreportX">Position X (pixels):</label>
+                        <input type="number" id="subreportX" value="0" min="0" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="subreportY">Position Y (pixels):</label>
+                        <input type="number" id="subreportY" value="0" min="0" step="10">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="subreportWidth">Width (pixels): *</label>
+                        <input type="number" id="subreportWidth" required value="500" min="50" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="subreportHeight">Height (pixels): *</label>
+                        <input type="number" id="subreportHeight" required value="200" min="50" step="10">
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="btn" onclick="closeSubreportModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Save Subreport</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Query Tester Modal -->
+    <div id="queryTesterModal" class="modal">
+        <div class="modal-content" style="max-width: 1200px; width: 90%;">
+            <div class="modal-header">
+                <span class="close" onclick="closeQueryTesterModal()">&times;</span>
+                <h3 id="queryTesterTitle">Test Query</h3>
+            </div>
+            <div style="padding: 20px;">
+                <input type="hidden" id="queryTesterDatasourceId">
+                <input type="hidden" id="queryTesterDatasourceName">
+                
+                <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                    <strong>Datasource:</strong> <span id="queryTesterDatasourceDisplay"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="modalSqlQuery">SQL Query:</label>
+                    <textarea id="modalSqlQuery" rows="10" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT * FROM users WHERE active = 1 LIMIT 10;" style="font-family: 'Courier New', monospace; padding: 12px; width: 100%; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div class="form-group" style="max-width: 300px;">
+                    <label for="modalMaxRows">Max Rows: <span style="color: #999; font-weight: normal;">(Limit: 1-10,000)</span></label>
+                    <input type="number" id="modalMaxRows" value="1000" min="1" max="10000" placeholder="1000" style="width: 100%;">
+                    <p style="color: #666; font-size: 12px; margin-top: 5px; margin-bottom: 0;">⚠️ Limiting results prevents crashes on large tables</p>
+                </div>
+                
+                <button class="btn" onclick="executeQueryFromModal()">▶️ Execute Query</button>
+                
+                <div id="modalQueryTruncatedWarning" style="display: none; margin-top: 15px; padding: 12px; background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 6px;">
+                    ⚠️ <strong>Results truncated:</strong> Only the first <span id="modalTruncatedMaxRows"></span> rows are shown. The table may contain more data.
+                </div>
+                
+                <div id="modalQueryResults" style="margin-top: 20px; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="color: #667eea; margin: 0;">Query Results</h3>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <div id="modalQueryMeta" style="color: #666; font-size: 14px;"></div>
+                            <button class="btn" onclick="exportQueryResultsToCSV()" style="padding: 6px 14px; font-size: 13px;">📥 Export CSV</button>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x: auto; max-height: 500px; border: 1px solid #ddd; border-radius: 6px;">
+                        <table class="datasource-table" id="modalQueryResultsTable">
+                            <thead id="modalQueryResultsHead"></thead>
+                            <tbody id="modalQueryResultsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="modalQueryError" style="display: none; margin-top: 20px; padding: 15px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 6px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Manager Modal -->
+    <div id="imageManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeImageManager()">&times;</span>
+                <h3>🖼️ Image Manager</h3>
+            </div>
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 20px;">
+                    <input type="file" id="imageUploadInput" accept="image/*" onchange="uploadImage()" style="display: none;">
+                    <button class="btn" onclick="document.getElementById('imageUploadInput').click()">📤 Upload Image</button>
+                    <p style="color: #666; font-size: 12px; margin-top: 5px;">Supported formats: JPG, PNG, GIF, BMP, SVG</p>
+                </div>
+                
+                <div id="imageGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; max-height: 400px; overflow-y: auto;">
+                    <p style="color: #999;">Loading images...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Manager Modal -->
+    <div id="templateManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeTemplateManager()">&times;</span>
+                <h3>📋 Template Manager</h3>
+            </div>
+            <div style="padding: 20px;">
+                <p style="color: #666; margin-bottom: 15px;">Load or delete saved report templates</p>
+                
+                <div id="templateList" style="max-height: 400px; overflow-y: auto;">
+                    <p style="color: #999;">Loading templates...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Settings Modal -->
+    <div id="pageSettingsModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="close" onclick="closePageSettings()">&times;</span>
+                <h3>⚙️ Page Settings</h3>
+            </div>
+            <form onsubmit="applyPageSettings(event)" style="padding: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="pageWidth">Page Width (px):</label>
+                        <input type="number" id="pageWidth" value="595" min="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pageHeight">Page Height (px):</label>
+                        <input type="number" id="pageHeight" value="842" min="100" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pageOrientation">Orientation:</label>
+                    <select id="pageOrientation">
+                        <option value="Portrait">Portrait</option>
+                        <option value="Landscape">Landscape</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="marginTop">Top Margin:</label>
+                        <input type="number" id="marginTop" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginBottom">Bottom Margin:</label>
+                        <input type="number" id="marginBottom" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginLeft">Left Margin:</label>
+                        <input type="number" id="marginLeft" value="20" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="marginRight">Right Margin:</label>
+                        <input type="number" id="marginRight" value="20" min="0" required>
+                    </div>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closePageSettings()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="btn">Apply Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Query Editor Modal -->
+    <div id="queryEditorModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeQueryEditor()">&times;</span>
+                <h3>✏️ Custom SQL Query</h3>
+            </div>
+            <div style="padding: 20px;">
+                <p style="color: #666; margin-bottom: 15px;">Write a custom SQL query to fetch data for your report. The query will override the selected table.</p>
+                
+                <div class="form-group">
+                    <label for="customSqlQuery">SQL Query:</label>
+                    <textarea id="customSqlQuery" rows="12" placeholder="SELECT * FROM tablename&#10;WHERE condition = value&#10;ORDER BY column" style="font-family: 'Courier New', monospace; padding: 12px; width: 100%; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closeQueryEditor()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                    <button type="button" class="btn" onclick="applyCustomQuery()">Apply Query</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

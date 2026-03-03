@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<th:block th:fragment="content">
+    <!-- Main Content -->
+    <div class="container">
+
+        <!-- Reports Tab -->
+        <div id="reportsTab" class="tab-content active">
+            <!-- Generate Report Section -->
+            <div class="card">
+                <h2>⚡ Generate Report</h2>
+                <form id="generateForm">
+                    <div class="form-group">
+                        <label for="reportSelect">Select Report:</label>
+                        <select id="reportSelect" name="reportName" required>
+                            <option value="">-- Select a report --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="formatSelect">Output Format:</label>
+                        <select id="formatSelect" name="format">
+                            <option value="pdf">PDF</option>
+                            <option value="html">HTML</option>
+                            <option value="xlsx">Microsoft Excel (XLSX)</option>
+                            <option value="xls">Microsoft Excel (XLS)</option>
+                            <option value="docx">Microsoft Word (DOCX)</option>
+                            <option value="rtf">Rich Text Format (RTF)</option>
+                            <option value="odt">OpenDocument Text (ODT)</option>
+                            <option value="csv">CSV (Comma-separated values)</option>
+                            <option value="xml">XML</option>
+                            <option value="txt">Plain Text (TXT)</option>
+                        </select>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="useDatabaseCheck" name="useDatabase">
+                        <label for="useDatabaseCheck">Use Database Connection</label>
+                    </div>
+
+                    <div class="form-group" id="datasourceGroup" style="display: none;">
+                        <label for="datasourceSelect">Select Datasource:</label>
+                        <select id="datasourceSelect" name="datasourceId">
+                            <option value="">-- Use default datasource --</option>
+                        </select>
+                    </div>
+
+                    <!-- Report Parameters Section -->
+                    <div id="parametersSection" style="display: none;">
+                        <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">📝 Report Parameters</h3>
+                        <div id="parametersContainer"></div>
+                    </div>
+
+                    <button type="submit" class="btn">Generate Report</button>
+                </form>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📤 Upload JRXML Report</h2>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
+                    <p style="color: #667eea; font-size: 18px;">Click to select JRXML file</p>
+                    <p style="color: #999; margin-top: 10px;">or drag and drop here</p>
+                </div>
+                <input type="file" id="fileInput" accept=".jrxml" onchange="uploadFile()">
+                <div id="message"></div>
+            </div>
+
+            <!-- Available Reports -->
+            <div class="card">
+                <h2>📋 Available Reports</h2>
+                <div id="reportList" class="report-list"></div>
+            </div>
+        </div>
+
+        <!-- Report Builder Tab -->
+        <div id="builderTab" class="tab-content">
+            <!-- Builder Mode Toggle -->
+            <div class="card" style="padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button class="btn" id="formBuilderBtn" onclick="switchBuilderMode('form')" style="flex: 1; max-width: 200px; background: #667eea;">
+                        📝 Form Builder
+                    </button>
+                    <button class="btn" id="visualBuilderBtn" onclick="switchBuilderMode('visual')" style="flex: 1; max-width: 200px; background: #6c757d;">
+                        🎨 Visual Builder
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Form Builder (existing) -->
+            <div id="formBuilderSection">
+            <div class="card">
+                <h2>🔧 Report Builder</h2>
+                <p style="color: #666; margin-bottom: 20px;">Build a simple report from database tables</p>
+                
+                <form id="builderForm" onsubmit="generateBuilderReport(event)">
+                    <div class="form-group">
+                        <label for="builderReportName">Report Name:</label>
+                        <input type="text" id="builderReportName" required placeholder="MyReport" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="builderDatasource">Select Datasource:</label>
+                        <select id="builderDatasource" required onchange="loadBuilderTables()">
+                            <option value="">-- Select a datasource --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="builderTableGroup" style="display: none;">
+                        <label for="builderTable">Select Table:</label>
+                        <select id="builderTable" onchange="loadBuilderColumns()">
+                            <option value="">-- Select a table --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="builderColumnsGroup" style="display: none;">
+                        <label>Select Columns:</label>
+                        <div style="margin-bottom: 10px;">
+                            <button type="button" onclick="selectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; margin-right: 10px;">✓ Select All</button>
+                            <button type="button" onclick="unselectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; background: #6c757d;">✗ Unselect All</button>
+                        </div>
+                        <div id="builderColumnsContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
+                            <p style="color: #999;">Select a table first</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Parameters Section -->
+                    <div class="form-group" id="builderParametersGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">🔧 Parameters (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Parameters are input values you can pass to your report to filter data or customize output.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Date Filter:</strong> Name: startDate, Type: Date, Default: new java.util.Date()</p>
+                                <p><strong>Text Filter:</strong> Name: customerName, Type: String, Default: "All"</p>
+                                <p><strong>Number Filter:</strong> Name: minAmount, Type: BigDecimal, Default: 0</p>
+                                <p style="margin-top: 8px;"><em>Use in SQL: WHERE date >= $P{startDate} AND amount >= $P{minAmount}</em></p>
+                                <p><em>Tip: Parameters must be passed when generating the report. Use them in your SQL query to filter data.</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openParameterModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Parameter</button>
+                        
+                        <div id="parametersList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No parameters added yet</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Variables Section -->
+                    <div class="form-group" id="builderVariablesGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">📊 Variables (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Variables allow you to perform calculations, store values, and create running totals.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Running Total:</strong> Name: totalSales, Type: BigDecimal, Calculation: Sum, Expression: $F{price}</p>
+                                <p><strong>Record Counter:</strong> Name: recordCount, Type: Integer, Calculation: Count, Expression: $F{id}</p>
+                                <p><strong>Page Numbering:</strong> Use built-in variable $V{PAGE_NUMBER}</p>
+                                <p style="margin-top: 8px;"><em>Tip: Variables are evaluated in the order they're declared. One variable can reference another declared before it.</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openVariableModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Variable</button>
+                        
+                        <div id="variablesList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No variables added yet</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Datasets Section -->
+                    <div class="form-group" id="builderDatasetsGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">🗃️ Datasets (Optional - Advanced)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Datasets allow you to organize multiple queries within one report, useful for charts, tables, and aggregations.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Use Cases</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Sales by Category:</strong> Name: CategorySales, Query: SELECT category, SUM(amount) FROM sales GROUP BY category</p>
+                                <p><strong>Top Products:</strong> Name: TopProducts, Query: SELECT product_name, quantity FROM orders ORDER BY quantity DESC LIMIT 10</p>
+                                <p><strong>Monthly Trends:</strong> Name: MonthlyData, Query: SELECT MONTH(date), AVG(value) FROM metrics GROUP BY MONTH(date)</p>
+                                <p style="margin-top: 8px;"><em>Use Case: Create charts, crosstabs, or tables that use different data than your main report query.</em></p>
+                                <p><em>Tip: Datasets can accept parameters from the main report. Use $P{parameterName} in dataset queries.</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openDatasetModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Dataset</button>
+                        
+                        <div id="datasetsList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No datasets added yet</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Subreports Section -->
+                    <div class="form-group" id="builderSubreportsGroup" style="display: none;">
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">📑 Subreports (Optional - Advanced)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Subreports embed one report inside another, perfect for combining data from multiple datasources.</p>
+                        <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Use Cases</summary>
+                            <div style="margin-top: 10px; font-size: 13px; color: #555;">
+                                <p><strong>Customer Orders:</strong> Main report shows customers, subreport shows their orders (different datasource)</p>
+                                <p><strong>Multi-Source Invoice:</strong> Main report from billing DB, subreport items from inventory DB</p>
+                                <p><strong>Summary with Details:</strong> Main report shows totals, subreport lists all transactions</p>
+                                <p style="margin-top: 8px;"><em>Use Case: Combine data from different databases or tables that can't be joined with SQL.</em></p>
+                                <p><em>Tip: You can pass parameters from main report to subreport, and each subreport can use a different datasource!</em></p>
+                            </div>
+                        </details>
+                        
+                        <button type="button" onclick="openSubreportModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Subreport</button>
+                        
+                        <div id="subreportsList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
+                            <p style="color: #999; text-align: center; margin: 20px 0;">No subreports added yet - Note: Upload subreport JRXML files first</p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="margin-top: 20px;">🚀 Generate JRXML Report</button>
+                    
+                    <div id="builderMessage" style="margin-top: 15px;"></div>
+                </form>
+            </div>
+            </div>
+            
+            <!-- Visual Builder Section -->
+            <div id="visualBuilderSection" style="display: none;">
+                <div class="card">
+                    <h2>🎨 Visual Report Builder</h2>
+                    <p style="color: #666; margin-bottom: 20px;">Simple drag-and-drop report designer</p>
+                    
+                    <!-- Top Controls -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="vbReportName" placeholder="Report Name" style="flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                        <select id="vbBandSelect" onchange="vbChangeBand()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="title">Title Band</option>
+                            <option value="detail" selected>Detail Band</option>
+                            <option value="footer">Footer Band</option>
+                        </select>
+                        <button class="btn" onclick="vbClear()" style="background: #6c757d;">🗑️ Clear Canvas</button>
+                        <button class="btn" onclick="vbGenerate()">🚀 Generate Report</button>
+                    </div>
+                    
+                    <!-- Main Layout: Toolbox | Canvas | Properties -->
+                    <div style="display: flex; gap: 15px; min-height: 700px; background: #f0f2f5; padding: 15px; border-radius: 8px;">
+                        
+                        <!-- LEFT: TOOLBOX -->
+                        <div style="width: 180px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
+                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">🧰 Elements</h4>
+                            
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')">📝 Text</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')">🏷️ Label</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')">🔤 Field</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')">➖ Line</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')">▭ Box</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')">📄 Page #</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">📅 Date</button>
+                            
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;" />
+                            <h4 style="margin: 10px 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">📦 Advanced</h4>
+                            
+                            <button class="vb-toolbox-btn" onclick="vbAddLogo()">🎨 Logo</button>
+                            <button class="vb-toolbox-btn" onclick="vbAddTable()">📊 Table</button>
+                            
+                            <input type="file" id="vbLogoInput" accept="image/*" style="display: none;" onchange="vbUploadLogo(event)" />
+                        </div>
+                        
+                        <!-- CENTER: CANVAS -->
+                        <div id="vbCanvas" style="flex: 1; background-color: white; background-image: linear-gradient(0deg, transparent 24%, rgba(0, 123, 255, 0.05) 25%, rgba(0, 123, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 123, 255, 0.05) 75%, rgba(0, 123, 255, 0.05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 123, 255, 0.05) 25%, rgba(0, 123, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 123, 255, 0.05) 75%, rgba(0, 123, 255, 0.05) 76%, transparent 77%, transparent); background-size: 20px 20px; border: 2px solid #007bff; border-radius: 6px; position: relative; overflow: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s;">
+                            <div id="vbPlaceholder" style="padding: 40px; text-align: center; color: #999; pointer-events: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                                <p style="font-size: 32px; margin: 0;">📄</p>
+                                <p style="margin: 10px 0 0 0;">Drop elements here<br><small style="font-size: 12px;">or click buttons to add</small></p>
+                            </div>
+                        </div>
+                        
+                        <!-- RIGHT: PROPERTIES -->
+                        <div id="vbProperties" style="width: 220px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
+                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">⚙️ Properties</h4>
+                            <div id="vbPropsPanel" style="color: #999; font-size: 13px;">
+                                Select an element to edit
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datasources Tab -->
+        <div id="datasourcesTab" class="tab-content">
+            <div class="card">
+                <h2>🗄️ Datasource Management</h2>
+                <button class="btn" onclick="openDatasourceModal()">➕ Add New Datasource</button>
+                <table class="datasource-table" id="datasourceTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Details</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="datasourceTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #999;">No datasources configured</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Schedules Tab -->
+        <div id="schedulesTab" class="tab-content">
+            <div class="card">
+                <h2>⏰ Scheduled Reports</h2>
+                <p style="color: #666; margin-bottom: 20px;">Automate report generation on a recurring schedule. Reports are saved to the output directory.</p>
+                <button class="btn" onclick="openScheduleModal()">➕ Create New Schedule</button>
+                
+                <div id="schedulesListContainer" style="margin-top: 20px;">
+                    <table class="datasource-table" id="schedulesTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Report</th>
+                                <th>Frequency</th>
+                                <th>Format</th>
+                                <th>Next Run</th>
+                                <th>Last Run</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedulesTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: #999;">No scheduled reports configured</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</th:block>
+</body>
+</html>

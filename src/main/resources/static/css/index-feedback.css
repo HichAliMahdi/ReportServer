@@ -1,0 +1,81 @@
+/* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        .spinner-large {
+            width: 40px;
+            height: 40px;
+            border-width: 4px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10000;
+            color: white;
+        }
+        .loading-overlay .spinner {
+            width: 60px;
+            height: 60px;
+            border-width: 6px;
+            border-color: rgba(255,255,255,.3);
+            border-top-color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-card {
+            height: 120px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .skeleton-text {
+            height: 20px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .empty-state p {
+            color: #999;
+            margin-bottom: 25px;
+        }

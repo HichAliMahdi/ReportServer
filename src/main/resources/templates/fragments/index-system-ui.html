@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<th:block th:fragment="systemUi">
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-header">
+                <span class="confirm-modal-icon">⚠️</span>
+                <h3>Confirm Delete</h3>
+            </div>
+            <div class="confirm-modal-body">
+                <p id="deleteConfirmMessage"></p>
+                <p style="margin-top: 12px; color: #dc3545; font-weight: 500;">This action is irreversible.</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-modal-btn confirm-modal-btn-cancel" onclick="closeDeleteConfirm()">Cancel</button>
+                <button id="deleteConfirmBtn" class="confirm-modal-btn confirm-modal-btn-confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Processing...</p>
+    </div>
+</th:block>
+</body>
+</html>

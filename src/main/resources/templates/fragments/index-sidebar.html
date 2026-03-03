@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<th:block th:fragment="sidebar">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>📊 Reports Server</h2>
+            <div class="sidebar-user">
+                <span>👤</span>
+                <span sec:authentication="name">User</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+            <div class="nav-item active" data-tab="reports" onclick="switchTab('reports')" role="button" tabindex="0" aria-label="Reports section" title="View and generate reports">
+                <span class="nav-item-icon" aria-hidden="true">📄</span>
+                <span>Reports</span>
+            </div>
+            <div class="nav-item" data-tab="builder" onclick="switchTab('builder')" role="button" tabindex="0" aria-label="Report Builder section" title="Build custom reports">
+                <span class="nav-item-icon" aria-hidden="true">🔨</span>
+                <span>Report Builder</span>
+            </div>
+            <div class="nav-item" data-tab="datasources" onclick="switchTab('datasources')" role="button" tabindex="0" aria-label="Datasources section" title="Manage data connections">
+                <span class="nav-item-icon" aria-hidden="true">🗄️</span>
+                <span>Datasources</span>
+            </div>
+            <div class="nav-item" data-tab="schedules" onclick="switchTab('schedules')" role="button" tabindex="0" aria-label="Schedules section" title="Manage scheduled reports">
+                <span class="nav-item-icon" aria-hidden="true">⏰</span>
+                <span>Schedules</span>
+            </div>
+            <div class="nav-item" data-tab="users" sec:authorize="hasRole('ADMIN')" onclick="switchTab('users')" role="button" tabindex="0" aria-label="User Management section" title="Manage users and permissions">
+                <span class="nav-item-icon" aria-hidden="true">👥</span>
+                <span>User Management</span>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/change-password" class="btn" style="text-decoration: none; display: block; text-align: center; margin-bottom: 10px; padding: 10px;">Change Password</a>
+            <form th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="btn" style="width: 100%;">Logout</button>
+            </form>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>
