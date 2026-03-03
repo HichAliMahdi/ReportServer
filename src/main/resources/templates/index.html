@@ -520,6 +520,51 @@
         .canvas-element:hover {
             border-color: #4c5de5;
         }
+        
+        /* NEW Visual Builder Styles */
+        .vb-toolbox-btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: grab;
+            text-align: left;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .vb-toolbox-btn:active {
+            cursor: grabbing;
+        }
+        .vb-toolbox-btn:hover {
+            background: #e7e8eb;
+            border-color: #007bff;
+            transform: translateX(3px);
+        }
+        .vb-element {
+            position: absolute;
+            background: rgba(0, 123, 255, 0.08);
+            border: 2px solid #007bff;
+            padding: 6px;
+            cursor: move;
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 12px;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .vb-element:hover {
+            background: rgba(0, 123, 255, 0.15);
+            box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+        }
+        .vb-element.selected {
+            background: rgba(0, 123, 255, 0.2);
+            border: 2px solid #0056b3;
+            box-shadow: 0 0 12px rgba(0, 123, 255, 0.5);
+            outline: 2px dashed #0056b3;
+        }
+        
         .image-gallery-item {
             position: relative;
             border: 1px solid #ddd;
@@ -989,110 +1034,52 @@
             <div id="visualBuilderSection" style="display: none;">
                 <div class="card">
                     <h2>🎨 Visual Report Builder</h2>
-                    <p style="color: #666; margin-bottom: 20px;">Design your report visually with drag-and-drop elements</p>
+                    <p style="color: #666; margin-bottom: 20px;">Simple drag-and-drop report designer</p>
                     
-                    <!-- Data Source Configuration -->
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="margin-top: 0; font-size: 16px; color: #667eea;">📊 Data Source Configuration</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label for="visualDatasource">Datasource:</label>
-                                <select id="visualDatasource" onchange="loadVisualBuilderTables()" style="width: 100%;">
-                                    <option value="">-- Select datasource --</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label for="visualTable">Table:</label>
-                                <select id="visualTable" onchange="loadVisualBuilderColumns()" style="width: 100%;">
-                                    <option value="">-- Select table --</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label for="visualSqlQuery">Custom SQL Query:</label>
-                                <button class="btn" onclick="openQueryEditor()" style="width: 100%; padding: 8px; font-size: 13px;">✏️ Edit Query</button>
-                            </div>
-                        </div>
-                        <div id="visualFieldsList" style="display: none; margin-top: 15px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
-                            <strong style="color: #667eea; display: block; margin-bottom: 10px;">📋 Available Fields:</strong>
-                            <div id="visualFieldsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
-                        </div>
+                    <!-- Top Controls -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="vbReportName" placeholder="Report Name" style="flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                        <select id="vbBandSelect" onchange="vbChangeBand()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="title">Title Band</option>
+                            <option value="detail" selected>Detail Band</option>
+                            <option value="footer">Footer Band</option>
+                        </select>
+                        <button class="btn" onclick="vbClear()" style="background: #6c757d;">🗑️ Clear Canvas</button>
+                        <button class="btn" onclick="vbGenerate()">🚀 Generate Report</button>
                     </div>
                     
-                    <!-- Top Toolbar -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                        <input type="text" id="visualReportName" placeholder="Report Name" style="flex: 1; min-width: 200px;" />
-                        <button class="btn" onclick="openTemplateManager()" style="background: #17a2b8;">📋 Templates</button>
-                        <button class="btn" onclick="openImageManager()" style="background: #28a745;">🖼️ Images</button>
-                        <button class="btn" onclick="openPageSettings()" style="background: #6c757d;">⚙️ Page Settings</button>
-                        <button class="btn" onclick="saveAsTemplate()" style="background: #ffc107; color: #333;">💾 Save as Template</button>
-                        <button class="btn" onclick="generateFromVisualDesign()">🚀 Generate Report</button>
-                    </div>
-                    
-                    <div style="display: flex; gap: 20px; min-height: 600px;">
-                        <!-- Left: Toolbox -->
-                        <div style="width: 200px; border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa;">
-                            <h3 style="margin-top: 0; color: #667eea; font-size: 16px;">🧰 Toolbox</h3>
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button class="toolbox-item" onclick="addElement('text')" draggable="true" ondragstart="handleToolboxDrag(event, 'text')">
-                                    📝 Text Label
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('image')" draggable="true" ondragstart="handleToolboxDrag(event, 'image')">
-                                    🖼️ Image
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('line')" draggable="true" ondragstart="handleToolboxDrag(event, 'line')">
-                                    ➖ Line
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('rectangle')" draggable="true" ondragstart="handleToolboxDrag(event, 'rectangle')">
-                                    ▭ Rectangle
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('field')" draggable="true" ondragstart="handleToolboxDrag(event, 'field')" title="Add a database field">
-                                    🔤 Database Field
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('pageNumber')" draggable="true" ondragstart="handleToolboxDrag(event, 'pageNumber')" title="Add page number">
-                                    📄 Page Number
-                                </button>
-                                <button class="toolbox-item" onclick="addElement('currentDate')" draggable="true" ondragstart="handleToolboxDrag(event, 'currentDate')" title="Add current date">
-                                    📅 Current Date
-                                </button>
-                            </div>
+                    <!-- Main Layout: Toolbox | Canvas | Properties -->
+                    <div style="display: flex; gap: 15px; min-height: 700px; background: #f0f2f5; padding: 15px; border-radius: 8px;">
+                        
+                        <!-- LEFT: TOOLBOX -->
+                        <div style="width: 180px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
+                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">🧰 Elements</h4>
                             
-                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
-                                <h4 style="font-size: 14px; color: #667eea; margin-bottom: 10px;">📏 Canvas Band:</h4>
-                                <select id="currentBand" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
-                                    <option value="title">Title</option>
-                                    <option value="pageHeader">Page Header</option>
-                                    <option value="columnHeader">Column Header</option>
-                                    <option value="detail" selected>Detail</option>
-                                    <option value="columnFooter">Column Footer</option>
-                                    <option value="pageFooter">Page Footer</option>
-                                    <option value="summary">Summary</option>
-                                </select>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')">📝 Text</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')">🏷️ Label</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')">🔤 Field</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')">➖ Line</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')">▭ Box</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')">📄 Page #</button>
+                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">📅 Date</button>
+                        </div>
+                        
+                        <!-- CENTER: CANVAS -->
+                        <div id="vbCanvas" style="flex: 1; background: white; border: 2px solid #007bff; border-radius: 6px; position: relative; overflow: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s;">
+                            <div style="padding: 40px; text-align: center; color: #999;">
+                                <p style="font-size: 32px; margin: 0;">📄</p>
+                                <p style="margin: 10px 0 0 0;">Drop elements here<br><small style="font-size: 12px;">or click buttons to add</small></p>
                             </div>
                         </div>
                         
-                        <!-- Center: Canvas -->
-                        <div style="flex: 1; border: 2px dashed #ccc; border-radius: 8px; background: white; position: relative; overflow: auto; min-height: 600px;" 
-                             id="visualCanvas" 
-                             ondrop="handleDrop(event)" 
-                             ondragover="handleDragOver(event)"
-                             onclick="selectElement(null)">
-                            <div style="text-align: center; padding: 40px; color: #999;">
-                                <p style="font-size: 24px;">📄</p>
-                                <p>Drag elements from the toolbox to start designing</p>
-                                <p style="font-size: 12px; margin-top: 10px;">Current Band: <span id="bandIndicator">Detail</span></p>
-                            </div>
-                        </div>
-                        
-                        <!-- Right: Properties Panel -->
-                        <div style="width: 250px; border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa; overflow-y: auto;">
-                            <h3 style="margin-top: 0; color: #667eea; font-size: 16px;">⚙️ Properties</h3>
-                            <div id="propertiesPanel">
-                                <p style="color: #999; font-size: 13px;">Select an element to edit its properties</p>
+                        <!-- RIGHT: PROPERTIES -->
+                        <div id="vbProperties" style="width: 220px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
+                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">⚙️ Properties</h4>
+                            <div id="vbPropsPanel" style="color: #999; font-size: 13px;">
+                                Select an element to edit
                             </div>
                         </div>
                     </div>
-                    
-                    <div id="visualBuilderMessage" style="margin-top: 15px;"></div>
                 </div>
             </div>
         </div>
@@ -4093,8 +4080,8 @@
                 visualSection.style.display = 'block';
                 formBtn.style.background = '#6c757d';
                 visualBtn.style.background = '#667eea';
-                // Load datasources when switching to visual builder
-                loadVisualBuilderDatasources();
+                // Initialize visual builder
+                setTimeout(() => VB.init(), 100);
             }
         }
 
@@ -4597,20 +4584,39 @@
 
         function handleToolboxDrag(e, elementType) {
             e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', elementType); // Use standard MIME type
             e.dataTransfer.setData('elementType', elementType);
+            // Add a visual feedback
+            e.target.style.opacity = '0.5';
+        }
+
+        function handleToolboxDragEnd(e) {
+            // Reset opacity after drag ends
+            e.target.style.opacity = '1';
         }
 
         function handleDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
+            return false; // Ensure drop is allowed
         }
 
         function handleDrop(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            const elementType = e.dataTransfer.getData('elementType');
-            if (!elementType) return;
+            // Try both data formats
+            let elementType = e.dataTransfer.getData('elementType');
+            if (!elementType) {
+                elementType = e.dataTransfer.getData('text/plain');
+            }
+            
+            if (!elementType) {
+                console.error('No element type found in drop event');
+                return;
+            }
+            
+            console.log('Dropping element:', elementType);
             
             // Get canvas position
             const canvas = document.getElementById('visualCanvas');
@@ -5115,5 +5121,370 @@
     
     <!-- Monaco Editor Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    
+    <!-- NEW Clean Visual Builder -->
+    <script>
+// ========== CLEAN VISUAL BUILDER ==========
+
+const VB = {
+    canvas: null,
+    elements: [],
+    selectedId: null,
+    nextId: 1,
+    currentBand: 'detail',
+    dragState: null,
+
+    init() {
+        this.canvas = document.getElementById('vbCanvas');
+        if (!this.canvas) {
+            console.error('Canvas not found!');
+            return;
+        }
+        console.log('Visual Builder initialized');
+        this.setupCanvasDragDrop();
+        this.render();
+    },
+
+    setupCanvasDragDrop() {
+        if (!this.canvas) return;
+        
+        this.canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            this.canvas.style.backgroundColor = 'rgba(0, 123, 255, 0.15)';
+            this.canvas.style.borderColor = '#0056b3';
+        }, false);
+        
+        this.canvas.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.canvas.style.backgroundColor = 'white';
+            this.canvas.style.borderColor = '#007bff';
+        }, false);
+        
+        this.canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.canvas.style.backgroundColor = 'white';
+            this.canvas.style.borderColor = '#007bff';
+            
+            const elementType = e.dataTransfer.getData('elementType');
+            console.log('Dropped element type:', elementType);
+            
+            if (!elementType) {
+                console.error('No elementType in drop data');
+                return;
+            }
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const scrollLeft = this.canvas.scrollLeft || 0;
+            const scrollTop = this.canvas.scrollTop || 0;
+            
+            const x = Math.max(10, e.clientX - rect.left + scrollLeft - 60);
+            const y = Math.max(10, e.clientY - rect.top + scrollTop - 12);
+            
+            console.log('Adding element at position:', x, y);
+            this.addElementAtPosition(elementType, x, y);
+        }, false);
+    },
+
+    addElementAtPosition(type, x, y) {
+        const id = this.nextId++;
+        
+        const element = {
+            id,
+            type,
+            band: this.currentBand,
+            x, y,
+            width: 120,
+            height: 25,
+            text: this.getDefaultText(type),
+            fontSize: 12,
+            color: '#000000'
+        };
+        
+        this.elements.push(element);
+        this.render();
+        this.select(id);
+    },
+
+    addElement(type) {
+        const id = this.nextId++;
+        // Default position for click-based additions
+        const x = 50 + (id % 3) * 40;
+        const y = 50 + Math.floor(id / 3) * 40;
+        
+        this.addElementAtPosition(type, x, y);
+    },
+
+    getDefaultText(type) {
+        const texts = {
+            'text': 'Text Label',
+            'label': 'Label',
+            'field': 'Field Name',
+            'line': '',
+            'rectangle': '',
+            'pageNumber': 'Page',
+            'date': 'Date'
+        };
+        return texts[type] || type;
+    },
+
+    select(id) {
+        this.selectedId = id;
+        this.render();
+        this.updateProperties();
+    },
+
+    delete() {
+        if (!this.selectedId) return;
+        this.elements = this.elements.filter(el => el.id !== this.selectedId);
+        this.selectedId = null;
+        this.render();
+        this.updateProperties();
+    },
+
+    render() {
+        if (!this.canvas) {
+            console.error('Canvas not initialized');
+            return;
+        }
+        
+        // Filter by band
+        const bandElements = this.elements.filter(el => el.band === this.currentBand);
+        
+        // Clear canvas
+        this.canvas.innerHTML = '';
+        
+        if (bandElements.length === 0) {
+            this.canvas.innerHTML = `<div style="padding: 40px; text-align: center; color: #999; pointer-events: none;">
+                <p style="font-size: 32px; margin: 0;">📄</p>
+                <p style="margin: 10px 0 0 0;">Drag elements here<br><small style="font-size: 12px;">or click buttons to add</small></p>
+            </div>`;
+            return;
+        }
+        
+        console.log('Rendering', bandElements.length, 'elements in band', this.currentBand);
+        
+        // Add elements
+        bandElements.forEach(el => {
+            const div = document.createElement('div');
+            div.className = 'vb-element' + (el.id === this.selectedId ? ' selected' : '');
+            div.style.left = el.x + 'px';
+            div.style.top = el.y + 'px';
+            div.style.width = el.width + 'px';
+            div.style.height = el.height + 'px';
+            div.style.fontSize = el.fontSize + 'px';
+            div.style.color = el.color;
+            div.setAttribute('data-element-id', el.id);
+            
+            // Set element content
+            if (el.type === 'line') {
+                div.style.height = '2px';
+                div.style.background = '#000';
+                div.style.border = 'none';
+            } else if (el.type === 'rectangle') {
+                div.style.background = 'transparent';
+                div.style.border = '2px solid #000';
+            } else {
+                div.textContent = el.text;
+            }
+            
+            // Add event listeners
+            div.onclick = (e) => { e.stopPropagation(); this.select(el.id); };
+            div.onmousedown = (e) => this.startDrag(e, el.id);
+            
+            this.canvas.appendChild(div);
+        });
+    },
+
+    startDrag(e, elementId) {
+        const element = this.elements.find(el => el.id === elementId);
+        if (!element) return;
+        
+        this.dragState = {
+            elementId,
+            startX: e.clientX,
+            startY: e.clientY,
+            originalX: element.x,
+            originalY: element.y
+        };
+        
+        document.onmousemove = (e) => this.continueDrag(e);
+        document.onmouseup = () => this.endDrag();
+    },
+
+    continueDrag(e) {
+        if (!VB.dragState) return;
+        
+        const element = VB.elements.find(el => el.id === VB.dragState.elementId);
+        if (!element) return;
+        
+        const deltaX = e.clientX - VB.dragState.startX;
+        const deltaY = e.clientY - VB.dragState.startY;
+        
+        element.x = Math.max(0, VB.dragState.originalX + deltaX);
+        element.y = Math.max(0, VB.dragState.originalY + deltaY);
+        
+        VB.render();
+    },
+
+    endDrag() {
+        VB.dragState = null;
+        document.onmousemove = null;
+        document.onmouseup = null;
+    },
+
+    updateProperties() {
+        const panel = document.getElementById('vbPropsPanel');
+        
+        if (!this.selectedId) {
+            panel.innerHTML = 'Select an element to edit';
+            return;
+        }
+        
+        const el = this.elements.find(e => e.id === this.selectedId);
+        if (!el) return;
+        
+        let html = `
+            <div style="margin-bottom: 15px;">
+                <strong style="color: #007bff;">${el.type.toUpperCase()}</strong><br>
+                <small style="color: #666;">ID: ${el.id}</small>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Text:</label>
+                <input type="text" value="${el.text}" onchange="VB.updateElement('text', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Font Size:</label>
+                <input type="number" value="${el.fontSize}" min="8" max="32" onchange="VB.updateElement('fontSize', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Color:</label>
+                <input type="color" value="${el.color}" onchange="VB.updateElement('color', this.value)" style="width: 100%; padding: 4px; cursor: pointer;">
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Width:</label>
+                <input type="number" value="${el.width}" min="20" onchange="VB.updateElement('width', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Height:</label>
+                <input type="number" value="${el.height}" min="20" onchange="VB.updateElement('height', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+            </div>
+            
+            <button onclick="VB.delete()" style="width: 100%; padding: 6px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 10px;">🗑️ Delete</button>
+        `;
+        
+        panel.innerHTML = html;
+    },
+
+    updateElement(property, value) {
+        const el = this.elements.find(e => e.id === this.selectedId);
+        if (!el) return;
+        
+        if (property === 'fontSize' || property === 'width' || property === 'height') {
+            el[property] = parseInt(value);
+        } else {
+            el[property] = value;
+        }
+        
+        this.render();
+        this.updateProperties();
+    }
+};
+
+// Visual Builder Functions (Global)
+function vbStartDrag(event, elementType) {
+    console.log('Starting drag for:', elementType);
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('elementType', elementType);
+    event.dataTransfer.setData('text/plain', elementType);
+    event.target.style.opacity = '0.5';
+    event.target.style.transform = 'scale(0.95)';
+}
+
+function vbEndDrag(event) {
+    event.target.style.opacity = '1';
+    event.target.style.transform = 'scale(1)';
+}
+
+function vbAddElement(type) {
+    VB.addElement(type);
+}
+
+function vbChangeBand() {
+    const select = document.getElementById('vbBandSelect');
+    VB.currentBand = select.value;
+    VB.selectedId = null;
+    VB.render();
+    VB.updateProperties();
+    console.log('Band changed to:', VB.currentBand);
+}
+
+function vbClear() {
+    if (!confirm('Clear all elements from the canvas?')) return;
+    VB.elements = VB.elements.filter(el => el.band !== VB.currentBand);
+    VB.selectedId = null;
+    VB.render();
+    VB.updateProperties();
+}
+
+function vbGenerate() {
+    const reportName = document.getElementById('vbReportName').value || 'Report';
+    
+    if (VB.elements.length === 0) {
+        alert('Add some elements to the canvas first!');
+        return;
+    }
+    
+    // Build simple JRXML
+    let jrxml = `<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="${reportName}" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+    <detail>
+        <band height="50">`;
+    
+    VB.elements.forEach(el => {
+        jrxml += `
+            <staticText>
+                <reportElement x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" />
+                <text><![CDATA[${el.text}]]></text>
+            </staticText>`;
+    });
+    
+    jrxml += `
+        </band>
+    </detail>
+</jasperReport>`;
+    
+    console.log('Generated JRXML:', jrxml);
+    alert('Report generated! Check console for JRXML.');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, initializing Visual Builder...');
+    setTimeout(() => {
+        VB.init();
+    }, 200);
+});
+
+// Debug/Test function - can be called from console
+function vbTest() {
+    console.log('Visual Builder Status:');
+    console.log('- Canvas found:', !!VB.canvas);
+    console.log('- Elements:', VB.elements.length);
+    console.log('- Current band:', VB.currentBand);
+    
+    // Add a test element
+    VB.addElement('text');
+    console.log('Test element added! Try dragging more elements now.');
+}
+    </script>
 </body>
 </html>
