@@ -171,6 +171,36 @@ public class UserController {
         }
     }
     
+    // API: Get current user info (All authenticated users)
+    @GetMapping("/api/current-user")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getCurrentUser() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            User user = userService.findByUsername(username).orElse(null);
+            
+            if (user == null) {
+                response.put("status", "error");
+                response.put("message", "User not found");
+                return ResponseEntity.status(404).body(response);
+            }
+            
+            response.put("status", "success");
+            response.put("username", user.getUsername());
+            response.put("role", user.getRole());
+            response.put("email", user.getEmail());
+            response.put("enabled", user.isEnabled());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
     // API: Change password (All authenticated users)
     @PostMapping("/api/change-password")
     @ResponseBody

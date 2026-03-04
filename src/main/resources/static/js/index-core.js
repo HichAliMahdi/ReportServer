@@ -2,10 +2,82 @@
 const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
 const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
 
+// Store current user role
+let currentUserRole = 'READ_ONLY'; // Default role
+
+// Fetch the current user's role
+function fetchCurrentUser() {
+    return fetch('/api/current-user')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentUserRole = data.role;
+                updateTabVisibility();
+            }
+            return data;
+        })
+        .catch(error => {
+            console.error('Error fetching current user:', error);
+            return { status: 'error' };
+        });
+}
+
+// Update tab visibility based on user role
+function updateTabVisibility() {
+    const restrictedTabs = {
+        'builder': ['ADMIN', 'OPERATOR'],     // Report Builder
+        'datasources': ['ADMIN', 'OPERATOR'], // Datasources
+        'users': ['ADMIN']                     // User Management
+    };
+
+    // Only hide nav items, not tab content
+    Object.keys(restrictedTabs).forEach(tabName => {
+        const navElement = document.querySelector('.nav-item[data-tab="' + tabName + '"]');
+        
+        const isAllowed = restrictedTabs[tabName].includes(currentUserRole);
+        
+        if (navElement) {
+            navElement.style.display = isAllowed ? 'block' : 'none';
+        }
+    });
+
+    // Make sure Reports and Schedules tabs nav items are always visible
+    const reportsNav = document.querySelector('.nav-item[data-tab="reports"]');
+    if (reportsNav) {
+        reportsNav.style.display = 'block';
+    }
+    
+    const schedulesNav = document.querySelector('.nav-item[data-tab="schedules"]');
+    if (schedulesNav) {
+        schedulesNav.style.display = 'block';
+    }
+
+    // Hide Generate Report and Upload sections for READ_ONLY users
+    if (currentUserRole === 'READ_ONLY') {
+        // Find all cards in the reports tab
+        const reportsTab = document.getElementById('reportsTab');
+        if (reportsTab) {
+            const cards = reportsTab.querySelectorAll('.card');
+            cards.forEach(card => {
+                const heading = card.querySelector('h2');
+                if (heading) {
+                    // Check if it's the Generate Report or Upload section
+                    if (heading.textContent.includes('Generate Report') || 
+                        heading.textContent.includes('Upload JRXML')) {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+        }
+    }
+}
+
 // Load data on page load
 window.onload = function() {
-    loadReports();
-    loadDatasources();
+    fetchCurrentUser().then(() => {
+        loadReports();
+        loadDatasources();
+    });
 
     // Attach click event listeners to nav items
     document.querySelectorAll('.nav-item').forEach(navItem => {
@@ -32,6 +104,18 @@ window.onload = function() {
 
 // Tab switching
 function switchTab(tabName) {
+    // Check if user has access to this tab
+    const restrictedTabs = {
+        'builder': ['ADMIN', 'OPERATOR'],
+        'datasources': ['ADMIN', 'OPERATOR'],
+        'users': ['ADMIN']
+    };
+
+    if (restrictedTabs[tabName] && !restrictedTabs[tabName].includes(currentUserRole)) {
+        showMessage('You do not have access to this section', 'error');
+        return;
+    }
+
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -199,6 +283,7 @@ function loadReports() {
             editBtn.title = 'Edit in JRXML editor';
             editBtn.setAttribute('aria-label', `Edit ${report}`);
             editBtn.onclick = () => openJrxmlEditor(report);
+            editBtn.style.display = (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') ? 'inline-block' : 'none';
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'report-action-btn report-action-delete';
@@ -206,8 +291,23 @@ function loadReports() {
             deleteBtn.title = 'Delete report';
             deleteBtn.setAttribute('aria-label', `Delete ${report}`);
             deleteBtn.onclick = () => confirmDeleteReport(report);
+            deleteBtn.style.display = (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') ? 'inline-block' : 'none';
+
+            // For READ_ONLY users, show a simplified download button
+            let viewReportBtn = null;
+            if (currentUserRole === 'READ_ONLY') {
+                viewReportBtn = document.createElement('button');
+                viewReportBtn.className = 'report-action-btn report-action-download';
+                viewReportBtn.innerHTML = '👁️ View';
+                viewReportBtn.title = 'Download report as PDF';
+                viewReportBtn.setAttribute('aria-label', `View ${report}`);
+                viewReportBtn.onclick = () => downloadReportForReadOnly(report);
+            }
 
             actionsDiv.appendChild(downloadLink);
+            if (viewReportBtn) {
+                actionsDiv.appendChild(viewReportBtn);
+            }
             actionsDiv.appendChild(editBtn);
             actionsDiv.appendChild(deleteBtn);
 
@@ -281,6 +381,58 @@ function deleteReport(reportName) {
         showMessage('Error deleting report: ' + error.message, 'error');
     });
 }
+
+function downloadReportForReadOnly(reportName) {
+    try {
+        showLoading('Generating report...');
+        
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+        const formData = new FormData();
+        formData.append('reportName', reportName);
+        formData.append('format', 'pdf');
+
+        const headers = {};
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
+
+        fetch('/download-report', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Download failed');
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            hideLoading();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = reportName.replace('.jrxml', '.pdf');
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showMessage('Report downloaded successfully', 'success');
+        })
+        .catch(error => {
+            hideLoading();
+            showMessage('Error downloading report: ' + error.message, 'error');
+        });
+    } catch (error) {
+        hideLoading();
+        showMessage('Error: ' + error.message, 'error');
+    }
+}
+
 
 function loadReportParameters(reportName) {
     const parametersSection = document.getElementById('parametersSection');

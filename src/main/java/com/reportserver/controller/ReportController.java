@@ -167,6 +167,50 @@ public class ReportController {
         }
     }
 
+    // Download report endpoint for READ_ONLY users (simplified, no parameters)
+    @PostMapping("/download-report")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','READ_ONLY')")
+    public ResponseEntity<byte[]> downloadReport(
+            @RequestParam("reportName") String reportName,
+            @RequestParam(value = "format", defaultValue = "pdf") String format) {
+        
+        try {
+            logger.info("Downloading report: {} in format: {}", reportName, format);
+            
+            String jrxmlPath = UPLOAD_DIR + reportName;
+            
+            // Check if file exists
+            File reportFile = new File(jrxmlPath);
+            if (!reportFile.exists()) {
+                logger.error("Report file not found: {}", jrxmlPath);
+                return ResponseEntity.badRequest()
+                    .body(("Report file not found: " + reportName).getBytes());
+            }
+            
+            // Generate report without parameters
+            logger.info("Compiling and filling report...");
+            byte[] reportBytes = reportService.generateReport(jrxmlPath, new HashMap<>(), format, null);
+            logger.info("Report downloaded successfully, size: {} bytes", reportBytes.length);
+
+            // Set content type and extension based on format
+            MediaType contentType = getContentType(format);
+            String extension = getFileExtension(format);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(contentType);
+            headers.setContentDispositionFormData("attachment", 
+                reportName.replace(".jrxml", "." + extension));
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(reportBytes);
+
+        } catch (Exception e) {
+            logger.error("Failed to download report: " + reportName, e);
+            return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
+        }
+    }
+
     @GetMapping("/reports")
     @ResponseBody
     public ResponseEntity<String[]> listReports() {
