@@ -127,11 +127,17 @@
             width: 24px;
             text-align: center;
         }
+        /* Hide all tabs initially during page load */
         .tab-content {
-            display: none;
+            display: none !important;
         }
         .tab-content.active {
-            display: block;
+            display: block !important;
+        }
+        /* During initial load, hide all nav items and active tab to prevent flash */
+        body.page-loading .nav-item,
+        body.page-loading .tab-content.active {
+            display: none !important;
         }
         .card {
             background: white;

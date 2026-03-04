@@ -321,7 +321,7 @@
         </div>
 
         <!-- Schedules Tab -->
-        <div id="schedulesTab" class="tab-content">
+        <div id="schedulesTab" class="tab-content" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
             <div class="card">
                 <h2>⏰ Scheduled Reports</h2>
                 <p style="color: #666; margin-bottom: 20px;">Automate report generation on a recurring schedule. Reports are saved to the output directory.</p>

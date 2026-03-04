@@ -42,15 +42,17 @@ function updateTabVisibility() {
         }
     });
 
-    // Make sure Reports and Schedules tabs nav items are always visible
+    // Reports tab nav item is always visible
     const reportsNav = document.querySelector('.nav-item[data-tab="reports"]');
     if (reportsNav) {
         reportsNav.style.display = 'block';
     }
     
+    // Schedules tab is only visible to ADMIN and OPERATOR
     const schedulesNav = document.querySelector('.nav-item[data-tab="schedules"]');
     if (schedulesNav) {
-        schedulesNav.style.display = 'block';
+        const isReadOnly = currentUserRole === 'READ_ONLY';
+        schedulesNav.style.display = isReadOnly ? 'none' : 'block';
     }
 
     // Reports tab section visibility (explicit role-based toggling)
@@ -82,6 +84,8 @@ function updateTabVisibility() {
 // Load data on page load
 window.onload = function() {
     fetchCurrentUser().then(() => {
+        // Remove loading state after user role is determined
+        document.body.classList.remove('page-loading');
         loadReports();
         loadDatasources();
     });

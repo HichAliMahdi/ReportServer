@@ -24,7 +24,7 @@
                 <span class="nav-item-icon" aria-hidden="true">🗄️</span>
                 <span>Datasources</span>
             </div>
-            <div class="nav-item" data-tab="schedules" onclick="switchTab('schedules')" role="button" tabindex="0" aria-label="Schedules section" title="Manage scheduled reports">
+            <div class="nav-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="schedules" onclick="switchTab('schedules')" role="button" tabindex="0" aria-label="Schedules section" title="Manage scheduled reports">
                 <span class="nav-item-icon" aria-hidden="true">⏰</span>
                 <span>Schedules</span>
             </div>
