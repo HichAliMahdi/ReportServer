@@ -23,7 +23,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login", "/register", "/forgot-password", "/reset-password", "/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers("/login", "/register", "/forgot-password", "/reset-password", "/css/**", "/js/**", "/images/**", "/error/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -35,6 +35,9 @@ public class SecurityConfig {
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout")
                 .permitAll()
+            )
+            .exceptionHandling(exception -> exception
+                .accessDeniedPage("/error/403")
             )
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/**") // For API endpoints if needed

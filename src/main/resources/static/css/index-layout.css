@@ -225,6 +225,13 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .inline-action-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            display: none;
+            font-size: 14px;
+        }
         .report-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

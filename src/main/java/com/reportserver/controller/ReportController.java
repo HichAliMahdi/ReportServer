@@ -1,5 +1,7 @@
 package com.reportserver.controller;
 
+import com.reportserver.model.SharedReport;
+import com.reportserver.repository.SharedReportRepository;
 import com.reportserver.service.DataSourceService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
@@ -9,6 +11,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,9 +22,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import jakarta.annotation.PostConstruct;
 
 @Controller
 public class ReportController {
@@ -35,8 +43,28 @@ public class ReportController {
     
     @Autowired
     private com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService;
+    
+    @Autowired
+    private SharedReportRepository sharedReportRepository;
 
     private static final String UPLOAD_DIR = "data/reports/";
+    private static final String GENERATED_REPORTS_DIR = "data/generated-reports/";
+    
+    @PostConstruct
+    public void init() {
+        // Create directories if they don't exist
+        File uploadDir = new File(UPLOAD_DIR);
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs();
+            logger.info("Created upload directory: " + uploadDir.getAbsolutePath());
+        }
+        
+        File generatedDir = new File(GENERATED_REPORTS_DIR);
+        if (!generatedDir.exists()) {
+            generatedDir.mkdirs();
+            logger.info("Created generated reports directory: " + generatedDir.getAbsolutePath());
+        }
+    }
 
     @GetMapping("/")
     public String index() {
@@ -83,13 +111,15 @@ public class ReportController {
 
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
-    public ResponseEntity<byte[]> generateReport(
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> generateReport(
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
             @RequestParam(value = "datasourceId", required = false) Long datasourceId,
             @RequestParam(required = false) Map<String, String> parameters) {
         
+        Map<String, Object> response = new HashMap<>();
         Connection connection = null;
         try {
             logger.info("Generating report: {} in format: {}, useDatabase: {}, datasourceId: {}", 
@@ -101,8 +131,9 @@ public class ReportController {
             File reportFile = new File(jrxmlPath);
             if (!reportFile.exists()) {
                 logger.error("Report file not found: {}", jrxmlPath);
-                return ResponseEntity.badRequest()
-                    .body(("Report file not found: " + reportName).getBytes());
+                response.put("status", "error");
+                response.put("message", "Report file not found: " + reportName);
+                return ResponseEntity.badRequest().body(response);
             }
             
             // Add parameters to report
@@ -139,22 +170,47 @@ public class ReportController {
             }
             logger.info("Report generated successfully, size: {} bytes", reportBytes.length);
 
-            // Set content type and extension based on format
-            MediaType contentType = getContentType(format);
+            // Save report to file system and database
             String extension = getFileExtension(format);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(contentType);
-            headers.setContentDispositionFormData("attachment", 
-                reportName.replace(".jrxml", "." + extension));
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(reportBytes);
+            String fileName = reportName.replace(".jrxml", "") + "_" + System.currentTimeMillis() + "." + extension;
+            String generatedFilePath = GENERATED_REPORTS_DIR + fileName;
+            
+            // Create directory if it doesn't exist
+            File generatedDir = new File(GENERATED_REPORTS_DIR);
+            if (!generatedDir.exists()) {
+                generatedDir.mkdirs();
+            }
+            
+            // Write file to filesystem
+            Files.write(Paths.get(generatedFilePath), reportBytes);
+            logger.info("Report saved to: {}", generatedFilePath);
+            
+            // Save to database
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            
+            SharedReport sharedReport = new SharedReport();
+            sharedReport.setReportFileName(fileName);
+            sharedReport.setReportName(reportName.replace(".jrxml", ""));
+            sharedReport.setReportFormat(format);
+            sharedReport.setCreatedBy(username);
+            sharedReport.setCreatedAt(LocalDateTime.now());
+            sharedReport.setSharedWithReadOnly(false); // Not shared by default
+            
+            SharedReport savedReport = sharedReportRepository.save(sharedReport);
+            logger.info("Report saved to database with ID: {}", savedReport.getId());
+            
+            response.put("status", "success");
+            response.put("message", "Report generated successfully");
+            response.put("reportId", savedReport.getId());
+            response.put("fileName", fileName);
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             logger.error("Failed to generate report: " + reportName, e);
-            return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
+            response.put("status", "error");
+            response.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         } finally {
             // Always close the connection if it was opened
             if (connection instanceof Connection) {
@@ -311,6 +367,153 @@ public class ReportController {
                 return "txt";
             default:
                 return "pdf";
+        }
+    }
+    
+    // API: Get all generated reports (with share status)
+    @GetMapping("/api/generated-reports")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> getGeneratedReports() {
+        try {
+            List<SharedReport> reports = sharedReportRepository.findAll();
+            
+            List<Map<String, Object>> result = reports.stream().map(report -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", report.getId());
+                item.put("reportFileName", report.getReportFileName());
+                item.put("reportName", report.getReportName());
+                item.put("reportFormat", report.getReportFormat());
+                item.put("sharedWithReadOnly", report.isSharedWithReadOnly());
+                item.put("createdAt", report.getCreatedAt());
+                item.put("createdBy", report.getCreatedBy());
+                item.put("sharedAt", report.getSharedAt());
+                item.put("sharedBy", report.getSharedBy());
+                return item;
+            }).collect(Collectors.toList());
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Error getting generated reports", e);
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+    
+    // API: Toggle share status of a generated report
+    @PostMapping("/api/generated-reports/{reportId}/toggle-share")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> toggleShareReport(@PathVariable Long reportId, @RequestBody Map<String, Boolean> request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Optional<SharedReport> optionalReport = sharedReportRepository.findById(reportId);
+            if (!optionalReport.isPresent()) {
+                response.put("status", "error");
+                response.put("message", "Report not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            SharedReport report = optionalReport.get();
+            Boolean shouldShare = request.get("share");
+            
+            if (shouldShare != null) {
+                report.setSharedWithReadOnly(shouldShare);
+                if (shouldShare) {
+                    report.setSharedAt(LocalDateTime.now());
+                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                    report.setSharedBy(auth.getName());
+                }
+                sharedReportRepository.save(report);
+                
+                String message = shouldShare ? "Report shared with READ_ONLY users" : "Report unshared from READ_ONLY users";
+                response.put("status", "success");
+                response.put("message", message);
+                return ResponseEntity.ok(response);
+            } else {
+                response.put("status", "error");
+                response.put("message", "Share parameter is required");
+                return ResponseEntity.badRequest().body(response);
+            }
+        } catch (Exception e) {
+            logger.error("Error toggling share status", e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    // API: Delete a generated report
+    @DeleteMapping("/api/generated-reports/{reportId}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteGeneratedReport(@PathVariable Long reportId) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Optional<SharedReport> optionalReport = sharedReportRepository.findById(reportId);
+            if (!optionalReport.isPresent()) {
+                response.put("status", "error");
+                response.put("message", "Report not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            SharedReport report = optionalReport.get();
+            File reportFile = new File(GENERATED_REPORTS_DIR + report.getReportFileName());
+            
+            if (reportFile.exists()) {
+                reportFile.delete();
+                logger.info("Deleted report file: {}", report.getReportFileName());
+            }
+            
+            sharedReportRepository.deleteById(reportId);
+            
+            response.put("status", "success");
+            response.put("message", "Report deleted successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error deleting generated report", e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    // API: Download a generated report
+    @GetMapping("/api/download-generated-report/{fileName}")
+    public ResponseEntity<byte[]> downloadGeneratedReport(@PathVariable String fileName) {
+        try {
+            // Validate file name (security check to prevent path traversal)
+            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+                logger.warn("Invalid file name in download request: " + fileName);
+                return ResponseEntity.badRequest().build();
+            }
+            
+            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            File file = filePath.toFile();
+            
+            if (!file.exists()) {
+                logger.warn("Download attempt for non-existent file: " + fileName);
+                return ResponseEntity.notFound().build();
+            }
+            
+            byte[] fileContent = Files.readAllBytes(filePath);
+            
+            // Determine content type from file extension
+            String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+            MediaType contentType = getContentType(extension);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(contentType);
+            headers.setContentDispositionFormData("attachment", fileName);
+            headers.setContentLength(fileContent.length);
+            
+            logger.info("Downloaded generated report: {}", fileName);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(fileContent);
+        } catch (Exception e) {
+            logger.error("Error downloading generated report: " + fileName, e);
+            return ResponseEntity.status(500).build();
         }
     }
 }

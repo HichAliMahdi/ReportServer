@@ -4,6 +4,7 @@ const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttri
 
 // Store current user role
 let currentUserRole = 'READ_ONLY'; // Default role
+let lastActionElement = null;
 
 // Fetch the current user's role
 function fetchCurrentUser() {
@@ -52,23 +53,29 @@ function updateTabVisibility() {
         schedulesNav.style.display = 'block';
     }
 
-    // Hide Generate Report and Upload sections for READ_ONLY users
-    if (currentUserRole === 'READ_ONLY') {
-        // Find all cards in the reports tab
-        const reportsTab = document.getElementById('reportsTab');
-        if (reportsTab) {
-            const cards = reportsTab.querySelectorAll('.card');
-            cards.forEach(card => {
-                const heading = card.querySelector('h2');
-                if (heading) {
-                    // Check if it's the Generate Report or Upload section
-                    if (heading.textContent.includes('Generate Report') || 
-                        heading.textContent.includes('Upload JRXML')) {
-                        card.style.display = 'none';
-                    }
-                }
-            });
-        }
+    // Reports tab section visibility (explicit role-based toggling)
+    const generateReportSection = document.getElementById('generateReportSection');
+    const uploadReportSection = document.getElementById('uploadReportSection');
+    const jrxmlTemplatesSection = document.getElementById('jrxmlTemplatesSection');
+    const adminGeneratedReportsSection = document.getElementById('adminGeneratedReportsSection');
+    const readOnlyReportsSection = document.getElementById('readOnlyReportsSection');
+
+    const isReadOnly = currentUserRole === 'READ_ONLY';
+
+    if (generateReportSection) {
+        generateReportSection.style.display = isReadOnly ? 'none' : 'block';
+    }
+    if (uploadReportSection) {
+        uploadReportSection.style.display = isReadOnly ? 'none' : 'block';
+    }
+    if (jrxmlTemplatesSection) {
+        jrxmlTemplatesSection.style.display = isReadOnly ? 'none' : 'block';
+    }
+    if (adminGeneratedReportsSection) {
+        adminGeneratedReportsSection.style.display = isReadOnly ? 'none' : 'block';
+    }
+    if (readOnlyReportsSection) {
+        readOnlyReportsSection.style.display = isReadOnly ? 'block' : 'none';
     }
 }
 
@@ -101,6 +108,13 @@ window.onload = function() {
         }
     };
 };
+
+document.addEventListener('click', function(event) {
+    const actionElement = event.target.closest('button, .btn, .report-action-btn');
+    if (actionElement) {
+        lastActionElement = actionElement;
+    }
+});
 
 // Tab switching
 function switchTab(tabName) {
@@ -219,7 +233,14 @@ function uploadFile() {
 }
 
 function loadReports() {
-    const list = document.getElementById('reportList');
+    loadJrxmlTemplates();
+    loadGeneratedReports();
+}
+
+function loadJrxmlTemplates() {
+    const list = document.getElementById('jrxmlTemplateList');
+    
+    if (!list) return; // Element might not exist for READ_ONLY users
 
     // Show loading skeletons
     list.innerHTML = `
@@ -232,19 +253,22 @@ function loadReports() {
     .then(response => response.json())
     .then(reports => {
         const select = document.getElementById('reportSelect');
-
-        // Clear existing options (keep first one)
-        select.innerHTML = '<option value="">-- Select a report --</option>';
+        
+        if (select) {
+            // Clear existing options (keep first one)
+            select.innerHTML = '<option value="">-- Select a report --</option>';
+        }
+        
         list.innerHTML = '';
 
         if (reports.length === 0) {
             list.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-state-icon">📊</div>
-                    <h3>No Reports Yet</h3>
+                    <div class="empty-state-icon">📋</div>
+                    <h3>No JRXML Templates Yet</h3>
                     <p>Upload your first JRXML report file to get started</p>
                     <button class="btn" onclick="document.getElementById('fileInput').click()">
-                        📄 Upload Report
+                        📄 Upload Template
                     </button>
                 </div>
             `;
@@ -253,10 +277,12 @@ function loadReports() {
 
         reports.forEach(report => {
             // Add to dropdown
-            const option = document.createElement('option');
-            option.value = report;
-            option.textContent = report;
-            select.appendChild(option);
+            if (select) {
+                const option = document.createElement('option');
+                option.value = report;
+                option.textContent = report;
+                select.appendChild(option);
+            }
 
             // Add to list with buttons
             const item = document.createElement('div');
@@ -274,7 +300,7 @@ function loadReports() {
             downloadLink.download = report;
             downloadLink.className = 'report-action-btn report-action-download';
             downloadLink.innerHTML = '📥 Download';
-            downloadLink.title = 'Download JRXML file';
+            downloadLink.title = 'Download JRXML template';
             downloadLink.setAttribute('aria-label', `Download ${report}`);
 
             const editBtn = document.createElement('button');
@@ -288,26 +314,12 @@ function loadReports() {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'report-action-btn report-action-delete';
             deleteBtn.innerHTML = '🗑️ Delete';
-            deleteBtn.title = 'Delete report';
+            deleteBtn.title = 'Delete template';
             deleteBtn.setAttribute('aria-label', `Delete ${report}`);
-            deleteBtn.onclick = () => confirmDeleteReport(report);
+            deleteBtn.onclick = () => confirmDeleteReport(report, deleteBtn);
             deleteBtn.style.display = (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') ? 'inline-block' : 'none';
 
-            // For READ_ONLY users, show a simplified download button
-            let viewReportBtn = null;
-            if (currentUserRole === 'READ_ONLY') {
-                viewReportBtn = document.createElement('button');
-                viewReportBtn.className = 'report-action-btn report-action-download';
-                viewReportBtn.innerHTML = '👁️ View';
-                viewReportBtn.title = 'Download report as PDF';
-                viewReportBtn.setAttribute('aria-label', `View ${report}`);
-                viewReportBtn.onclick = () => downloadReportForReadOnly(report);
-            }
-
             actionsDiv.appendChild(downloadLink);
-            if (viewReportBtn) {
-                actionsDiv.appendChild(viewReportBtn);
-            }
             actionsDiv.appendChild(editBtn);
             actionsDiv.appendChild(deleteBtn);
 
@@ -320,9 +332,9 @@ function loadReports() {
         list.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">⚠️</div>
-                <h3>Error Loading Reports</h3>
-                <p>${error.message || 'Unable to load reports. Please try again.'}</p>
-                <button class="btn" onclick="loadReports()">
+                <h3>Error Loading Templates</h3>
+                <p>${error.message || 'Unable to load templates. Please try again.'}</p>
+                <button class="btn" onclick="loadJrxmlTemplates()">
                     🔄 Retry
                 </button>
             </div>
@@ -330,7 +342,186 @@ function loadReports() {
     });
 }
 
-function confirmDeleteReport(reportName) {
+function loadGeneratedReports() {
+    const adminList = document.getElementById('generatedReportList');
+    const readOnlyList = document.getElementById('readOnlyReportList');
+    const readOnlySection = document.getElementById('readOnlyReportsSection');
+
+    if (!adminList && !readOnlyList) return;
+
+    // Show loading skeletons
+    if (adminList) {
+        adminList.innerHTML = `
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        `;
+    }
+
+    fetch('/api/generated-reports')
+    .then(response => response.json())
+    .then(reportsData => {
+        if (adminList) {
+            adminList.innerHTML = '';
+        }
+        if (readOnlyList) {
+            readOnlyList.innerHTML = '';
+        }
+
+        if (!reportsData || reportsData.length === 0) {
+            const emptyMsg = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>No Generated Reports Yet</h3>
+                    <p>Generate reports using the Generate Report or Report Builder features</p>
+                </div>
+            `;
+            if (adminList) {
+                adminList.innerHTML = emptyMsg;
+            }
+            if (readOnlyList) {
+                readOnlyList.innerHTML = emptyMsg;
+            }
+            return;
+        }
+
+        reportsData.forEach(report => {
+            // Check if it should be displayed to this user
+            if (currentUserRole === 'READ_ONLY' && !report.sharedWithReadOnly) {
+                return; // Skip reports not shared with READ_ONLY users
+            }
+
+            const targetList = (currentUserRole === 'READ_ONLY') ? readOnlyList : adminList;
+            if (!targetList) return;
+
+            const item = document.createElement('div');
+            item.className = 'report-item';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'report-item-name';
+            nameDiv.textContent = report.reportName + ' (' + report.reportFormat.toUpperCase() + ')';
+            nameDiv.style.fontSize = '14px';
+
+            const infoDiv = document.createElement('div');
+            infoDiv.style.fontSize = '12px';
+            infoDiv.style.color = '#999';
+            infoDiv.style.marginTop = '5px';
+            infoDiv.textContent = `Generated by: ${report.createdBy} on ${new Date(report.createdAt).toLocaleDateString()}`;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'report-item-actions';
+
+            // Download button - for all users
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'report-action-btn report-action-download';
+            downloadBtn.innerHTML = '📥 Download';
+            downloadBtn.title = 'Download generated report';
+            downloadBtn.onclick = () => downloadGeneratedReport(report.reportFileName);
+            actionsDiv.appendChild(downloadBtn);
+
+            // Share/Unshare button - only for ADMIN/OPERATOR
+            if (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') {
+                const shareBtn = document.createElement('button');
+                shareBtn.className = 'report-action-btn report-action-edit';
+                shareBtn.innerHTML = report.sharedWithReadOnly ? '🔓 Unshare' : '🔒 Share';
+                shareBtn.title = report.sharedWithReadOnly ? 'Remove from READ_ONLY users' : 'Share with READ_ONLY users';
+                shareBtn.onclick = () => toggleShareReport(report.id, !report.sharedWithReadOnly, shareBtn);
+                actionsDiv.appendChild(shareBtn);
+
+                // Delete button - only for ADMIN/OPERATOR
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'report-action-btn report-action-delete';
+                deleteBtn.innerHTML = '🗑️ Delete';
+                deleteBtn.title = 'Delete generated report';
+                deleteBtn.onclick = () => deleteGeneratedReport(report.id, deleteBtn);
+                actionsDiv.appendChild(deleteBtn);
+            }
+
+            const nameContainer = document.createElement('div');
+            nameContainer.appendChild(nameDiv);
+            nameContainer.appendChild(infoDiv);
+
+            item.appendChild(nameContainer);
+            item.appendChild(actionsDiv);
+            targetList.appendChild(item);
+        });
+    })
+    .catch(error => {
+        const emptyMsg = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <h3>Error Loading Reports</h3>
+                <p>${error.message || 'Unable to load reports.'}</p>
+                <button class="btn" onclick="loadGeneratedReports()">
+                    🔄 Retry
+                </button>
+            </div>
+        `;
+        if (adminList) {
+            adminList.innerHTML = emptyMsg;
+        }
+    });
+}
+
+function downloadGeneratedReport(fileName) {
+    const a = document.createElement('a');
+    a.href = `/api/download-generated-report/${encodeURIComponent(fileName)}`;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function toggleShareReport(reportId, shouldShare, actionButton) {
+    const action = shouldShare ? 'share' : 'unshare';
+    const message = shouldShare ? 'Share this report with READ_ONLY users?' : 'Unshare this report from READ_ONLY users?';
+    
+    showConfirmationModal(message, () => {
+        fetch(`/api/generated-reports/${reportId}/toggle-share`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ share: shouldShare })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showMessage(data.message, 'success', actionButton);
+                loadGeneratedReports();
+            } else {
+                showMessage(data.message, 'error', actionButton);
+            }
+        })
+        .catch(error => {
+            showMessage('Error: ' + error.message, 'error', actionButton);
+        });
+    });
+}
+
+function deleteGeneratedReport(reportId, actionButton) {
+    showConfirmationModal('Delete this generated report? This action cannot be undone.', () => {
+        fetch(`/api/generated-reports/${reportId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showMessage(data.message, 'success', actionButton);
+                loadGeneratedReports();
+            } else {
+                showMessage(data.message, 'error', actionButton);
+            }
+        })
+        .catch(error => {
+            showMessage('Error: ' + error.message, 'error', actionButton);
+        });
+    });
+}
+
+function confirmDeleteReport(reportName, actionButton) {
     const modal = document.getElementById('deleteConfirmModal');
     const modalMessage = document.getElementById('deleteConfirmMessage');
     const confirmBtn = document.getElementById('deleteConfirmBtn');
@@ -341,7 +532,7 @@ function confirmDeleteReport(reportName) {
     // Remove old event listener and add new one
     confirmBtn.onclick = () => {
         modal.style.display = 'none';
-        deleteReport(reportName);
+        deleteReport(reportName, actionButton);
     };
 }
 
@@ -349,7 +540,7 @@ function closeDeleteConfirm() {
     document.getElementById('deleteConfirmModal').style.display = 'none';
 }
 
-function deleteReport(reportName) {
+function deleteReport(reportName, actionButton) {
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
 
@@ -372,13 +563,13 @@ function deleteReport(reportName) {
         }));
     })
     .then(result => {
-        showMessage(result.message, result.ok ? 'success' : 'error');
+        showMessage(result.message, result.ok ? 'success' : 'error', actionButton);
         if (result.ok) {
             loadReports();
         }
     })
     .catch(error => {
-        showMessage('Error deleting report: ' + error.message, 'error');
+        showMessage('Error deleting report: ' + error.message, 'error', actionButton);
     });
 }
 
@@ -635,7 +826,7 @@ document.getElementById('generateForm').onsubmit = function(e) {
 
     const reportName = formData.get('reportName');
     if (!reportName) {
-        showMessage('Please select a report', 'error');
+        showGenerateMessage('Please select a report', 'error');
         return;
     }
 
@@ -648,7 +839,7 @@ document.getElementById('generateForm').onsubmit = function(e) {
     if (useDatabase) {
         const datasourceId = formData.get('datasourceId');
         if (!datasourceId) {
-            showMessage('Please select a datasource when using database connection', 'error');
+            showGenerateMessage('Please select a datasource when using database connection', 'error');
             return;
         }
         params.append('datasourceId', datasourceId);
@@ -685,33 +876,32 @@ document.getElementById('generateForm').onsubmit = function(e) {
         headers: headers
     })
     .then(response => {
-        if (!response.ok) {
-            // Try to extract error message from response
-            return response.text().then(text => {
-                throw new Error(text || 'Generation failed');
-            });
-        }
-        return response.blob();
+        // Now expecting JSON response
+        return response.json().then(data => ({
+            ok: response.ok,
+            data: data
+        }));
     })
-    .then(blob => {
+    .then(({ok, data}) => {
         hideLoading();
         if (submitBtn) submitBtn.disabled = false;
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const format = formData.get('format');
-        const reportNameOnly = reportName.replace('.jrxml', '');
-        a.download = reportNameOnly + '.' + format;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-        showMessage('✓ Report generated successfully!', 'success');
+        
+        if (!ok || data.status !== 'success') {
+            throw new Error(data.message || 'Generation failed');
+        }
+        
+        // Report generated successfully and saved to database
+        showGenerateMessage('✓ Report generated successfully!', 'success');
+        
+        // Reload the generated reports list to show the new report
+        setTimeout(() => {
+            loadGeneratedReports();
+        }, 500);
     })
     .catch(error => {
         hideLoading();
         if (submitBtn) submitBtn.disabled = false;
-        showMessage('✗ Generation failed: ' + error.message, 'error');
+        showGenerateMessage('✗ Generation failed: ' + error.message, 'error');
         console.error('Report generation error:', error);
     });
 };
@@ -1044,8 +1234,55 @@ function testDatasourceConnection() {
     });
 }
 
-function showMessage(text, type) {
+function showMessage(text, type, targetElement = null) {
+    const preferredTarget = targetElement || lastActionElement;
+
+    if (preferredTarget && showInlineActionMessage(preferredTarget, text, type)) {
+        return;
+    }
+
     const msg = document.getElementById('message');
+    if (!msg) return;
+
+    msg.textContent = text;
+    msg.className = type;
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 5000);
+}
+
+function showInlineActionMessage(targetElement, text, type) {
+    if (!targetElement) return false;
+
+    let container = targetElement.closest('.report-item');
+    if (!container) container = targetElement.closest('form');
+    if (!container) container = targetElement.closest('.card');
+    if (!container) container = targetElement.parentElement;
+    if (!container) return false;
+
+    let msg = container.querySelector('.inline-action-message');
+    if (!msg) {
+        msg = document.createElement('div');
+        msg.className = 'inline-action-message';
+        container.appendChild(msg);
+    }
+
+    msg.textContent = text;
+    msg.className = `inline-action-message ${type}`;
+    msg.style.display = 'block';
+
+    if (msg.hideTimeout) {
+        clearTimeout(msg.hideTimeout);
+    }
+    msg.hideTimeout = setTimeout(() => {
+        msg.style.display = 'none';
+    }, 5000);
+
+    return true;
+}
+
+function showGenerateMessage(text, type) {
+    const msg = document.getElementById('generateMessage');
+    if (!msg) return; // Element doesn't exist on all pages
     msg.textContent = text;
     msg.className = type;
     msg.style.display = 'block';
@@ -1070,4 +1307,30 @@ function showLoading(message = 'Processing...') {
 function hideLoading() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) overlay.style.display = 'none';
+}
+
+function showConfirmationModal(message, onConfirm) {
+    const modal = document.getElementById('confirmationModal');
+    const messageElement = document.getElementById('confirmationMessage');
+    const okBtn = document.getElementById('confirmationOkBtn');
+    const cancelBtn = document.getElementById('confirmationCancelBtn');
+    
+    messageElement.textContent = message;
+    modal.style.display = 'block';
+    
+    // Remove old event listeners by cloning nodes
+    const newOkBtn = okBtn.cloneNode(true);
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    
+    // Add new event listeners
+    document.getElementById('confirmationOkBtn').onclick = () => {
+        modal.style.display = 'none';
+        onConfirm();
+    };
+    
+    document.getElementById('confirmationCancelBtn').onclick = () => {
+        modal.style.display = 'none';
+    };
 }

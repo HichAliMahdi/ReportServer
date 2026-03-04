@@ -8,7 +8,7 @@
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content active">
             <!-- Generate Report Section -->
-            <div class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+            <div id="generateReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                 <h2>⚡ Generate Report</h2>
                 <form id="generateForm">
                     <div class="form-group">
@@ -54,10 +54,11 @@
 
                     <button type="submit" class="btn">Generate Report</button>
                 </form>
+                <div id="generateMessage" style="margin-top: 15px;"></div>
             </div>
 
             <!-- Upload Section -->
-            <div class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+            <div id="uploadReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                 <h2>📤 Upload JRXML Report</h2>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
@@ -68,10 +69,24 @@
                 <div id="message"></div>
             </div>
 
-            <!-- Available Reports -->
-            <div class="card">
-                <h2>📋 Available Reports</h2>
-                <div id="reportList" class="report-list"></div>
+            <!-- Available JRXML Templates (for Admins/Operators) -->
+            <div id="jrxmlTemplatesSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                <h2>📋 Available JRXML Templates</h2>
+                <div id="jrxmlTemplateList" class="report-list"></div>
+            </div>
+
+            <!-- Available Reports (Generated Reports) -->
+            <div id="adminGeneratedReportsSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                <h2>📊 Available Reports</h2>
+                <div id="generatedReportList" class="report-list"></div>
+            </div>
+
+            <!-- Available Reports for READ_ONLY users (shared only) -->
+            <div id="readOnlyReportsSection" style="display: none;" sec:authorize="hasRole('READ_ONLY')">
+                <div class="card">
+                    <h2>📊 Available Reports</h2>
+                    <div id="readOnlyReportList" class="report-list"></div>
+                </div>
             </div>
         </div>
 
