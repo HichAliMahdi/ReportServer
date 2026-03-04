@@ -171,6 +171,45 @@ public class UserController {
         }
     }
     
+    // API: Reset user password (Admin only)
+    @PostMapping("/api/users/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> resetUserPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            String newPassword = request.get("newPassword");
+            
+            if (newPassword == null || newPassword.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "New password is required");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = auth.getName();
+            User currentUser = userService.findByUsername(currentUsername).orElse(null);
+            
+            // Prevent admin from resetting their own password through this endpoint
+            if (currentUser != null && currentUser.getId().equals(id)) {
+                response.put("status", "error");
+                response.put("message", "Use the change password feature to update your own password");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            userService.resetPassword(id, newPassword);
+            
+            response.put("status", "success");
+            response.put("message", "Password reset successfully. User must set a new password on next login");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
     // API: Get current user info (All authenticated users)
     @GetMapping("/api/current-user")
     @ResponseBody

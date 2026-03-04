@@ -439,12 +439,40 @@
                     <label for="enabled">Enabled</label>
                 </div>
                 <button type="submit" class="btn">Save</button>
+                <button type="button" id="resetPasswordBtn" class="btn" style="background: #dc3545; display: none; margin-left: 10px;" onclick="openResetPasswordModal()">🔐 Reset Password</button>
                 <div id="userMessage" style="margin-top: 15px;"></div>
             </form>
         </div>
     </div>
 
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeResetPasswordModal()">&times;</span>
+                <h3>Reset Password for <span id="resetPasswordUsername"></span></h3>
+            </div>
+            <form id="resetPasswordForm">
+                <div class="form-group">
+                    <label for="newPasswordField">New Password:</label>
+                    <input type="password" id="newPasswordField" name="newPassword" required placeholder="Enter new password (min 8 characters)">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPasswordField">Confirm Password:</label>
+                    <input type="password" id="confirmPasswordField" name="confirmPassword" required placeholder="Confirm new password">
+                </div>
+                <div style="background: #f0f0f0; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 13px; color: #555;">
+                    <strong>Note:</strong> The user will be required to set a new password on their next login.
+                </div>
+                <button type="submit" class="btn">Reset Password</button>
+                <button type="button" class="btn" style="background: #6c757d; margin-left: 10px;" onclick="closeResetPasswordModal()">Cancel</button>
+                <div id="resetPasswordMessage" style="margin-top: 15px;"></div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        let currentResetUserId = null;
         // Load users on page load
         window.onload = function() {
             loadUsers();
@@ -530,6 +558,7 @@
             const form = document.getElementById('userForm');
             const title = document.getElementById('modalTitle');
             const passwordGroup = document.getElementById('passwordGroup');
+            const resetPasswordBtn = document.getElementById('resetPasswordBtn');
             
             form.reset();
             document.getElementById('userMessage').innerHTML = '';
@@ -538,6 +567,7 @@
             if (userId) {
                 title.textContent = 'Edit User';
                 passwordGroup.style.display = 'none';
+                resetPasswordBtn.style.display = 'inline-block'; // Show reset password button when editing
                 
                 fetch('/api/users/' + userId)
                 .then(response => response.json())
@@ -554,6 +584,7 @@
                 document.getElementById('userId').value = '';
                 document.getElementById('username').readOnly = false;
                 passwordGroup.style.display = 'block';
+                resetPasswordBtn.style.display = 'none'; // Hide reset password button when creating new user
             }
             
             modal.style.display = 'block';
@@ -561,6 +592,27 @@
 
         function closeUserModal() {
             document.getElementById('userModal').style.display = 'none';
+        }
+
+        function openResetPasswordModal() {
+            const userId = document.getElementById('userId').value;
+            const username = document.getElementById('username').value;
+            
+            if (!userId) {
+                alert('Please save the user first before resetting password');
+                return;
+            }
+            
+            currentResetUserId = userId;
+            document.getElementById('resetPasswordUsername').textContent = username;
+            document.getElementById('resetPasswordForm').reset();
+            document.getElementById('resetPasswordMessage').innerHTML = '';
+            document.getElementById('resetPasswordModal').style.display = 'block';
+        }
+
+        function closeResetPasswordModal() {
+            document.getElementById('resetPasswordModal').style.display = 'none';
+            currentResetUserId = null;
         }
 
         function editUser(id) {
@@ -629,8 +681,67 @@
             });
         };
 
+        // Reset Password Form Submission
+        document.getElementById('resetPasswordForm').onsubmit = function(e) {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('newPasswordField').value;
+            const confirmPassword = document.getElementById('confirmPasswordField').value;
+            
+            // Validate passwords
+            if (newPassword.length < 8) {
+                showResetPasswordMessage('Password must be at least 8 characters long', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showResetPasswordMessage('Passwords do not match', 'error');
+                return;
+            }
+            
+            if (!currentResetUserId) {
+                showResetPasswordMessage('User ID not found', 'error');
+                return;
+            }
+            
+            const formData = {
+                newPassword: newPassword
+            };
+            
+            fetch('/api/users/' + currentResetUserId + '/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showResetPasswordMessage(data.message, 'success');
+                    setTimeout(() => {
+                        closeResetPasswordModal();
+                        closeUserModal();
+                        loadUsers();
+                    }, 1500);
+                } else {
+                    showResetPasswordMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showResetPasswordMessage('Failed to reset password: ' + error, 'error');
+            });
+        };
+
         function showUserMessage(text, type) {
             const msg = document.getElementById('userMessage');
+            msg.textContent = text;
+            msg.className = type;
+            msg.style.display = 'block';
+        }
+
+        function showResetPasswordMessage(text, type) {
+            const msg = document.getElementById('resetPasswordMessage');
             msg.textContent = text;
             msg.className = type;
             msg.style.display = 'block';
@@ -641,6 +752,10 @@
             const modal = document.getElementById('userModal');
             if (event.target === modal) {
                 closeUserModal();
+            }
+            const resetPasswordModal = document.getElementById('resetPasswordModal');
+            if (event.target === resetPasswordModal) {
+                closeResetPasswordModal();
             }
         };
     </script>

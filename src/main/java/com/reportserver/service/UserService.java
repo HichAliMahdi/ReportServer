@@ -240,6 +240,25 @@ public class UserService implements UserDetailsService {
         logger.info("Password changed for user: {}", username);
     }
     
+    // Method to reset password for a user (Admin only)
+    public void resetPassword(Long userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        if (newPassword == null || newPassword.isEmpty()) {
+            throw new IllegalArgumentException("New password is required");
+        }
+        
+        // Validate new password strength
+        validatePasswordStrength(newPassword);
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFirstLogin(true); // Force user to change password on next login
+        
+        userRepository.save(user);
+        logger.info("Password reset for user: {} by admin", user.getUsername());
+    }
+    
     // Helper method to validate email format
     private boolean isValidEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
