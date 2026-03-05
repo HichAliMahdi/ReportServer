@@ -38,16 +38,7 @@ public class DataInitializer implements ApplicationRunner {
             logger.info("IMPORTANT: You will be prompted to change this password on first login.");
             logger.info("=".repeat(80));
             
-            // Also print to console for visibility
-            System.out.println("\n" + "=".repeat(80));
-            System.out.println("DEFAULT ADMIN USER CREATED");
-            System.out.println("=".repeat(80));
-            System.out.println("Username: admin");
-            System.out.println("Password: " + adminPassword);
-            System.out.println("Email: admin@reportserver.com");
-            System.out.println("");
-            System.out.println("IMPORTANT: You will be prompted to change this password on first login.");
-            System.out.println("=".repeat(80) + "\n");
+
         }
     }
     

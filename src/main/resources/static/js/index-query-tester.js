@@ -53,9 +53,9 @@
             // Execute query
             fetch('/api/datasources/' + datasourceId + '/query', {
                 method: 'POST',
-                headers: {
+                headers: getQueryTesterHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify({ query: query, maxRows: String(maxRows) })
             })
             .then(response => {

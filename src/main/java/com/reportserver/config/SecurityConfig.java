@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -40,7 +41,7 @@ public class SecurityConfig {
                 .accessDeniedPage("/error/403")
             )
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**") // For API endpoints if needed
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
             .addFilterAfter(firstLoginFilter, UsernamePasswordAuthenticationFilter.class);
         

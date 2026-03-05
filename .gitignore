@@ -48,3 +48,9 @@ nbdist/
 
 # Application data (optional, comment out if you want to track report files)
 data/
+
+# Environment files
+.env
+.env.local
+.env.prod
+.env.*.local

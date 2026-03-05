@@ -1,5 +1,17 @@
 // ========== Query Editor Functions ==========
 
+// Get CSRF tokens from meta tags
+const queryEditorCsrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+const queryEditorCsrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+function getQueryEditorHeaders(additionalHeaders = {}) {
+    const headers = { ...additionalHeaders };
+    if (queryEditorCsrfToken && queryEditorCsrfHeader) {
+        headers[queryEditorCsrfHeader] = queryEditorCsrfToken;
+    }
+    return headers;
+}
+
         function openQueryEditor() {
             const queryTextarea = document.getElementById('customSqlQuery');
             if (visualBuilder.customQuery) {
@@ -69,9 +81,9 @@
 
             fetch('/api/builder/visual/generate', {
                 method: 'POST',
-                headers: {
+                headers: getQueryEditorHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify(designData)
             })
             .then(response => {

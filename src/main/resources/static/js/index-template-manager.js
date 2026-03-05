@@ -1,5 +1,17 @@
 // ========== Template Manager Functions ==========
 
+// Get CSRF tokens from meta tags
+const tmpMgrCsrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+const tmpMgrCsrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+function getTemplateMgrHeaders(additionalHeaders = {}) {
+    const headers = { ...additionalHeaders };
+    if (tmpMgrCsrfToken && tmpMgrCsrfHeader) {
+        headers[tmpMgrCsrfHeader] = tmpMgrCsrfToken;
+    }
+    return headers;
+}
+
         function openTemplateManager() {
             document.getElementById('templateManagerModal').style.display = 'block';
             loadTemplates();
@@ -71,7 +83,8 @@
             if (!confirm('Are you sure you want to delete this template?')) return;
 
             fetch('/api/builder/templates/' + fileName, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getTemplateMgrHeaders()
             })
             .then(response => response.json())
             .then(data => {
@@ -102,9 +115,9 @@
 
             fetch('/api/builder/templates/save', {
                 method: 'POST',
-                headers: {
+                headers: getTemplateMgrHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify(templateData)
             })
             .then(response => response.json())

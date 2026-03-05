@@ -27,9 +27,9 @@ services:
       # JVM memory settings (adjust based on your needs)
       - JAVA_OPTS=-Xmx1g -Xms512m
       
-      # Logging level
+      # Logging level - use INFO for production
       - LOGGING_LEVEL_ROOT=INFO
-      - LOGGING_LEVEL_COM_REPORTSERVER=DEBUG
+      - LOGGING_LEVEL_COM_REPORTSERVER=INFO
       
       # File upload limits
       - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=50MB

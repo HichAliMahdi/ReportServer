@@ -1,3 +1,6 @@
+// Debug mode (disable in production)
+const DEBUG = false;
+
 // Get CSRF token from meta tags
 const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
 const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
@@ -5,6 +8,22 @@ const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttri
 // Store current user role
 let currentUserRole = 'READ_ONLY'; // Default role
 let lastActionElement = null;
+
+// Helper function for conditional logging
+function debugLog(...args) {
+    if (DEBUG && console.log) {
+        console.log(...args);
+    }
+}
+
+// Helper function to add CSRF token to fetch headers
+function getHeadersWithCSRF(additionalHeaders = {}) {
+    const headers = { ...additionalHeaders };
+    if (csrfToken && csrfHeader) {
+        headers[csrfHeader] = csrfToken;
+    }
+    return headers;
+}
 
 // Fetch the current user's role
 function fetchCurrentUser() {
@@ -482,9 +501,9 @@ function toggleShareReport(reportId, shouldShare, actionButton) {
     showConfirmationModal(message, () => {
         fetch(`/api/generated-reports/${reportId}/toggle-share`, {
             method: 'POST',
-            headers: {
+            headers: getHeadersWithCSRF({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify({ share: shouldShare })
         })
         .then(response => response.json())
@@ -506,9 +525,9 @@ function deleteGeneratedReport(reportId, actionButton) {
     showConfirmationModal('Delete this generated report? This action cannot be undone.', () => {
         fetch(`/api/generated-reports/${reportId}`, {
             method: 'DELETE',
-            headers: {
+            headers: getHeadersWithCSRF({
                 'Content-Type': 'application/json'
-            }
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -1075,7 +1094,8 @@ function deleteDatasource(id) {
     if (!confirm('Are you sure you want to delete this datasource?')) return;
 
     fetch('/api/datasources/' + id, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getHeadersWithCSRF()
     })
     .then(response => response.json())
     .then(data => {
@@ -1106,6 +1126,7 @@ document.getElementById('datasourceForm').onsubmit = async function(e) {
         try {
             const uploadResponse = await fetch('/api/datasources/upload-file', {
                 method: 'POST',
+                headers: getHeadersWithCSRF(),
                 body: formData
             });
 
@@ -1220,9 +1241,9 @@ function testDatasourceConnection() {
 
     fetch('/api/datasources/test', {
         method: 'POST',
-        headers: {
+        headers: getHeadersWithCSRF({
             'Content-Type': 'application/json'
-        },
+        }),
         body: JSON.stringify(formData)
     })
     .then(response => response.json())

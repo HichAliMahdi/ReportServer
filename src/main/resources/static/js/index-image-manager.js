@@ -1,5 +1,17 @@
 // ========== Image Manager Functions ==========
 
+// Get CSRF tokens from meta tags
+const imgMgrCsrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+const imgMgrCsrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+function getImageMgrHeaders(additionalHeaders = {}) {
+    const headers = { ...additionalHeaders };
+    if (imgMgrCsrfToken && imgMgrCsrfHeader) {
+        headers[imgMgrCsrfHeader] = imgMgrCsrfToken;
+    }
+    return headers;
+}
+
         function openImageManager() {
             document.getElementById('imageManagerModal').style.display = 'block';
             loadImages();
@@ -20,6 +32,7 @@
 
             fetch('/api/builder/upload-image', {
                 method: 'POST',
+                headers: getImageMgrHeaders(),
                 body: formData
             })
             .then(response => response.json())
@@ -88,7 +101,8 @@
             if (!confirm('Are you sure you want to delete this image?')) return;
 
             fetch('/api/builder/images/' + fileName, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getImageMgrHeaders()
             })
             .then(response => response.json())
             .then(data => {
