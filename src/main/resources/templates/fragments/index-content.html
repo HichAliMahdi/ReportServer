@@ -244,6 +244,12 @@
                     <!-- Top Controls -->
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
                         <input type="text" id="vbReportName" placeholder="Report Name" style="flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                        
+                        <!-- Datasource Selector -->
+                        <select id="vbDatasourceSelect" onchange="vbLoadTables()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 180px;">
+                            <option value="">🗄️ Select Datasource</option>
+                        </select>
+                        
                         <select id="vbBandSelect" onchange="vbChangeBand()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="title">Title Band</option>
                             <option value="detail" selected>Detail Band</option>
@@ -269,10 +275,17 @@
                             <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">📅 Date</button>
                             
                             <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;" />
+                            <h4 style="margin: 10px 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">🗄️ Database</h4>
+                            
+                            <!-- Tables List -->
+                            <div id="vbTablesList" style="font-size: 12px; color: #999;">
+                                Select a datasource first
+                            </div>
+                            
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;" />
                             <h4 style="margin: 10px 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">📦 Advanced</h4>
                             
                             <button class="vb-toolbox-btn" onclick="vbAddLogo()">🎨 Logo</button>
-                            <button class="vb-toolbox-btn" onclick="vbAddTable()">📊 Table</button>
                             
                             <input type="file" id="vbLogoInput" accept="image/*" style="display: none;" onchange="vbUploadLogo(event)" />
                         </div>

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -42,7 +43,10 @@ import java.util.stream.Stream;
 public class BuilderController {
     
     private static final Logger logger = LoggerFactory.getLogger(BuilderController.class);
-    private static final String UPLOAD_DIR = "data/reports/";
+    
+    @Value("${reportserver.upload.dir:data/reports/}")
+    private String uploadDir;
+    
     private static final String IMAGES_DIR = "data/images/";
     private static final String TEMPLATES_DIR = "data/templates/";
 
@@ -218,12 +222,12 @@ public class BuilderController {
             );
 
             // Save to file
-            File uploadDir = new File(UPLOAD_DIR);
+            File uploadDir = new File(this.uploadDir);
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
             }
 
-            File jrxmlFile = new File(UPLOAD_DIR + reportName);
+            File jrxmlFile = new File(this.uploadDir + reportName);
             try (FileWriter writer = new FileWriter(jrxmlFile)) {
                 writer.write(jrxmlContent);
             }
@@ -262,7 +266,7 @@ public class BuilderController {
                 return ResponseEntity.badRequest().build();
             }
 
-            File file = new File(UPLOAD_DIR + fileName);
+            File file = new File(this.uploadDir + fileName);
             
             if (!file.exists() || !file.isFile()) {
                 logger.error("File not found: {}", fileName);
@@ -614,12 +618,12 @@ public class BuilderController {
             String jrxmlContent = generateJrxmlFromVisualDesign(designData);
 
             // Save to file
-            File uploadDir = new File(UPLOAD_DIR);
+            File uploadDir = new File(this.uploadDir);
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
             }
 
-            File jrxmlFile = new File(UPLOAD_DIR + reportName);
+            File jrxmlFile = new File(this.uploadDir + reportName);
             try (FileWriter writer = new FileWriter(jrxmlFile)) {
                 writer.write(jrxmlContent);
             }

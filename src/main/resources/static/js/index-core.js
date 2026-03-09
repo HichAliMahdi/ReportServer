@@ -1189,9 +1189,9 @@ async function saveDatasourceWithFilePath(id, type, filePath) {
     try {
         const response = await fetch(url, {
             method: method,
-            headers: {
+            headers: getHeadersWithCSRF({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify(formData)
         });
 

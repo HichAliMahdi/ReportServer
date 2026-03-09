@@ -1,8 +1,11 @@
 package com.reportserver.config;
 
+import com.reportserver.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -20,11 +23,14 @@ public class SecurityConfig {
     @Autowired
     private FirstLoginFilter firstLoginFilter;
     
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login", "/register", "/forgot-password", "/reset-password", "/css/**", "/js/**", "/images/**", "/error/**").permitAll()
+                .requestMatchers("/login", "/register", "/forgot-password", "/reset-password", "/api/auth/**", "/css/**", "/js/**", "/images/**", "/error/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -43,9 +49,15 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(firstLoginFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
+    }
+    
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
     
     @Bean

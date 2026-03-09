@@ -7,6 +7,9 @@ const VB = {
     nextId: 1,
     currentBand: 'detail',
     dragState: null,
+    datasourceId: null,
+    availableTables: [],
+    tableColumns: {},
 
     init() {
         this.canvas = document.getElementById('vbCanvas');
@@ -16,7 +19,29 @@ const VB = {
         }
         console.log('Visual Builder initialized');
         this.setupCanvasDragDrop();
+        this.loadDatasources();
         this.render();
+    },
+
+    loadDatasources() {
+        fetch('/api/datasources')
+            .then(response => response.json())
+            .then(datasources => {
+                const select = document.getElementById('vbDatasourceSelect');
+                select.innerHTML = '<option value="">🗄️ Select Datasource</option>';
+                
+                datasources.forEach(ds => {
+                    if (ds.type === 'JDBC') { // Only show JDBC datasources for table browsing
+                        const option = document.createElement('option');
+                        option.value = ds.id;
+                        option.textContent = `${ds.name} (${ds.type})`;
+                        select.appendChild(option);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading datasources:', error);
+            });
     },
 
     setupCanvasDragDrop() {
@@ -44,7 +69,8 @@ const VB = {
             this.canvas.style.borderColor = '#007bff';
 
             const elementType = e.dataTransfer.getData('elementType');
-            console.log('Dropped element type:', elementType);
+            const tableName = e.dataTransfer.getData('tableName');
+            console.log('Dropped element type:', elementType, 'tableName:', tableName);
 
             if (!elementType) {
                 console.error('No elementType in drop data');
@@ -59,7 +85,12 @@ const VB = {
             const y = Math.max(10, e.clientY - rect.top + scrollTop - 12);
 
             console.log('Adding element at position:', x, y);
-            this.addElementAtPosition(elementType, x, y);
+            
+            if (elementType === 'dbTable' && tableName) {
+                this.addElementAtPosition(elementType, x, y, { tableName });
+            } else {
+                this.addElementAtPosition(elementType, x, y);
+            }
         }, false);
     },
 
@@ -174,6 +205,28 @@ const VB = {
                 div.style.display = 'flex';
                 div.style.alignItems = 'center';
                 div.style.justifyContent = 'center';
+            } else if (el.type === 'dbTable') {
+                div.style.background = '#f8f9fa';
+                div.style.border = '2px solid #667eea';
+                div.style.overflow = 'hidden';
+                div.style.padding = '5px';
+                div.style.fontSize = (el.fontSize || 10) + 'px';
+                
+                // Create a mini preview of the table
+                let tableHTML = `<div style="font-weight: bold; color: #667eea; margin-bottom: 3px;">📊 ${el.tableName || 'Table'}</div>`;
+                if (el.selectedColumns && el.selectedColumns.length > 0) {
+                    tableHTML += '<div style="font-size: 8px; color: #666;">';
+                    el.selectedColumns.slice(0, 5).forEach(col => {
+                        tableHTML += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${col}</div>`;
+                    });
+                    if (el.selectedColumns.length > 5) {
+                        tableHTML += '<div>...</div>';
+                    }
+                    tableHTML += '</div>';
+                } else {
+                    tableHTML += '<div style="font-size: 8px; color: #999;">No columns selected</div>';
+                }
+                div.innerHTML = tableHTML;
             } else {
                 div.textContent = el.text;
             }
@@ -260,6 +313,51 @@ const VB = {
                 <div style="margin-bottom: 10px;">
                     <label style="font-size: 12px; display: block; margin-bottom: 3px;">Rows:</label>
                     <input type="number" value="${el.rows || 5}" min="2" max="20" onchange="VB.updateElement('rows', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+                </div>
+            `;
+        } else if (el.type === 'dbTable') {
+            html += `
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; display: block; margin-bottom: 3px; font-weight: bold;">Table: ${el.tableName || 'Unknown'}</label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; display: block; margin-bottom: 3px;">Font Size:</label>
+                    <input type="number" value="${el.fontSize || 10}" min="6" max="16" onchange="VB.updateElement('fontSize', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 12px;">
+                        <input type="checkbox" ${el.showHeaders ? 'checked' : ''} onchange="VB.updateElement('showHeaders', this.checked)">
+                        Show Headers
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 12px;">
+                        <input type="checkbox" ${el.headerBold ? 'checked' : ''} onchange="VB.updateElement('headerBold', this.checked)">
+                        Bold Headers
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 12px;">
+                        <input type="checkbox" ${el.alternateRows ? 'checked' : ''} onchange="VB.updateElement('alternateRows', this.checked)">
+                        Alternate Rows
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 12px; display: block; margin-bottom: 5px; font-weight: bold;">Columns to Display:</label>
+                    <div style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 5px; font-size: 11px;">
+                        ${el.columns ? el.columns.map((col, idx) => `
+                            <label style="display: flex; align-items: center; gap: 5px; padding: 2px; cursor: pointer;">
+                                <input type="checkbox" ${el.selectedColumns && el.selectedColumns.includes(col) ? 'checked' : ''} 
+                                       onchange="vbToggleColumn('${col}', this.checked)">
+                                <span>${col}</span>
+                            </label>
+                        `).join('') : '<div style="color: #999;">No columns</div>'}
+                    </div>
                 </div>
             `;
         } else {
@@ -430,6 +528,11 @@ function vbUploadLogo(event) {
 }
 
 function vbAddTable() {
+    if (!VB.datasourceId) {
+        alert('Please select a datasource first');
+        return;
+    }
+    
     const columns = prompt('Enter number of columns (2-10):', '3');
     if (!columns || isNaN(columns) || columns < 2 || columns > 10) {
         alert('Please enter a valid number between 2 and 10');
@@ -451,11 +554,169 @@ function vbAddTable() {
         fontSize: 12,
         color: '#000000',
         numColumns,
-        rows: 5
+        rows: 5,
+        tableName: null,
+        columns: []
     };
 
     VB.elements.push(tableData);
     VB.render();
     VB.select(id);
     console.log(`Table with ${numColumns} columns added!`);
+}
+
+// Load tables from selected datasource
+function vbLoadTables() {
+    const datasourceId = document.getElementById('vbDatasourceSelect').value;
+    const tablesList = document.getElementById('vbTablesList');
+    
+    if (!datasourceId) {
+        tablesList.innerHTML = '<div style="font-size: 12px; color: #999;">Select a datasource first</div>';
+        VB.datasourceId = null;
+        VB.availableTables = [];
+        return;
+    }
+    
+    VB.datasourceId = parseInt(datasourceId);
+    tablesList.innerHTML = '<div style="font-size: 12px; color: #999;">Loading tables...</div>';
+    
+    fetch(`/api/builder/datasources/${datasourceId}/tables`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tables && data.tables.length > 0) {
+                VB.availableTables = data.tables;
+                
+                let html = '';
+                data.tables.forEach(table => {
+                    html += `<button class="vb-toolbox-btn" 
+                                draggable="true" 
+                                ondragstart="vbStartTableDrag(event, '${table}')" 
+                                ondragend="vbEndDrag(event)"
+                                onclick="vbAddTableFromDB('${table}')"
+                                title="Drag to canvas or click to add">
+                                📊 ${table}
+                            </button>`;
+                });
+                tablesList.innerHTML = html;
+            } else {
+                tablesList.innerHTML = '<div style="font-size: 12px; color: #999;">No tables found</div>';
+                VB.availableTables = [];
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tables:', error);
+            tablesList.innerHTML = '<div style="font-size: 12px; color: #dc3545;">Error loading tables</div>';
+            VB.availableTables = [];
+        });
+}
+
+// Start dragging a table
+function vbStartTableDrag(event, tableName) {
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('elementType', 'dbTable');
+    event.dataTransfer.setData('tableName', tableName);
+    event.target.style.opacity = '0.5';
+}
+
+// Add table from database
+function vbAddTableFromDB(tableName) {
+    if (!VB.datasourceId) {
+        alert('Please select a datasource first');
+        return;
+    }
+    
+    showLoading('Loading table columns...');
+    
+    // Load columns for this table
+    fetch(`/api/builder/datasources/${VB.datasourceId}/tables/${tableName}/columns`)
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success && data.columns && data.columns.length > 0) {
+                VB.tableColumns[tableName] = data.columns;
+                
+                const id = VB.nextId++;
+                const columnWidth = 120;
+                const totalWidth = Math.min(600, columnWidth * data.columns.length);
+                
+                const tableData = {
+                    id,
+                    type: 'dbTable',
+                    band: VB.currentBand,
+                    x: 50,
+                    y: 100,
+                    width: totalWidth,
+                    height: 200,
+                    text: tableName,
+                    fontSize: 10,
+                    color: '#000000',
+                    tableName: tableName,
+                    columns: data.columns.slice(0, 10), // Limit to first 10 columns
+                    selectedColumns: data.columns.slice(0, 10),
+                    showHeaders: true,
+                    headerBold: true,
+                    alternateRows: true
+                };
+                
+                VB.elements.push(tableData);
+                VB.render();
+                VB.select(id);
+            } else {
+                alert('No columns found for this table');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error loading columns:', error);
+            alert('Error loading table columns: ' + error.message);
+        });
+}
+
+// Update the addElementAtPosition to handle dbTable drops
+VB.addElementAtPositionOriginal = VB.addElementAtPosition;
+VB.addElementAtPosition = function(type, x, y, data = {}) {
+    if (type === 'dbTable' && data.tableName) {
+        vbAddTableFromDB(data.tableName);
+        // Adjust position of the last added element
+        setTimeout(() => {
+            if (VB.elements.length > 0) {
+                const lastEl = VB.elements[VB.elements.length - 1];
+                lastEl.x = x;
+                lastEl.y = y;
+                VB.render();
+            }
+        }, 100);
+    } else {
+        VB.addElementAtPositionOriginal(type, x, y);
+    }
+};
+
+// Toggle column selection for database tables
+function vbToggleColumn(columnName, checked) {
+    if (!VB.selectedId) return;
+    
+    const el = VB.elements.find(item => item.id === VB.selectedId);
+    if (!el || el.type !== 'dbTable') return;
+    
+    if (!el.selectedColumns) {
+        el.selectedColumns = [];
+    }
+    
+    if (checked) {
+        // Add column if not already selected
+        if (!el.selectedColumns.includes(columnName)) {
+            el.selectedColumns.push(columnName);
+        }
+    } else {
+        // Remove column
+        el.selectedColumns = el.selectedColumns.filter(col => col !== columnName);
+    }
+    
+    // Adjust table width based on number of selected columns
+    const columnWidth = 100;
+    el.width = Math.max(200, columnWidth * el.selectedColumns.length);
+    
+    VB.render();
+    VB.updateProperties();
 }

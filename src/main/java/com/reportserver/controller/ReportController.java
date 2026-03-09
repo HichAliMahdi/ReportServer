@@ -7,6 +7,7 @@ import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -46,14 +47,19 @@ public class ReportController {
     
     @Autowired
     private SharedReportRepository sharedReportRepository;
+    
+    @Autowired
+    private com.reportserver.service.JrxmlValidator jrxmlValidator;
 
-    private static final String UPLOAD_DIR = "data/reports/";
+    @Value("${reportserver.upload.dir:data/reports/}")
+    private String uploadDir;
+    
     private static final String GENERATED_REPORTS_DIR = "data/generated-reports/";
     
     @PostConstruct
     public void init() {
         // Create directories if they don't exist
-        File uploadDir = new File(UPLOAD_DIR);
+        File uploadDir = new File(this.uploadDir);
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
             logger.info("Created upload directory: " + uploadDir.getAbsolutePath());
@@ -90,15 +96,28 @@ public class ReportController {
             
             logger.info("Uploading file: " + filename + " (" + file.getSize() + " bytes)");
             
+            // Validate JRXML content before saving
+            String jrxmlContent = new String(file.getBytes());
+            com.reportserver.service.JrxmlValidator.JrxmlValidationResult validation = 
+                jrxmlValidator.validate(jrxmlContent);
+            
+            if (!validation.valid) {
+                logger.warn("JRXML validation failed for file: {}. Issues: {}", filename, validation.getIssues());
+                return ResponseEntity.badRequest().body(
+                    "JRXML validation failed. Security issues detected: " + 
+                    String.join(", ", validation.getIssues())
+                );
+            }
+            
             // Create directory if it doesn't exist
-            File uploadDir = new File(UPLOAD_DIR);
+            File uploadDir = new File(this.uploadDir);
             if (!uploadDir.exists()) {
                 logger.info("Creating upload directory: " + uploadDir.getAbsolutePath());
                 uploadDir.mkdirs();
             }
 
             // Save the file
-            Path path = Paths.get(UPLOAD_DIR + filename);
+            Path path = Paths.get(this.uploadDir + filename);
             Files.write(path, file.getBytes());
             
             logger.info("File uploaded successfully: " + filename);
@@ -125,7 +144,7 @@ public class ReportController {
             logger.info("Generating report: {} in format: {}, useDatabase: {}, datasourceId: {}", 
                        reportName, format, useDatabase, datasourceId);
             
-            String jrxmlPath = UPLOAD_DIR + reportName;
+            String jrxmlPath = this.uploadDir + reportName;
             
             // Check if file exists
             File reportFile = new File(jrxmlPath);
@@ -233,7 +252,7 @@ public class ReportController {
         try {
             logger.info("Downloading report: {} in format: {}", reportName, format);
             
-            String jrxmlPath = UPLOAD_DIR + reportName;
+            String jrxmlPath = this.uploadDir + reportName;
             
             // Check if file exists
             File reportFile = new File(jrxmlPath);
@@ -270,7 +289,7 @@ public class ReportController {
     @GetMapping("/reports")
     @ResponseBody
     public ResponseEntity<String[]> listReports() {
-        File dir = new File(UPLOAD_DIR);
+        File dir = new File(this.uploadDir);
         if (!dir.exists()) {
             dir.mkdirs();
         }
@@ -294,7 +313,7 @@ public class ReportController {
                 return ResponseEntity.badRequest().body("Only .jrxml files can be deleted");
             }
             
-            Path reportPath = Paths.get(UPLOAD_DIR + reportName);
+            Path reportPath = Paths.get(this.uploadDir + reportName);
             File reportFile = reportPath.toFile();
             
             if (!reportFile.exists()) {

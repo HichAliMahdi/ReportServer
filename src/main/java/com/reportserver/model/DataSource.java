@@ -1,6 +1,7 @@
 package com.reportserver.model;
 
 import jakarta.persistence.*;
+import com.reportserver.security.EncryptedPasswordConverter;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,6 +27,7 @@ public class DataSource {
     private String username;
     
     @Column
+    @Convert(converter = EncryptedPasswordConverter.class)
     private String password;
     
     @Column
