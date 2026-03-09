@@ -479,9 +479,10 @@
         };
 
         function loadUsers() {
-            fetch('/api/users')
+            fetch('/api/users?page=0&size=100')
             .then(response => response.json())
-            .then(users => {
+            .then(payload => {
+                const users = Array.isArray(payload) ? payload : (payload.content || []);
                 const tableBody = document.getElementById('usersTableBody');
                 tableBody.innerHTML = '';
                 

@@ -24,6 +24,9 @@ public class ScheduledReport {
     
     @Column(nullable = false)
     private String scheduleType; // HOURLY, DAILY, WEEKLY, MONTHLY, YEARLY
+
+    @Column(length = 120)
+    private String cronExpression;
     
     @Column
     private Long datasourceId;
@@ -127,6 +130,14 @@ public class ScheduledReport {
     
     public void setScheduleType(String scheduleType) {
         this.scheduleType = scheduleType;
+    }
+
+    public String getCronExpression() {
+        return cronExpression;
+    }
+
+    public void setCronExpression(String cronExpression) {
+        this.cronExpression = cronExpression;
     }
     
     public Long getDatasourceId() {

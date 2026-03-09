@@ -19,6 +19,12 @@ public class SharedReport {
     
     @Column(nullable = false)
     private String reportFormat; // pdf, csv, xlsx, etc
+
+    @Column(length = 255)
+    private String category;
+
+    @Column(length = 1000)
+    private String tags; // comma-separated tags
     
     @Column(name = "shared_with_readonly", nullable = false)
     private boolean sharedWithReadOnly = false;
@@ -70,6 +76,22 @@ public class SharedReport {
     
     public void setReportFormat(String reportFormat) {
         this.reportFormat = reportFormat;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
     }
     
     public boolean isSharedWithReadOnly() {

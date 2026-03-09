@@ -25,6 +25,16 @@ function getHeadersWithCSRF(additionalHeaders = {}) {
     return headers;
 }
 
+function unwrapPagedContent(payload) {
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+    if (payload && Array.isArray(payload.content)) {
+        return payload.content;
+    }
+    return [];
+}
+
 // Fetch the current user's role
 function fetchCurrentUser() {
     return fetch('/api/current-user')
@@ -219,6 +229,13 @@ function uploadFile() {
     const formData = new FormData();
     formData.append('file', file);
 
+    const uploadCategory = document.getElementById('uploadCategory')?.value?.trim();
+    const uploadTags = document.getElementById('uploadTags')?.value?.trim();
+    const uploadDescription = document.getElementById('uploadDescription')?.value?.trim();
+    if (uploadCategory) formData.append('category', uploadCategory);
+    if (uploadTags) formData.append('tags', uploadTags);
+    if (uploadDescription) formData.append('description', uploadDescription);
+
     // Add CSRF token
     const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
@@ -272,9 +289,10 @@ function loadJrxmlTemplates() {
         <div class="skeleton skeleton-card"></div>
     `;
 
-    fetch('/reports')
+    fetch('/reports?page=0&size=100')
     .then(response => response.json())
-    .then(reports => {
+    .then(payload => {
+        const reports = unwrapPagedContent(payload);
         const select = document.getElementById('reportSelect');
         
         if (select) {
@@ -299,11 +317,15 @@ function loadJrxmlTemplates() {
         }
 
         reports.forEach(report => {
+            const reportFileName = typeof report === 'string' ? report : report.reportFileName;
+            const reportCategory = typeof report === 'string' ? '' : (report.category || 'Uncategorized');
+            const reportTags = typeof report === 'string' ? '' : (report.tags || '');
+
             // Add to dropdown
             if (select) {
                 const option = document.createElement('option');
-                option.value = report;
-                option.textContent = report;
+                option.value = reportFileName;
+                option.textContent = reportFileName;
                 select.appendChild(option);
             }
 
@@ -313,33 +335,38 @@ function loadJrxmlTemplates() {
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'report-item-name';
-            nameDiv.textContent = report;
+            nameDiv.textContent = reportFileName;
+
+            const metaDiv = document.createElement('div');
+            metaDiv.style.fontSize = '12px';
+            metaDiv.style.color = '#777';
+            metaDiv.textContent = `Category: ${reportCategory}${reportTags ? ` | Tags: ${reportTags}` : ''}`;
 
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'report-item-actions';
 
             const downloadLink = document.createElement('a');
-            downloadLink.href = `/api/builder/download/${encodeURIComponent(report)}`;
-            downloadLink.download = report;
+            downloadLink.href = `/api/builder/download/${encodeURIComponent(reportFileName)}`;
+            downloadLink.download = reportFileName;
             downloadLink.className = 'report-action-btn report-action-download';
             downloadLink.innerHTML = '📥 Download';
             downloadLink.title = 'Download JRXML template';
-            downloadLink.setAttribute('aria-label', `Download ${report}`);
+            downloadLink.setAttribute('aria-label', `Download ${reportFileName}`);
 
             const editBtn = document.createElement('button');
             editBtn.className = 'report-action-btn report-action-edit';
             editBtn.innerHTML = '✏️ Edit';
             editBtn.title = 'Edit in JRXML editor';
-            editBtn.setAttribute('aria-label', `Edit ${report}`);
-            editBtn.onclick = () => openJrxmlEditor(report);
+            editBtn.setAttribute('aria-label', `Edit ${reportFileName}`);
+            editBtn.onclick = () => openJrxmlEditor(reportFileName);
             editBtn.style.display = (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') ? 'inline-block' : 'none';
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'report-action-btn report-action-delete';
             deleteBtn.innerHTML = '🗑️ Delete';
             deleteBtn.title = 'Delete template';
-            deleteBtn.setAttribute('aria-label', `Delete ${report}`);
-            deleteBtn.onclick = () => confirmDeleteReport(report, deleteBtn);
+            deleteBtn.setAttribute('aria-label', `Delete ${reportFileName}`);
+            deleteBtn.onclick = () => confirmDeleteReport(reportFileName, deleteBtn);
             deleteBtn.style.display = (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') ? 'inline-block' : 'none';
 
             actionsDiv.appendChild(downloadLink);
@@ -347,6 +374,7 @@ function loadJrxmlTemplates() {
             actionsDiv.appendChild(deleteBtn);
 
             item.appendChild(nameDiv);
+            item.appendChild(metaDiv);
             item.appendChild(actionsDiv);
             list.appendChild(item);
         });
@@ -380,9 +408,11 @@ function loadGeneratedReports() {
         `;
     }
 
-    fetch('/api/generated-reports')
+    const sharedOnlyQuery = currentUserRole === 'READ_ONLY' ? '&sharedOnly=true' : '';
+    fetch('/api/generated-reports?page=0&size=100' + sharedOnlyQuery)
     .then(response => response.json())
-    .then(reportsData => {
+    .then(payload => {
+        const reportsData = unwrapPagedContent(payload);
         if (adminList) {
             adminList.innerHTML = '';
         }
@@ -428,7 +458,9 @@ function loadGeneratedReports() {
             infoDiv.style.fontSize = '12px';
             infoDiv.style.color = '#999';
             infoDiv.style.marginTop = '5px';
-            infoDiv.textContent = `Generated by: ${report.createdBy} on ${new Date(report.createdAt).toLocaleDateString()}`;
+            const categoryText = report.category ? ` | Category: ${report.category}` : '';
+            const tagsText = report.tags ? ` | Tags: ${report.tags}` : '';
+            infoDiv.textContent = `Generated by: ${report.createdBy} on ${new Date(report.createdAt).toLocaleDateString()}${categoryText}${tagsText}`;
 
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'report-item-actions';
@@ -705,8 +737,19 @@ function loadReportParameters(reportName) {
                 input.setAttribute('data-param-type', param.class);
             }
 
+            input.setAttribute('data-param-class', param.class || 'java.lang.String');
+            input.setAttribute('data-param-name', param.name);
+            if (param.defaultValue && input.type !== 'checkbox') {
+                input.placeholder = `Default: ${param.defaultValue}`;
+            }
+
+            const hint = document.createElement('small');
+            hint.style.color = '#777';
+            hint.textContent = `Expected type: ${param.class}`;
+
             formGroup.appendChild(label);
             formGroup.appendChild(input);
+            formGroup.appendChild(hint);
             parametersContainer.appendChild(formGroup);
         });
     })
@@ -841,6 +884,44 @@ function loadDatasources() {
     });
 }
 
+function validateGenerateFormParameters(container) {
+    if (!container) {
+        return { valid: true };
+    }
+
+    const inputs = container.querySelectorAll('input, select, textarea');
+    for (const input of inputs) {
+        if (input.type === 'checkbox') {
+            continue;
+        }
+        const value = (input.value || '').trim();
+        if (!value) {
+            continue;
+        }
+
+        const className = input.getAttribute('data-param-class') || '';
+        const parameterName = input.getAttribute('data-param-name') || input.name || 'parameter';
+
+        if (className.includes('Integer') && !/^[-+]?\d+$/.test(value)) {
+            return { valid: false, message: `Parameter '${parameterName}' must be an integer.` };
+        }
+        if ((className.includes('Long') || className.includes('BigInteger')) && !/^[-+]?\d+$/.test(value)) {
+            return { valid: false, message: `Parameter '${parameterName}' must be a whole number.` };
+        }
+        if ((className.includes('Double') || className.includes('Float') || className.includes('BigDecimal')) && Number.isNaN(Number(value))) {
+            return { valid: false, message: `Parameter '${parameterName}' must be a numeric value.` };
+        }
+        if ((className.includes('Date') || className.includes('Timestamp')) && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return { valid: false, message: `Parameter '${parameterName}' must use format YYYY-MM-DD.` };
+        }
+        if (className.includes('Boolean') && !['true', 'false'].includes(value.toLowerCase())) {
+            return { valid: false, message: `Parameter '${parameterName}' must be true or false.` };
+        }
+    }
+
+    return { valid: true };
+}
+
 document.getElementById('generateForm').onsubmit = function(e) {
     e.preventDefault();
 
@@ -868,6 +949,12 @@ document.getElementById('generateForm').onsubmit = function(e) {
         params.append('datasourceId', datasourceId);
     }
 
+    const validationResult = validateGenerateFormParameters(document.getElementById('parametersContainer'));
+    if (!validationResult.valid) {
+        showGenerateMessage(validationResult.message, 'error');
+        return;
+    }
+
     // Collect report parameters
     const parametersContainer = document.getElementById('parametersContainer');
     if (parametersContainer && parametersContainer.children.length > 0) {
@@ -879,6 +966,15 @@ document.getElementById('generateForm').onsubmit = function(e) {
                 params.append(input.name, input.value);
             }
         });
+    }
+
+    const generateCategory = document.getElementById('generateCategory')?.value?.trim();
+    const generateTags = document.getElementById('generateTags')?.value?.trim();
+    if (generateCategory) {
+        params.append('category', generateCategory);
+    }
+    if (generateTags) {
+        params.append('tags', generateTags);
     }
 
     // Add CSRF token

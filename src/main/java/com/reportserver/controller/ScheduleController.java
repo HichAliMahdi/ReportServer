@@ -6,13 +6,19 @@ import com.reportserver.service.ScheduledReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/api/schedules")
@@ -26,21 +32,42 @@ public class ScheduleController {
     @Autowired
     private ReportSchedulerService reportSchedulerService;
 
+    @Value("${reportserver.pagination.default-page-size:20}")
+    private int defaultPageSize;
+
+    @Value("${reportserver.pagination.max-page-size:200}")
+    private int maxPageSize;
+
     @GetMapping
     @ResponseBody
-    public ResponseEntity<List<ScheduledReportDTO>> getAllSchedules(Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> getAllSchedules(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Integer size) {
         try {
             boolean isAdmin = authentication.getAuthorities()
                     .contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
-            
-            List<ScheduledReportDTO> schedules;
+
+            int resolvedSize = size == null ? defaultPageSize : Math.min(size, maxPageSize);
+            Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(resolvedSize, 1));
+
+            Page<ScheduledReportDTO> schedules;
             if (isAdmin) {
-                schedules = scheduledReportService.getAllScheduledReports();
+                schedules = scheduledReportService.getAllScheduledReports(pageable);
             } else {
-                schedules = scheduledReportService.getScheduledReportsByUser(authentication.getName());
+                schedules = scheduledReportService.getScheduledReportsByUser(authentication.getName(), pageable);
             }
-            
-            return ResponseEntity.ok(schedules);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", schedules.getContent());
+            response.put("page", schedules.getNumber());
+            response.put("size", schedules.getSize());
+            response.put("totalElements", schedules.getTotalElements());
+            response.put("totalPages", schedules.getTotalPages());
+            response.put("first", schedules.isFirst());
+            response.put("last", schedules.isLast());
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error fetching scheduled reports", e);
             return ResponseEntity.status(500).build();

@@ -10,6 +10,7 @@ public class ScheduledReportDTO {
     private String reportName;
     private String format;
     private String scheduleType;
+    private String cronExpression;
     private Long datasourceId;
     private Boolean enabled;
     private LocalDateTime lastRunTime;
@@ -66,6 +67,14 @@ public class ScheduledReportDTO {
 
     public void setScheduleType(String scheduleType) {
         this.scheduleType = scheduleType;
+    }
+
+    public String getCronExpression() {
+        return cronExpression;
+    }
+
+    public void setCronExpression(String cronExpression) {
+        this.cronExpression = cronExpression;
     }
 
     public Long getDatasourceId() {

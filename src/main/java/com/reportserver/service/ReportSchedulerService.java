@@ -1,12 +1,13 @@
 package com.reportserver.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.reportserver.model.ReportExecutionLog;
 import com.reportserver.model.ScheduledReport;
 import com.reportserver.repository.ScheduledReportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -18,15 +19,16 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Service
 public class ReportSchedulerService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportSchedulerService.class);
-    private static final String REPORTS_DIR = "data/reports/";
     private static final String OUTPUT_DIR = "data/scheduled_output/";
+
+    @Value("${reportserver.upload.dir:data/reports/}")
+    private String uploadDir;
 
     @Autowired
     private ScheduledReportRepository scheduledReportRepository;
@@ -46,32 +48,31 @@ public class ReportSchedulerService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // Check every minute for scheduled reports that need to run
-    @Scheduled(fixedRate = 60000) // Run every 60 seconds
-    public void executeScheduledReports() {
-        LocalDateTime now = LocalDateTime.now();
-        List<ScheduledReport> dueReports = scheduledReportRepository
-                .findByNextRunTimeLessThanEqualAndEnabledTrue(now);
+    @Autowired
+    private ReportExecutionLogService reportExecutionLogService;
 
-        if (!dueReports.isEmpty()) {
-            logger.info("Found {} scheduled report(s) to execute", dueReports.size());
-        }
+    private void executeScheduledReport(ScheduledReport scheduledReport) {
+            @Autowired
+            private ReportDeliveryService reportDeliveryService;
 
-        for (ScheduledReport scheduledReport : dueReports) {
-            try {
-                executeScheduledReport(scheduledReport);
-            } catch (Exception e) {
-                logger.error("Failed to execute scheduled report: " + scheduledReport.getName(), e);
-            }
-        }
-    }
+            private void executeScheduledReport(ScheduledReport scheduledReport) {
+        logger.info("Executing scheduled report: {}", scheduledReport.getName());
+            @Autowired
+            private ReportDeliveryService reportDeliveryService;
+
+            private void executeScheduledReport(ScheduledReport scheduledReport) {
+                logger.info("Executing scheduled report: {}", scheduledReport.getName());
+        Long logId = null;
+    @Autowired
+    private ReportDeliveryService reportDeliveryService;
 
     private void executeScheduledReport(ScheduledReport scheduledReport) {
         logger.info("Executing scheduled report: {}", scheduledReport.getName());
+        Long logId = null;
 
         try {
             // Get report file path
-            String jrxmlPath = REPORTS_DIR + scheduledReport.getReportName();
+            String jrxmlPath = this.uploadDir + scheduledReport.getReportName();
             File reportFile = new File(jrxmlPath);
             
             if (!reportFile.exists()) {
@@ -90,6 +91,17 @@ public class ReportSchedulerService {
                     logger.warn("Could not parse parameters for report: {}", scheduledReport.getName(), e);
                 }
             }
+
+            ReportExecutionLog log = reportExecutionLogService.startLog(
+                    scheduledReport.getReportName(),
+                    scheduledReport.getFormat(),
+                    "SCHEDULED",
+                    scheduledReport.getCreatedBy(),
+                    scheduledReport.getDatasourceId(),
+                    scheduledReport.getId(),
+                    parameters
+            );
+            logId = log.getId();
 
             // Get database connection or datasource if needed
             Object dataSource = null;
@@ -122,15 +134,38 @@ public class ReportSchedulerService {
             }
 
             // Save report to output directory
-            saveScheduledReport(scheduledReport, reportData);
+            String outputFileName = saveScheduledReport(scheduledReport, reportData);
 
             // Update last run time and calculate next run time
             scheduledReportService.updateLastRunTime(scheduledReport.getId(), LocalDateTime.now());
+            if (logId != null) {
+                reportExecutionLogService.markSuccess(logId, outputFileName);
+                        // Deliver report via configured channels (email, webhook)
+                        try {
+                            String outputBasePath = scheduledReport.getOutputPath() != null && !scheduledReport.getOutputPath().isEmpty()
+                                    ? scheduledReport.getOutputPath()
+                                    : OUTPUT_DIR;
+
+                            File reportFile = new File(Paths.get(outputBasePath, outputFileName).toString());
+                            reportDeliveryService.deliverScheduledReport(
+                                scheduledReport.getId(),
+                                scheduledReport.getReportName(),
+                                reportFile,
+                                scheduledReport.getFormat()
+                            );
+                        } catch (Exception e) {
+                            logger.warn("Failed to deliver scheduled report: {}", e.getMessage(), e);
+                            // Non-fatal; report execution succeeded but delivery failed
+                        }
+            }
 
             logger.info("Successfully executed scheduled report: {}", scheduledReport.getName());
 
         } catch (Exception e) {
             logger.error("Error executing scheduled report: " + scheduledReport.getName(), e);
+            if (logId != null) {
+                reportExecutionLogService.markFailed(logId, e.getMessage());
+            }
             
             // Still update the next run time even if there was an error
             try {
@@ -141,7 +176,7 @@ public class ReportSchedulerService {
         }
     }
 
-    private void saveScheduledReport(ScheduledReport scheduledReport, byte[] reportData) throws Exception {
+    private String saveScheduledReport(ScheduledReport scheduledReport, byte[] reportData) throws Exception {
         // Create output directory if it doesn't exist
         String outputBasePath = scheduledReport.getOutputPath() != null && !scheduledReport.getOutputPath().isEmpty()
                 ? scheduledReport.getOutputPath()
@@ -168,6 +203,7 @@ public class ReportSchedulerService {
         }
 
         logger.info("Saved scheduled report to: {}", outputPath.toString());
+        return filename;
     }
 
     // Manual execution for testing or on-demand runs

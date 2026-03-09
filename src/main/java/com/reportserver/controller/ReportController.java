@@ -1,13 +1,21 @@
 package com.reportserver.controller;
 
+import com.reportserver.model.ReportExecutionLog;
+import com.reportserver.model.ReportTemplate;
 import com.reportserver.model.SharedReport;
+import com.reportserver.repository.ReportTemplateRepository;
 import com.reportserver.repository.SharedReportRepository;
 import com.reportserver.service.DataSourceService;
+import com.reportserver.service.ReportExecutionLogService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,17 +25,30 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Date;
 import java.sql.Connection;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import jakarta.annotation.PostConstruct;
 
@@ -50,6 +71,24 @@ public class ReportController {
     
     @Autowired
     private com.reportserver.service.JrxmlValidator jrxmlValidator;
+
+    @Autowired
+    private ReportTemplateRepository reportTemplateRepository;
+
+    @Autowired
+    private ReportExecutionLogService reportExecutionLogService;
+
+    @Value("${reportserver.pagination.default-page-size:20}")
+    private int defaultPageSize;
+    @Autowired
+    private com.reportserver.service.ThumbnailGenerationService thumbnailGenerationService;
+
+    @Autowired
+    private com.reportserver.repository.ReportThumbnailRepository reportThumbnailRepository;
+
+
+    @Value("${reportserver.pagination.max-page-size:200}")
+    private int maxPageSize;
 
     @Value("${reportserver.upload.dir:data/reports/}")
     private String uploadDir;
@@ -80,7 +119,11 @@ public class ReportController {
     @PostMapping("/upload")
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     @ResponseBody
-    public ResponseEntity<String> uploadReport(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<String> uploadReport(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "tags", required = false) String tags,
+            @RequestParam(value = "description", required = false) String description) {
         try {
             // Validate file
             if (file.isEmpty()) {
@@ -119,8 +162,47 @@ public class ReportController {
             // Save the file
             Path path = Paths.get(this.uploadDir + filename);
             Files.write(path, file.getBytes());
+
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                String username = authentication != null ? authentication.getName() : "system";
+
+                ReportTemplate template = reportTemplateRepository.findByReportFileName(filename)
+                    .orElseGet(ReportTemplate::new);
+                template.setReportFileName(filename);
+                template.setDisplayName(filename.replace(".jrxml", ""));
+                template.setCategory(safeNullable(category));
+                template.setTags(safeNullable(tags));
+                template.setDescription(safeNullable(description));
+                template.setCreatedBy(template.getCreatedBy() == null ? username : template.getCreatedBy());
+                reportTemplateRepository.save(template);
             
             logger.info("File uploaded successfully: " + filename);
+            // Generate thumbnail for the uploaded report
+            try {
+                String jasperPath = this.uploadDir + filename.replace(".jrxml", ".jasper");
+                String thumbnailPath = thumbnailGenerationService.generateThumbnail(
+                    jasperPath,
+                    filename,
+                    new HashMap<>()
+                );
+
+                if (thumbnailPath != null) {
+                    com.reportserver.model.ReportThumbnail thumbnail = new com.reportserver.model.ReportThumbnail(
+                        template.getId(),
+                        thumbnailPath
+                    );
+                    File thumbFile = new File("data/thumbnails" + thumbnailPath);
+                    if (thumbFile.exists()) {
+                        thumbnail.setFileSize(thumbFile.length());
+                    }
+                    reportThumbnailRepository.save(thumbnail);
+                    logger.info("Generated thumbnail for report: {}", filename);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to generate thumbnail for {}: {}", filename, e.getMessage());
+                // Non-fatal error; report upload succeeded even if thumbnail failed
+            }
+            
             return ResponseEntity.ok("File uploaded successfully: " + filename);
         } catch (Exception e) {
             logger.error("Failed to upload report file", e);
@@ -136,10 +218,12 @@ public class ReportController {
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
             @RequestParam(value = "datasourceId", required = false) Long datasourceId,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "tags", required = false) String tags,
             @RequestParam(required = false) Map<String, String> parameters) {
         
         Map<String, Object> response = new HashMap<>();
-        Connection connection = null;
+        Long logId = null;
         try {
             logger.info("Generating report: {} in format: {}, useDatabase: {}, datasourceId: {}", 
                        reportName, format, useDatabase, datasourceId);
@@ -155,11 +239,21 @@ public class ReportController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            // Add parameters to report
-            Map<String, Object> reportParams = new HashMap<>();
-            if (parameters != null) {
-                reportParams.putAll(parameters);
-            }
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth != null ? auth.getName() : "unknown";
+
+            // Validate and coerce user parameters to expected JRXML types.
+            Map<String, Object> reportParams = validateAndConvertReportParameters(jrxmlPath, parameters);
+            ReportExecutionLog log = reportExecutionLogService.startLog(
+                    reportName,
+                    format,
+                    "MANUAL",
+                    username,
+                    datasourceId,
+                    null,
+                    reportParams
+            );
+            logId = log.getId();
 
             // Get database connection or datasource if requested
             Object dataSource = null;
@@ -205,13 +299,13 @@ public class ReportController {
             logger.info("Report saved to: {}", generatedFilePath);
             
             // Save to database
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String username = auth.getName();
             
             SharedReport sharedReport = new SharedReport();
             sharedReport.setReportFileName(fileName);
             sharedReport.setReportName(reportName.replace(".jrxml", ""));
             sharedReport.setReportFormat(format);
+            sharedReport.setCategory(safeNullable(category));
+            sharedReport.setTags(safeNullable(tags));
             sharedReport.setCreatedBy(username);
             sharedReport.setCreatedAt(LocalDateTime.now());
             sharedReport.setSharedWithReadOnly(false); // Not shared by default
@@ -223,22 +317,19 @@ public class ReportController {
             response.put("message", "Report generated successfully");
             response.put("reportId", savedReport.getId());
             response.put("fileName", fileName);
+            if (logId != null) {
+                reportExecutionLogService.markSuccess(logId, fileName);
+            }
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             logger.error("Failed to generate report: " + reportName, e);
             response.put("status", "error");
             response.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.badRequest().body(response);
-        } finally {
-            // Always close the connection if it was opened
-            if (connection instanceof Connection) {
-                try {
-                    ((Connection) connection).close();
-                } catch (Exception e) {
-                    logger.error("Error closing connection", e);
-                }
+            if (logId != null) {
+                reportExecutionLogService.markFailed(logId, e.getMessage());
             }
+            return ResponseEntity.badRequest().body(response);
         }
     }
 
@@ -248,7 +339,7 @@ public class ReportController {
     public ResponseEntity<byte[]> downloadReport(
             @RequestParam("reportName") String reportName,
             @RequestParam(value = "format", defaultValue = "pdf") String format) {
-        
+        Long logId = null;
         try {
             logger.info("Downloading report: {} in format: {}", reportName, format);
             
@@ -261,6 +352,19 @@ public class ReportController {
                 return ResponseEntity.badRequest()
                     .body(("Report file not found: " + reportName).getBytes());
             }
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth != null ? auth.getName() : "unknown";
+            ReportExecutionLog log = reportExecutionLogService.startLog(
+                    reportName,
+                    format,
+                    "MANUAL",
+                    username,
+                    null,
+                    null,
+                    new HashMap<>()
+            );
+            logId = log.getId();
             
             // Generate report without parameters
             logger.info("Compiling and filling report...");
@@ -270,6 +374,10 @@ public class ReportController {
             // Set content type and extension based on format
             MediaType contentType = getContentType(format);
             String extension = getFileExtension(format);
+
+            if (logId != null) {
+                reportExecutionLogService.markSuccess(logId, reportName.replace(".jrxml", "." + extension));
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(contentType);
@@ -282,19 +390,78 @@ public class ReportController {
 
         } catch (Exception e) {
             logger.error("Failed to download report: " + reportName, e);
+            if (logId != null) {
+                reportExecutionLogService.markFailed(logId, e.getMessage());
+            }
             return ResponseEntity.badRequest().body(("Error: " + e.getMessage()).getBytes());
         }
     }
 
     @GetMapping("/reports")
     @ResponseBody
-    public ResponseEntity<String[]> listReports() {
+    public ResponseEntity<Map<String, Object>> listReports(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String tag) {
         File dir = new File(this.uploadDir);
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        String[] files = dir.list((d, name) -> name.endsWith(".jrxml"));
-        return ResponseEntity.ok(files != null ? files : new String[0]);
+
+        int resolvedSize = size == null ? defaultPageSize : Math.min(size, maxPageSize);
+        int resolvedPage = Math.max(page, 0);
+        Pageable pageable = PageRequest.of(resolvedPage, Math.max(resolvedSize, 1));
+
+        String[] fileNames = dir.list((d, name) -> name.endsWith(".jrxml"));
+        if (fileNames == null) {
+            fileNames = new String[0];
+        }
+
+        Map<String, ReportTemplate> metadataByFile = reportTemplateRepository.findAll().stream()
+                .collect(Collectors.toMap(ReportTemplate::getReportFileName, template -> template, (a, b) -> a));
+
+        List<Map<String, Object>> all = Stream.of(fileNames)
+                .sorted(String::compareToIgnoreCase)
+                .map(file -> {
+                    ReportTemplate meta = metadataByFile.get(file);
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("reportFileName", file);
+                    item.put("reportName", file.replace(".jrxml", ""));
+                    item.put("category", meta != null ? meta.getCategory() : null);
+                    item.put("tags", meta != null ? meta.getTags() : null);
+                    item.put("description", meta != null ? meta.getDescription() : null);
+                    return item;
+                })
+                .filter(item -> {
+                    if (category == null || category.isBlank()) {
+                        return true;
+                    }
+                    String itemCategory = (String) item.get("category");
+                    return itemCategory != null && itemCategory.toLowerCase().contains(category.toLowerCase());
+                })
+                .filter(item -> {
+                    if (tag == null || tag.isBlank()) {
+                        return true;
+                    }
+                    String itemTags = (String) item.get("tags");
+                    return itemTags != null && itemTags.toLowerCase().contains(tag.toLowerCase());
+                })
+                .collect(Collectors.toList());
+
+        int start = Math.min((int) pageable.getOffset(), all.size());
+        int end = Math.min(start + pageable.getPageSize(), all.size());
+        Page<Map<String, Object>> resultPage = new PageImpl<>(all.subList(start, end), pageable, all.size());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", resultPage.getContent());
+        response.put("page", resultPage.getNumber());
+        response.put("size", resultPage.getSize());
+        response.put("totalElements", resultPage.getTotalElements());
+        response.put("totalPages", resultPage.getTotalPages());
+        response.put("first", resultPage.isFirst());
+        response.put("last", resultPage.isLast());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/reports/{reportName}")
@@ -322,6 +489,8 @@ public class ReportController {
             }
             
             if (reportFile.delete()) {
+                reportTemplateRepository.findByReportFileName(reportName)
+                        .ifPresent(template -> reportTemplateRepository.deleteById(template.getId()));
                 logger.info("Report deleted successfully: " + reportName);
                 return ResponseEntity.ok("Report deleted successfully: " + reportName);
             } else {
@@ -332,6 +501,116 @@ public class ReportController {
             logger.error("Error deleting report: " + reportName, e);
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
+    }
+
+    private Map<String, Object> validateAndConvertReportParameters(String jrxmlPath, Map<String, String> requestParameters) {
+        Map<String, Object> converted = new HashMap<>();
+        if (requestParameters == null || requestParameters.isEmpty()) {
+            return converted;
+        }
+
+        Map<String, String> expectedTypes = readExpectedParameterTypes(jrxmlPath);
+        for (Map.Entry<String, String> entry : requestParameters.entrySet()) {
+            String key = entry.getKey();
+            if (isReservedGenerateParameterName(key)) {
+                continue;
+            }
+
+            String rawValue = entry.getValue();
+            if (rawValue == null || rawValue.isBlank()) {
+                continue;
+            }
+
+            String expectedType = expectedTypes.get(key);
+            if (expectedType == null) {
+                converted.put(key, rawValue);
+                continue;
+            }
+
+            converted.put(key, convertParameterValue(key, rawValue, expectedType));
+        }
+        return converted;
+    }
+
+    private boolean isReservedGenerateParameterName(String key) {
+        return "reportName".equals(key)
+                || "format".equals(key)
+                || "useDatabase".equals(key)
+                || "datasourceId".equals(key)
+                || "category".equals(key)
+                || "tags".equals(key)
+                || "_csrf".equals(key);
+    }
+
+    private Map<String, String> readExpectedParameterTypes(String jrxmlPath) {
+        Map<String, String> expectedTypes = new HashMap<>();
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document document = builder.parse(new File(jrxmlPath));
+            NodeList parameterNodes = document.getElementsByTagName("parameter");
+
+            for (int i = 0; i < parameterNodes.getLength(); i++) {
+                Element paramElement = (Element) parameterNodes.item(i);
+                String name = paramElement.getAttribute("name");
+                String className = paramElement.getAttribute("class");
+                if (!name.startsWith("REPORT_") && !name.equals("JASPER_REPORT")) {
+                    expectedTypes.put(name, className);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not parse JRXML parameter definitions for validation: {}", e.getMessage());
+        }
+        return expectedTypes;
+    }
+
+    private Object convertParameterValue(String parameterName, String rawValue, String javaType) {
+        try {
+            if (javaType == null || javaType.isBlank() || javaType.contains("String")) {
+                return rawValue;
+            }
+            if (javaType.contains("Boolean")) {
+                if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
+                    throw new IllegalArgumentException("must be true or false");
+                }
+                return Boolean.parseBoolean(rawValue);
+            }
+            if (javaType.contains("Integer")) {
+                return Integer.parseInt(rawValue);
+            }
+            if (javaType.contains("Long")) {
+                return Long.parseLong(rawValue);
+            }
+            if (javaType.contains("Double")) {
+                return Double.parseDouble(rawValue);
+            }
+            if (javaType.contains("Float")) {
+                return Float.parseFloat(rawValue);
+            }
+            if (javaType.contains("BigDecimal")) {
+                return new BigDecimal(rawValue);
+            }
+            if (javaType.contains("BigInteger")) {
+                return new BigInteger(rawValue);
+            }
+            if (javaType.contains("Timestamp")) {
+                return Timestamp.from(Instant.parse(rawValue + "T00:00:00Z"));
+            }
+            if (javaType.contains("Date")) {
+                return Date.valueOf(rawValue);
+            }
+            return rawValue;
+        } catch (DateTimeParseException | IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Parameter '" + parameterName + "' expects " + javaType + " but got value '" + rawValue + "'");
+        }
+    }
+
+    private String safeNullable(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private MediaType getContentType(String format) {
@@ -392,16 +671,42 @@ public class ReportController {
     // API: Get all generated reports (with share status)
     @GetMapping("/api/generated-reports")
     @ResponseBody
-    public ResponseEntity<List<Map<String, Object>>> getGeneratedReports() {
+    public ResponseEntity<Map<String, Object>> getGeneratedReports(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String tag,
+            @RequestParam(defaultValue = "false") boolean sharedOnly) {
         try {
-            List<SharedReport> reports = sharedReportRepository.findAll();
-            
-            List<Map<String, Object>> result = reports.stream().map(report -> {
+            boolean isReadOnly = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_READ_ONLY".equals(a.getAuthority()));
+            boolean effectiveSharedOnly = sharedOnly || isReadOnly;
+
+            int resolvedSize = size == null ? defaultPageSize : Math.min(size, maxPageSize);
+            Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(resolvedSize, 1));
+
+            Page<SharedReport> reports;
+            if (category != null && !category.isBlank() && tag != null && !tag.isBlank()) {
+                reports = sharedReportRepository.findByCategoryContainingIgnoreCaseAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(category, tag, pageable);
+            } else if (category != null && !category.isBlank()) {
+                reports = sharedReportRepository.findByCategoryContainingIgnoreCaseOrderByCreatedAtDesc(category, pageable);
+            } else if (tag != null && !tag.isBlank()) {
+                reports = sharedReportRepository.findByTagsContainingIgnoreCaseOrderByCreatedAtDesc(tag, pageable);
+            } else if (effectiveSharedOnly) {
+                reports = sharedReportRepository.findBySharedWithReadOnlyTrueOrderByCreatedAtDesc(pageable);
+            } else {
+                reports = sharedReportRepository.findAllByOrderByCreatedAtDesc(pageable);
+            }
+
+            List<Map<String, Object>> content = reports.getContent().stream().map(report -> {
                 Map<String, Object> item = new HashMap<>();
                 item.put("id", report.getId());
                 item.put("reportFileName", report.getReportFileName());
                 item.put("reportName", report.getReportName());
                 item.put("reportFormat", report.getReportFormat());
+                item.put("category", report.getCategory());
+                item.put("tags", report.getTags());
                 item.put("sharedWithReadOnly", report.isSharedWithReadOnly());
                 item.put("createdAt", report.getCreatedAt());
                 item.put("createdBy", report.getCreatedBy());
@@ -409,8 +714,16 @@ public class ReportController {
                 item.put("sharedBy", report.getSharedBy());
                 return item;
             }).collect(Collectors.toList());
-            
-            return ResponseEntity.ok(result);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", content);
+            response.put("page", reports.getNumber());
+            response.put("size", reports.getSize());
+            response.put("totalElements", reports.getTotalElements());
+            response.put("totalPages", reports.getTotalPages());
+            response.put("first", reports.isFirst());
+            response.put("last", reports.isLast());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error getting generated reports", e);
             return ResponseEntity.status(500).body(null);

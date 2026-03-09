@@ -34,6 +34,16 @@
                         </select>
                     </div>
 
+                    <div class="form-group">
+                        <label for="generateCategory">Category (optional):</label>
+                        <input type="text" id="generateCategory" name="category" placeholder="Finance, Sales, Inventory...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="generateTags">Tags (optional):</label>
+                        <input type="text" id="generateTags" name="tags" placeholder="monthly, kpi, executive">
+                    </div>
+
                     <div class="checkbox-group">
                         <input type="checkbox" id="useDatabaseCheck" name="useDatabase">
                         <label for="useDatabaseCheck">Use Database Connection</label>
@@ -60,6 +70,18 @@
             <!-- Upload Section -->
             <div id="uploadReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                 <h2>📤 Upload JRXML Report</h2>
+                <div class="form-group">
+                    <label for="uploadCategory">Category (optional):</label>
+                    <input type="text" id="uploadCategory" placeholder="Finance, Sales, Inventory...">
+                </div>
+                <div class="form-group">
+                    <label for="uploadTags">Tags (optional):</label>
+                    <input type="text" id="uploadTags" placeholder="invoice, monthly, dashboard">
+                </div>
+                <div class="form-group">
+                    <label for="uploadDescription">Description (optional):</label>
+                    <input type="text" id="uploadDescription" placeholder="Short description for this template">
+                </div>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
                     <p style="color: #667eea; font-size: 18px;">Click to select JRXML file</p>

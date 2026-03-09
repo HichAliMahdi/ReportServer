@@ -66,9 +66,10 @@
             if (csrfHeader && csrfToken) {
                 headers[csrfHeader] = csrfToken;
             }
-            fetch('/api/schedules', { headers })
+            fetch('/api/schedules?page=0&size=100', { headers })
                 .then(res => res.json())
-                .then(schedules => {
+                .then(payload => {
+                    const schedules = Array.isArray(payload) ? payload : (payload.content || []);
                     renderSchedulesTable(schedules);
                 })
                 .catch(err => {
@@ -167,16 +168,18 @@
         }
 
         function loadScheduleReports(selectedReport) {
-            fetch('/reports')
+            fetch('/reports?page=0&size=200')
                 .then(res => res.json())
-                .then(reports => {
+                .then(payload => {
+                    const reports = Array.isArray(payload) ? payload : (payload.content || []);
                     const sel = document.getElementById('scheduleReportName');
                     sel.innerHTML = '<option value="">-- Select a report --</option>';
                     reports.forEach(r => {
+                        const reportName = typeof r === 'string' ? r : r.reportFileName;
                         const opt = document.createElement('option');
-                        opt.value = r;
-                        opt.textContent = r;
-                        if (selectedReport && r === selectedReport) opt.selected = true;
+                        opt.value = reportName;
+                        opt.textContent = reportName;
+                        if (selectedReport && reportName === selectedReport) opt.selected = true;
                         sel.appendChild(opt);
                     });
                 });

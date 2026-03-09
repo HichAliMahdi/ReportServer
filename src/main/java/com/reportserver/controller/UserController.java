@@ -5,6 +5,10 @@ import com.reportserver.model.User;
 import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -24,6 +28,12 @@ public class UserController {
     
     @Autowired
     private UserService userService;
+
+    @Value("${reportserver.pagination.default-page-size:20}")
+    private int defaultPageSize;
+
+    @Value("${reportserver.pagination.max-page-size:200}")
+    private int maxPageSize;
     
     // Page for user management (Admin only)
     @GetMapping("/users")
@@ -50,8 +60,22 @@ public class UserController {
     @GetMapping("/api/users")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseBody
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public ResponseEntity<Map<String, Object>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedSize = size == null ? defaultPageSize : Math.min(size, maxPageSize);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(resolvedSize, 1));
+        Page<User> users = userService.getUsersPage(pageable);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", users.getContent());
+        response.put("page", users.getNumber());
+        response.put("size", users.getSize());
+        response.put("totalElements", users.getTotalElements());
+        response.put("totalPages", users.getTotalPages());
+        response.put("first", users.isFirst());
+        response.put("last", users.isLast());
+        return ResponseEntity.ok(response);
     }
     
     // API: Get user by ID (Admin only)

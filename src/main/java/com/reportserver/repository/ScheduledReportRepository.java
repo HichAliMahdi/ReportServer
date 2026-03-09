@@ -1,6 +1,8 @@
 package com.reportserver.repository;
 
 import com.reportserver.model.ScheduledReport;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +17,6 @@ public interface ScheduledReportRepository extends JpaRepository<ScheduledReport
     List<ScheduledReport> findByNextRunTimeLessThanEqualAndEnabledTrue(LocalDateTime dateTime);
     
     List<ScheduledReport> findByCreatedBy(String username);
+
+    Page<ScheduledReport> findByCreatedBy(String username, Pageable pageable);
 }

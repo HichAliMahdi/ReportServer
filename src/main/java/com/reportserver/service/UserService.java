@@ -5,6 +5,8 @@ import com.reportserver.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -129,6 +131,10 @@ public class UserService implements UserDetailsService {
     
     public java.util.List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public Page<User> getUsersPage(Pageable pageable) {
+        return userRepository.findAll(pageable);
     }
     
     public Optional<User> getUserById(Long id) {

@@ -8,6 +8,8 @@ import com.reportserver.repository.ScheduledReportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -28,16 +30,27 @@ public class ScheduledReportService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private QuartzScheduleService quartzScheduleService;
+
     public List<ScheduledReportDTO> getAllScheduledReports() {
         return scheduledReportRepository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
+    public Page<ScheduledReportDTO> getAllScheduledReports(Pageable pageable) {
+        return scheduledReportRepository.findAll(pageable).map(this::convertToDTO);
+    }
+
     public List<ScheduledReportDTO> getScheduledReportsByUser(String username) {
         return scheduledReportRepository.findByCreatedBy(username).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    public Page<ScheduledReportDTO> getScheduledReportsByUser(String username, Pageable pageable) {
+        return scheduledReportRepository.findByCreatedBy(username, pageable).map(this::convertToDTO);
     }
 
     public ScheduledReportDTO getScheduledReportById(Long id) {
@@ -50,12 +63,16 @@ public class ScheduledReportService {
         ScheduledReport scheduledReport = convertToEntity(dto);
         scheduledReport.setCreatedBy(username);
         scheduledReport.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : true);
+        scheduledReport.setCronExpression(buildCronExpression(scheduledReport));
         
         // Calculate next run time
         LocalDateTime nextRun = calculateNextRunTime(scheduledReport);
         scheduledReport.setNextRunTime(nextRun);
         
         ScheduledReport saved = scheduledReportRepository.save(scheduledReport);
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            quartzScheduleService.scheduleOrUpdate(saved);
+        }
         logger.info("Created scheduled report: {} by user: {}, next run: {}", 
                    saved.getName(), username, nextRun);
         
@@ -67,18 +84,25 @@ public class ScheduledReportService {
                 .orElseThrow(() -> new RuntimeException("Scheduled report not found: " + id));
         
         updateEntityFromDTO(existing, dto);
+        existing.setCronExpression(buildCronExpression(existing));
         
         // Recalculate next run time if schedule parameters changed
         LocalDateTime nextRun = calculateNextRunTime(existing);
         existing.setNextRunTime(nextRun);
         
         ScheduledReport updated = scheduledReportRepository.save(existing);
+        if (Boolean.TRUE.equals(updated.getEnabled())) {
+            quartzScheduleService.scheduleOrUpdate(updated);
+        } else {
+            quartzScheduleService.unschedule(updated.getId());
+        }
         logger.info("Updated scheduled report: {}, next run: {}", updated.getName(), nextRun);
         
         return convertToDTO(updated);
     }
 
     public void deleteScheduledReport(Long id) {
+        quartzScheduleService.unschedule(id);
         scheduledReportRepository.deleteById(id);
         logger.info("Deleted scheduled report: {}", id);
     }
@@ -93,10 +117,66 @@ public class ScheduledReportService {
             // Recalculate next run time when enabling
             LocalDateTime nextRun = calculateNextRunTime(report);
             report.setNextRunTime(nextRun);
+            report.setCronExpression(buildCronExpression(report));
         }
         
-        scheduledReportRepository.save(report);
+        ScheduledReport saved = scheduledReportRepository.save(report);
+        if (enabled) {
+            quartzScheduleService.scheduleOrUpdate(saved);
+        } else {
+            quartzScheduleService.unschedule(saved.getId());
+        }
         logger.info("Toggled scheduled report: {} to {}", report.getName(), enabled);
+    }
+
+    public String buildCronExpression(ScheduledReport schedule) {
+        int minute = schedule.getMinuteOfHour() != null ? schedule.getMinuteOfHour() : 0;
+        int hour = schedule.getHourOfDay() != null ? schedule.getHourOfDay() : 0;
+
+        switch (schedule.getScheduleType().toUpperCase()) {
+            case "HOURLY":
+                return String.format("0 %d * * * ?", minute);
+            case "DAILY":
+                return String.format("0 %d %d * * ?", minute, hour);
+            case "WEEKLY":
+                return String.format("0 %d %d ? * %s", minute, hour, toQuartzDay(schedule.getDayOfWeek()));
+            case "MONTHLY":
+                return String.format("0 %d %d %d * ?", minute, hour, safeDayOfMonth(schedule.getDayOfMonth()));
+            case "YEARLY":
+                int month = schedule.getMonthOfYear() != null ? schedule.getMonthOfYear() : 1;
+                return String.format("0 %d %d %d %d ?", minute, hour, safeDayOfMonth(schedule.getDayOfMonth()), month);
+            default:
+                throw new IllegalArgumentException("Invalid schedule type: " + schedule.getScheduleType());
+        }
+    }
+
+    private String toQuartzDay(Integer dayOfWeek) {
+        int day = dayOfWeek != null ? dayOfWeek : 1;
+        switch (day) {
+            case 1:
+                return "MON";
+            case 2:
+                return "TUE";
+            case 3:
+                return "WED";
+            case 4:
+                return "THU";
+            case 5:
+                return "FRI";
+            case 6:
+                return "SAT";
+            case 7:
+                return "SUN";
+            default:
+                return "MON";
+        }
+    }
+
+    private int safeDayOfMonth(Integer dayOfMonth) {
+        if (dayOfMonth == null) {
+            return 1;
+        }
+        return Math.max(1, Math.min(31, dayOfMonth));
     }
 
     public LocalDateTime calculateNextRunTime(ScheduledReport schedule) {
@@ -205,6 +285,7 @@ public class ScheduledReportService {
         dto.setReportName(entity.getReportName());
         dto.setFormat(entity.getFormat());
         dto.setScheduleType(entity.getScheduleType());
+        dto.setCronExpression(entity.getCronExpression());
         dto.setDatasourceId(entity.getDatasourceId());
         dto.setEnabled(entity.getEnabled());
         dto.setLastRunTime(entity.getLastRunTime());
@@ -245,6 +326,7 @@ public class ScheduledReportService {
         entity.setReportName(dto.getReportName());
         entity.setFormat(dto.getFormat());
         entity.setScheduleType(dto.getScheduleType());
+        entity.setCronExpression(dto.getCronExpression());
         entity.setDatasourceId(dto.getDatasourceId());
         entity.setEnabled(dto.getEnabled());
         entity.setOutputPath(dto.getOutputPath());
@@ -275,7 +357,11 @@ public class ScheduledReportService {
         // Calculate and set next run time
         LocalDateTime nextRun = calculateNextRunTime(report);
         report.setNextRunTime(nextRun);
+        report.setCronExpression(buildCronExpression(report));
         
-        scheduledReportRepository.save(report);
+        ScheduledReport saved = scheduledReportRepository.save(report);
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            quartzScheduleService.scheduleOrUpdate(saved);
+        }
     }
 }
