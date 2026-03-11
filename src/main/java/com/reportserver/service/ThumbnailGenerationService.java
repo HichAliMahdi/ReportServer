@@ -1,12 +1,18 @@
 package com.reportserver.service;
 
 import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.export.JRGraphics2DExporter;
+import net.sf.jasperreports.engine.util.JRLoader;
+import net.sf.jasperreports.export.SimpleExporterInput;
+import net.sf.jasperreports.export.SimpleGraphics2DExporterOutput;
+import net.sf.jasperreports.export.SimpleGraphics2DReportConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
@@ -152,9 +158,9 @@ public class ThumbnailGenerationService {
             exporter.setExporterOutput(output);
 
             // Export specific page
-            SimpleExporterConfiguration config = new SimpleExporterConfiguration();
-            config.setPageIndex(pageIndex);
-            exporter.setConfiguration(config);
+            SimpleGraphics2DReportConfiguration reportConfig = new SimpleGraphics2DReportConfiguration();
+            reportConfig.setPageIndex(pageIndex);
+            exporter.setConfiguration(reportConfig);
 
             exporter.exportReport();
             graphics.dispose();
@@ -183,7 +189,7 @@ public class ThumbnailGenerationService {
         java.awt.Graphics2D graphics = scaledImage.createGraphics();
         graphics.setRenderingHint(
             java.awt.RenderingHints.KEY_INTERPOLATION,
-            java.awt.RenderingHints.VALUE_INTERPOLATION_HIGH_QUALITY
+            java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC
         );
         graphics.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
         graphics.dispose();

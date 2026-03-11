@@ -51,18 +51,6 @@ public class ReportSchedulerService {
     @Autowired
     private ReportExecutionLogService reportExecutionLogService;
 
-    private void executeScheduledReport(ScheduledReport scheduledReport) {
-            @Autowired
-            private ReportDeliveryService reportDeliveryService;
-
-            private void executeScheduledReport(ScheduledReport scheduledReport) {
-        logger.info("Executing scheduled report: {}", scheduledReport.getName());
-            @Autowired
-            private ReportDeliveryService reportDeliveryService;
-
-            private void executeScheduledReport(ScheduledReport scheduledReport) {
-                logger.info("Executing scheduled report: {}", scheduledReport.getName());
-        Long logId = null;
     @Autowired
     private ReportDeliveryService reportDeliveryService;
 
@@ -146,11 +134,11 @@ public class ReportSchedulerService {
                                     ? scheduledReport.getOutputPath()
                                     : OUTPUT_DIR;
 
-                            File reportFile = new File(Paths.get(outputBasePath, outputFileName).toString());
+                            File deliveryFile = new File(Paths.get(outputBasePath, outputFileName).toString());
                             reportDeliveryService.deliverScheduledReport(
                                 scheduledReport.getId(),
                                 scheduledReport.getReportName(),
-                                reportFile,
+                                deliveryFile,
                                 scheduledReport.getFormat()
                             );
                         } catch (Exception e) {
