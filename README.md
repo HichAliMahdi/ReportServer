@@ -50,15 +50,30 @@ A comprehensive Reports Server application built with Spring Boot that supports 
 1. Clone the repository
 2. Build the application:
    ```bash
-   mvn clean package
+  make build
    ```
 3. Run the application:
    ```bash
-   mvn spring-boot:run
+  make run
    ```
 4. Open your browser to `http://localhost:8080`
 5. **Register a new account** - The first user is automatically assigned admin privileges
 6. Log in and start creating reports!
+
+### Makefile Shortcuts
+
+Use the Makefile to keep the main workflows consistent:
+
+```bash
+make help
+make build
+make test
+make run
+make run-jar
+make docker-up
+make docker-up-prod
+make docker-down
+```
 
 ### Default Admin Account
 
