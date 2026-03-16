@@ -10,6 +10,7 @@ const VB = {
     datasourceId: null,
     availableTables: [],
     tableColumns: {},
+    tableColumnDetails: {},
 
     init() {
         this.canvas = document.getElementById('vbCanvas');
@@ -282,11 +283,11 @@ const VB = {
                 div.style.display = 'block';
                 
                 // Create a mini preview of the table
-                let tableHTML = `<div style="font-weight: bold; color: #43566d; margin-bottom: 3px;">${el.tableName || 'Table'}</div>`;
+                let tableHTML = `<div style="font-weight: bold; color: #43566d; margin-bottom: 3px;">${vbEscapeHtml(el.tableName || 'Table')}</div>`;
                 if (el.selectedColumns && el.selectedColumns.length > 0) {
                     tableHTML += '<div style="font-size: 8px; color: #666;">';
                     el.selectedColumns.slice(0, 5).forEach(col => {
-                        tableHTML += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${col}</div>`;
+                        tableHTML += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${vbEscapeHtml(col)}</div>`;
                     });
                     if (el.selectedColumns.length > 5) {
                         tableHTML += '<div>...</div>';
@@ -412,8 +413,8 @@ const VB = {
                             ${el.columns ? el.columns.map((col) => `
                                 <label class="vb-prop-check" style="margin-bottom: 4px;">
                                     <input type="checkbox" ${el.selectedColumns && el.selectedColumns.includes(col) ? 'checked' : ''}
-                                           onchange="vbToggleColumn('${col}', this.checked)">
-                                    <span>${col}</span>
+                                           onchange="vbToggleColumn('${vbEscapeJsString(col)}', this.checked)">
+                                    <span>${vbEscapeHtml(col)}</span>
                                 </label>
                             `).join('') : '<div style="color:#8a96a3;">No columns found</div>'}
                         </div>
@@ -544,6 +545,83 @@ const VB = {
     }
 };
 
+function vbEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function vbEscapeJsString(value) {
+    return String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+}
+
+function vbReadJsonResponse(response, defaultMessage) {
+    return response.text().then((text) => {
+        let data = {};
+        if (text) {
+            try {
+                data = JSON.parse(text);
+            } catch (error) {
+                data = { message: text };
+            }
+        }
+
+        if (!response.ok || data.success === false) {
+            throw new Error(data.message || defaultMessage);
+        }
+
+        return data;
+    });
+}
+
+function vbNormalizeColumnNames(columns) {
+    if (!Array.isArray(columns)) {
+        return [];
+    }
+
+    return columns
+        .map((column) => (typeof column === 'string' ? column : column?.name))
+        .filter((columnName) => Boolean(columnName));
+}
+
+function vbGetCsrfHeaders() {
+    const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+    if (token && header) {
+        return { [header]: token };
+    }
+    return {};
+}
+
+function vbOpenResultModal(title, message) {
+    const modal = document.getElementById('vbResultModal');
+    const titleEl = document.getElementById('vbResultModalTitle');
+    const messageEl = document.getElementById('vbResultModalMessage');
+
+    if (!modal || !titleEl || !messageEl) {
+        if (typeof showMessage === 'function') {
+            showMessage(message, 'success');
+        }
+        return;
+    }
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    modal.style.display = 'block';
+}
+
+function vbCloseResultModal() {
+    const modal = document.getElementById('vbResultModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 function vbStartDrag(event, elementType) {
     console.log('Starting drag for:', elementType);
     event.dataTransfer.effectAllowed = 'copy';
@@ -573,41 +651,74 @@ function vbChangeBand() {
 }
 
 function vbClear() {
-    if (!confirm('Clear all elements from the canvas?')) return;
-    VB.elements = VB.elements.filter((el) => el.band !== VB.currentBand);
-    VB.selectedId = null;
-    VB.render();
-    VB.updateProperties();
-}
+    const clearBand = () => {
+        VB.elements = VB.elements.filter((el) => el.band !== VB.currentBand);
+        VB.selectedId = null;
+        VB.render();
+        VB.updateProperties();
+    };
 
-function vbGenerate() {
-    const reportName = document.getElementById('vbReportName').value || 'Report';
-
-    if (VB.elements.length === 0) {
-        alert('Add some elements to the canvas first!');
+    if (typeof showConfirmationModal === 'function') {
+        showConfirmationModal('Clear all elements from the current band?', clearBand);
         return;
     }
 
-    let jrxml = `<?xml version="1.0" encoding="UTF-8"?>
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="${reportName}" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
-    <detail>
-        <band height="50">`;
+    clearBand();
+}
 
-    VB.elements.forEach((el) => {
-        jrxml += `
-            <staticText>
-                <reportElement x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" />
-                <text><![CDATA[${el.text}]]></text>
-            </staticText>`;
-    });
+function vbGenerate() {
+    const reportNameInput = document.getElementById('vbReportName');
+    const reportName = (reportNameInput?.value || 'Report').trim();
 
-    jrxml += `
-        </band>
-    </detail>
-</jasperReport>`;
+    if (VB.elements.length === 0) {
+        if (typeof showMessage === 'function') {
+            showMessage('Add some elements to the canvas first.', 'error');
+        }
+        return;
+    }
 
-    console.log('Generated JRXML:', jrxml);
-    alert('Report generated! Check console for JRXML.');
+    const pageSettings = {
+        width: 595,
+        height: 842,
+        leftMargin: 20,
+        rightMargin: 20,
+        topMargin: 20,
+        bottomMargin: 20
+    };
+
+    const designData = {
+        reportName,
+        elements: VB.elements,
+        pageSettings
+    };
+
+    showLoading('Saving JRXML template...');
+
+    fetch('/api/builder/visual/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...vbGetCsrfHeaders()
+        },
+        body: JSON.stringify(designData)
+    })
+        .then((response) => vbReadJsonResponse(response, 'Unable to generate JRXML template'))
+        .then((data) => {
+            hideLoading();
+
+            if (typeof loadJrxmlTemplates === 'function') {
+                loadJrxmlTemplates();
+            }
+
+            const generatedName = data.reportName || (reportName.endsWith('.jrxml') ? reportName : `${reportName}.jrxml`);
+            vbOpenResultModal('Template Saved', `${generatedName} is now available in "Available JRXML Templates".`);
+        })
+        .catch((error) => {
+            hideLoading();
+            if (typeof showMessage === 'function') {
+                showMessage(error.message || 'Error generating report template', 'error');
+            }
+        });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -671,19 +782,23 @@ function vbUploadLogo(event) {
     reader.readAsDataURL(file);
 }
 
-function vbAddTable() {
+function vbAddTable(numColumns = 3) {
     if (!VB.datasourceId) {
-        alert('Please select a datasource first');
-        return;
-    }
-    
-    const columns = prompt('Enter number of columns (2-10):', '3');
-    if (!columns || isNaN(columns) || columns < 2 || columns > 10) {
-        alert('Please enter a valid number between 2 and 10');
+        if (typeof showMessage === 'function') {
+            showMessage('Please select a datasource first', 'error');
+        }
         return;
     }
 
-    const numColumns = parseInt(columns, 10);
+    const parsedColumns = parseInt(numColumns, 10);
+    if (Number.isNaN(parsedColumns) || parsedColumns < 2 || parsedColumns > 10) {
+        if (typeof showMessage === 'function') {
+            showMessage('Please enter a valid number between 2 and 10', 'error');
+        }
+        return;
+    }
+
+    numColumns = parsedColumns;
     const id = VB.nextId++;
 
     const tableData = {
@@ -735,23 +850,24 @@ function vbLoadTables() {
     tablesList.innerHTML = '<div class="vb-table-list-empty">Loading tables...</div>';
     
     fetch(`/api/builder/datasources/${datasourceId}/tables`)
-        .then(response => response.json())
+        .then(response => vbReadJsonResponse(response, 'Unable to load tables from the selected datasource'))
         .then(data => {
             if (data.success && data.tables && data.tables.length > 0) {
                 VB.availableTables = data.tables;
-                
-                let html = '';
+
+                tablesList.innerHTML = '';
                 data.tables.forEach(table => {
-                    html += `<button class="vb-toolbox-btn" 
-                                draggable="true" 
-                                ondragstart="vbStartTableDrag(event, '${table}')" 
-                                ondragend="vbEndDrag(event)"
-                                onclick="vbAddTableFromDB('${table}')"
-                                title="Drag to canvas or click to add">
-                                ${table}
-                            </button>`;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'vb-toolbox-btn';
+                    button.draggable = true;
+                    button.title = 'Drag to canvas or click to add';
+                    button.textContent = table;
+                    button.addEventListener('dragstart', (event) => vbStartTableDrag(event, table));
+                    button.addEventListener('dragend', vbEndDrag);
+                    button.addEventListener('click', () => vbAddTableFromDB(table));
+                    tablesList.appendChild(button);
                 });
-                tablesList.innerHTML = html;
             } else {
                 tablesList.innerHTML = '<div class="vb-table-list-empty">No tables found</div>';
                 VB.availableTables = [];
@@ -759,7 +875,7 @@ function vbLoadTables() {
         })
         .catch(error => {
             console.error('Error loading tables:', error);
-            tablesList.innerHTML = '<div class="vb-table-list-empty" style="color:#c0392b;">Error loading tables</div>';
+            tablesList.innerHTML = `<div class="vb-table-list-empty" style="color:#c0392b;">${vbEscapeHtml(error.message || 'Error loading tables')}</div>`;
             VB.availableTables = [];
         });
 }
@@ -775,24 +891,28 @@ function vbStartTableDrag(event, tableName) {
 // Add table from database
 function vbAddTableFromDB(tableName) {
     if (!VB.datasourceId) {
-        alert('Please select a datasource first');
+        if (typeof showMessage === 'function') {
+            showMessage('Please select a datasource first', 'error');
+        }
         return;
     }
     
     showLoading('Loading table columns...');
     
     // Load columns for this table
-    fetch(`/api/builder/datasources/${VB.datasourceId}/tables/${tableName}/columns`)
-        .then(response => response.json())
+    fetch(`/api/builder/datasources/${VB.datasourceId}/tables/${encodeURIComponent(tableName)}/columns`)
+        .then(response => vbReadJsonResponse(response, 'Unable to load columns for the selected table'))
         .then(data => {
             hideLoading();
             
             if (data.success && data.columns && data.columns.length > 0) {
-                VB.tableColumns[tableName] = data.columns;
+                const columnNames = vbNormalizeColumnNames(data.columns);
+                VB.tableColumns[tableName] = columnNames;
+                VB.tableColumnDetails[tableName] = data.columns;
                 
                 const id = VB.nextId++;
                 const columnWidth = 120;
-                const totalWidth = Math.min(600, columnWidth * data.columns.length);
+                const totalWidth = Math.min(600, columnWidth * columnNames.length);
                 
                 const tableData = {
                     id,
@@ -816,8 +936,8 @@ function vbAddTableFromDB(tableName) {
                     italic: false,
                     underline: false,
                     tableName: tableName,
-                    columns: data.columns.slice(0, 10), // Limit to first 10 columns
-                    selectedColumns: data.columns.slice(0, 10),
+                    columns: columnNames.slice(0, 10),
+                    selectedColumns: columnNames.slice(0, 10),
                     showHeaders: true,
                     headerBold: true,
                     alternateRows: true
@@ -827,13 +947,17 @@ function vbAddTableFromDB(tableName) {
                 VB.render();
                 VB.select(id);
             } else {
-                alert('No columns found for this table');
+                if (typeof showMessage === 'function') {
+                    showMessage('No columns found for this table', 'error');
+                }
             }
         })
         .catch(error => {
             hideLoading();
             console.error('Error loading columns:', error);
-            alert('Error loading table columns: ' + error.message);
+            if (typeof showMessage === 'function') {
+                showMessage('Error loading table columns: ' + (error.message || 'Unknown error'), 'error');
+            }
         });
 }
 

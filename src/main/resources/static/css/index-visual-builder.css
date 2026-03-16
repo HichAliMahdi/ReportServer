@@ -365,6 +365,45 @@
     margin-top: 10px;
 }
 
+.vb-result-modal {
+    max-width: 480px;
+    border: 1px solid #cdd9e6;
+    background: linear-gradient(180deg, #f8fbff 0%, #f1f6fc 100%);
+}
+
+.vb-result-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #d9e4f0;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+}
+
+.vb-result-modal-header h3 {
+    margin: 0;
+    color: #1e3f66;
+    font-size: 20px;
+}
+
+.vb-result-modal-body {
+    padding: 18px 0 10px;
+}
+
+.vb-result-modal-body p {
+    margin: 0;
+    color: #324b68;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.vb-result-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 14px;
+    border-top: 1px solid #d9e4f0;
+}
+
 @media (max-width: 1180px) {
     .vb-toolbar {
         grid-template-columns: 1fr 1fr;

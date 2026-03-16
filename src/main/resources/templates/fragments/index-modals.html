@@ -2,6 +2,22 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <th:block th:fragment="modals">
+    <!-- Visual Builder Result Modal -->
+    <div id="vbResultModal" class="modal">
+        <div class="modal-content vb-result-modal">
+            <div class="modal-header vb-result-modal-header">
+                <h3 id="vbResultModalTitle">Template Saved</h3>
+                <span class="close" onclick="vbCloseResultModal()">&times;</span>
+            </div>
+            <div class="vb-result-modal-body">
+                <p id="vbResultModalMessage"></p>
+            </div>
+            <div class="vb-result-modal-footer">
+                <button type="button" class="btn" onclick="vbCloseResultModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirmation Modal -->
     <div id="confirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">

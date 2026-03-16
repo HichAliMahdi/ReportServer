@@ -135,6 +135,14 @@ window.onload = function() {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
+        const confirmationModal = document.getElementById('confirmationModal');
+        if (event.target === confirmationModal) {
+            confirmationModal.style.display = 'none';
+        }
+        const vbResultModal = document.getElementById('vbResultModal');
+        if (event.target === vbResultModal) {
+            vbCloseResultModal();
+        }
         const scheduleModal = document.getElementById('scheduleModal');
         if (event.target === scheduleModal) {
             scheduleModal.style.display = 'none';
