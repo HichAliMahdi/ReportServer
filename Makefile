@@ -16,8 +16,10 @@ help: ## Show available Make targets
 prepare-dirs: ## Create local data directories used by the app
 	@mkdir -p data/reports data/datasource_files data/thumbnails data/exports data/scheduled_output
 
-clean: ## Remove Maven build output
+clean: ## Remove Maven build output and reset local H2 credentials data
 	$(MVN) clean
+	@rm -f data/reportserver.mv.db data/reportserver.trace.db
+	@echo "Local H2 database files removed (credentials/passwords reset)."
 
 compile: prepare-dirs ## Compile the application without packaging
 	$(MVN) compile

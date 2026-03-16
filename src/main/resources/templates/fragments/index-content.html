@@ -259,74 +259,76 @@
             
             <!-- Visual Builder Section -->
             <div id="visualBuilderSection" style="display: none;">
-                <div class="card">
-                    <h2>🎨 Visual Report Builder</h2>
-                    <p style="color: #666; margin-bottom: 20px;">Simple drag-and-drop report designer</p>
-                    
-                    <!-- Top Controls -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
-                        <input type="text" id="vbReportName" placeholder="Report Name" style="flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
-                        
-                        <!-- Datasource Selector -->
-                        <select id="vbDatasourceSelect" onchange="vbLoadTables()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 180px;">
-                            <option value="">🗄️ Select Datasource</option>
+                <div class="card vb-studio-card">
+                    <div class="vb-studio-header">
+                        <div>
+                            <h2 class="vb-studio-title">Visual Report Builder</h2>
+                            <p class="vb-studio-subtitle">Studio layout with component palette, workspace canvas, and rich property inspector</p>
+                        </div>
+                    </div>
+
+                    <div class="vb-toolbar">
+                        <input type="text" id="vbReportName" class="vb-input" placeholder="Report Name" />
+
+                        <select id="vbDatasourceSelect" class="vb-select" onchange="vbLoadTables()">
+                            <option value="">Select Datasource</option>
                         </select>
-                        
-                        <select id="vbBandSelect" onchange="vbChangeBand()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+
+                        <select id="vbBandSelect" class="vb-select" onchange="vbChangeBand()">
                             <option value="title">Title Band</option>
                             <option value="detail" selected>Detail Band</option>
                             <option value="footer">Footer Band</option>
                         </select>
-                        <button class="btn" onclick="vbClear()" style="background: #6c757d;">🗑️ Clear Canvas</button>
-                        <button class="btn" onclick="vbGenerate()">🚀 Generate Report</button>
+
+                        <button type="button" class="btn vb-btn-secondary" onclick="vbClear()">Clear Band</button>
+                        <button type="button" class="btn" onclick="vbGenerate()">Generate JRXML</button>
                     </div>
-                    
-                    <!-- Main Layout: Toolbox | Canvas | Properties -->
-                    <div style="display: flex; gap: 15px; min-height: 700px; background: #f0f2f5; padding: 15px; border-radius: 8px;">
-                        
-                        <!-- LEFT: TOOLBOX -->
-                        <div style="width: 180px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
-                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">🧰 Elements</h4>
-                            
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')">📝 Text</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')">🏷️ Label</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')">🔤 Field</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')">➖ Line</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')">▭ Box</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')">📄 Page #</button>
-                            <button class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">📅 Date</button>
-                            
-                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;" />
-                            <h4 style="margin: 10px 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">🗄️ Database</h4>
-                            
-                            <!-- Tables List -->
-                            <div id="vbTablesList" style="font-size: 12px; color: #999;">
-                                Select a datasource first
+
+                    <div class="vb-studio-layout">
+                        <aside class="vb-panel vb-panel-left">
+                            <div class="vb-panel-title">Palette</div>
+
+                            <div class="vb-panel-section">
+                                <div class="vb-panel-section-title">Basic Elements</div>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')">Text</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')">Label</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')">Field</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')">Line</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')">Rectangle</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')">Page Number</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">Date</button>
                             </div>
-                            
-                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;" />
-                            <h4 style="margin: 10px 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">📦 Advanced</h4>
-                            
-                            <button class="vb-toolbox-btn" onclick="vbAddLogo()">🎨 Logo</button>
-                            
-                            <input type="file" id="vbLogoInput" accept="image/*" style="display: none;" onchange="vbUploadLogo(event)" />
-                        </div>
-                        
-                        <!-- CENTER: CANVAS -->
-                        <div id="vbCanvas" style="flex: 1; background-color: white; background-image: linear-gradient(0deg, transparent 24%, rgba(0, 123, 255, 0.05) 25%, rgba(0, 123, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 123, 255, 0.05) 75%, rgba(0, 123, 255, 0.05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 123, 255, 0.05) 25%, rgba(0, 123, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 123, 255, 0.05) 75%, rgba(0, 123, 255, 0.05) 76%, transparent 77%, transparent); background-size: 20px 20px; border: 2px solid #007bff; border-radius: 6px; position: relative; overflow: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s;">
-                            <div id="vbPlaceholder" style="padding: 40px; text-align: center; color: #999; pointer-events: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                                <p style="font-size: 32px; margin: 0;">📄</p>
-                                <p style="margin: 10px 0 0 0;">Drop elements here<br><small style="font-size: 12px;">or click buttons to add</small></p>
+
+                            <div class="vb-panel-section">
+                                <div class="vb-panel-section-title">Database Tables</div>
+                                <div id="vbTablesList" class="vb-table-list-empty">Select a datasource to load tables</div>
                             </div>
-                        </div>
-                        
-                        <!-- RIGHT: PROPERTIES -->
-                        <div id="vbProperties" style="width: 220px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; overflow-y: auto;">
-                            <h4 style="margin-top: 0; font-size: 14px; color: #667eea; margin-bottom: 12px;">⚙️ Properties</h4>
-                            <div id="vbPropsPanel" style="color: #999; font-size: 13px;">
-                                Select an element to edit
+
+                            <div class="vb-panel-section">
+                                <div class="vb-panel-section-title">Resources</div>
+                                <button type="button" class="vb-toolbox-btn" onclick="vbAddLogo()">Image / Logo</button>
+                                <input type="file" id="vbLogoInput" accept="image/*" style="display: none;" onchange="vbUploadLogo(event)" />
                             </div>
-                        </div>
+                        </aside>
+
+                        <section class="vb-workspace">
+                            <div class="vb-workspace-header">
+                                <span>Canvas</span>
+                                <span class="vb-workspace-band-label" id="vbBandStatus">Band: Detail</span>
+                            </div>
+
+                            <div id="vbCanvas" class="vb-canvas-surface">
+                                <div id="vbPlaceholder" class="vb-placeholder">
+                                    <p class="vb-placeholder-title">Drop Components Here</p>
+                                    <p class="vb-placeholder-subtitle">Drag from palette or click an element to insert it in the active band.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <aside id="vbProperties" class="vb-panel vb-panel-right">
+                            <div class="vb-panel-title">Properties</div>
+                            <div id="vbPropsPanel" class="vb-props-empty">Select an element on the canvas to edit its properties.</div>
+                        </aside>
                     </div>
                 </div>
             </div>
