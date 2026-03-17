@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Node;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
@@ -15,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * JRXML Validator - Prevents malicious JRXML uploads that attempt code injection
@@ -26,31 +30,60 @@ import java.util.Set;
 public class JrxmlValidator {
     
     private static final Logger logger = LoggerFactory.getLogger(JrxmlValidator.class);
+    private static final int MAX_EXPRESSION_LENGTH = 1500;
     
-    // Dangerous patterns that could allow code execution
+    // High-risk patterns that can lead to arbitrary code execution or SSRF/file access.
     private static final String[] DANGEROUS_PATTERNS = {
         "Runtime.getRuntime()",
+        "System.getProperty(",
+        "System.getenv(",
         "File(",
         "FileInputStream(",
         "FileOutputStream(",
         "ProcessBuilder(",
-        "ProcessImpl(",
+        "ProcessBuilder ",
         "System.load",
         "System.exec",
         "Class.forName",
-        "Reflection",
+        "getClassLoader(",
+        "ClassLoader",
+        "java.io",
+        "java.nio",
+        "java.net",
+        "java.lang.reflect",
+        "java.security",
+        "groovy.lang",
+        "javax.script",
+        "org.springframework",
+        "org.apache.commons.io",
         "Method.invoke",
         "Constructor.newInstance",
         "URLClassLoader",
         "URLConnection",
         "Socket(",
-        "Runtime",
-        "ProcessBuilder",
+        "http://",
+        "https://",
         "ScriptEngineManager"
     };
+
+    private static final Set<String> FORBIDDEN_TAGS = Set.of(
+        "scriptlet",
+        "import",
+        "propertyExpression"
+    );
+
+    private static final Set<String> FORBIDDEN_ATTRIBUTES = Set.of(
+        "scriptletClass",
+        "formatFactoryClass"
+    );
+
+    private static final Pattern SAFE_EXPRESSION_CHARS = Pattern.compile("^[\\w\\s\\$\\{\\}\\[\\]\\(\\)\\.,:+\\-*/%<>=!&|\"'?#@]+$");
     
     @Value("${reportserver.jrxml.allowed-classes:java.lang.String,java.lang.Integer,java.lang.Double,java.lang.Boolean,java.lang.Math,java.lang.System}")
     private String allowedClassesConfig;
+
+    @Value("${reportserver.jrxml.max-size-bytes:1048576}")
+    private int maxJrxmlSizeBytes;
     
     private Set<String> allowedClasses;
     
@@ -79,6 +112,18 @@ public class JrxmlValidator {
         JrxmlValidationResult result = new JrxmlValidationResult();
         
         try {
+            if (jrxmlContent == null || jrxmlContent.trim().isEmpty()) {
+                result.addIssue("JRXML content is empty");
+                result.valid = false;
+                return result;
+            }
+
+            if (jrxmlContent.getBytes(StandardCharsets.UTF_8).length > maxJrxmlSizeBytes) {
+                result.addIssue("JRXML exceeds maximum allowed size");
+                result.valid = false;
+                return result;
+            }
+
             // First check for obvious dangerous patterns
             for (String pattern : DANGEROUS_PATTERNS) {
                 if (jrxmlContent.contains(pattern)) {
@@ -113,9 +158,12 @@ public class JrxmlValidator {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             // Disable DTD processing to prevent XXE attacks
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             factory.setXIncludeAware(false);
             factory.setExpandEntityReferences(false);
             
@@ -124,27 +172,40 @@ public class JrxmlValidator {
                 jrxmlContent.getBytes(StandardCharsets.UTF_8)
             ));
             
-            // Check for expressions that might contain dangerous code
-            NodeList expressionNodes = doc.getElementsByTagName("expression");
-            for (int i = 0; i < expressionNodes.getLength(); i++) {
-                String expression = expressionNodes.item(i).getTextContent();
-                validateExpression(expression, result);
-            }
-            
-            // Check parameters
-            NodeList parameterNodes = doc.getElementsByTagName("parameter");
-            for (int i = 0; i < parameterNodes.getLength(); i++) {
-                Element param = (Element) parameterNodes.item(i);
-                String classAttr = param.getAttribute("class");
-                validateClassReference(classAttr, result);
-            }
-            
-            // Check for function definitions
-            NodeList functionNodes = doc.getElementsByTagName("function");
-            for (int i = 0; i < functionNodes.getLength(); i++) {
-                Element func = (Element) functionNodes.item(i);
-                String classAttr = func.getAttribute("class");
-                validateClassReference(classAttr, result);
+            NodeList allElements = doc.getElementsByTagName("*");
+            for (int i = 0; i < allElements.getLength(); i++) {
+                Node node = allElements.item(i);
+                if (!(node instanceof Element element)) {
+                    continue;
+                }
+
+                String nodeName = element.getNodeName();
+                String normalizedNodeName = nodeName == null ? "" : nodeName.toLowerCase(Locale.ROOT);
+
+                if (FORBIDDEN_TAGS.contains(normalizedNodeName)) {
+                    result.addIssue("DANGER: Forbidden JRXML tag used: " + nodeName);
+                }
+
+                for (String attributeName : FORBIDDEN_ATTRIBUTES) {
+                    if (element.hasAttribute(attributeName)) {
+                        result.addIssue("DANGER: Forbidden JRXML attribute used: " + attributeName);
+                    }
+                }
+
+                if (element.hasAttribute("class")) {
+                    validateClassReference(element.getAttribute("class"), result);
+                }
+
+                if (normalizedNodeName.contains("expression")) {
+                    validateExpression(element.getTextContent(), result);
+                }
+
+                if ("jasperreport".equals(normalizedNodeName) && element.hasAttribute("language")) {
+                    String language = element.getAttribute("language");
+                    if (language != null && !language.isBlank() && !"java".equalsIgnoreCase(language.trim())) {
+                        result.addIssue("DANGER: Unsupported JRXML expression language: " + language);
+                    }
+                }
             }
             
         } catch (Exception e) {
@@ -160,6 +221,14 @@ public class JrxmlValidator {
     private void validateExpression(String expression, JrxmlValidationResult result) {
         if (expression == null || expression.trim().isEmpty()) {
             return;
+        }
+
+        if (expression.length() > MAX_EXPRESSION_LENGTH) {
+            result.addIssue("WARNING: Expression too long for sandbox policy");
+        }
+
+        if (!SAFE_EXPRESSION_CHARS.matcher(expression).matches()) {
+            result.addIssue("WARNING: Expression contains disallowed characters");
         }
         
         // Check for new object instantiation
@@ -216,17 +285,10 @@ public class JrxmlValidator {
      * Check if a class is a safe java.lang class
      */
     private boolean isJavaLangClass(String className) {
-        try {
-            Class<?> cls = Class.forName(className);
-            // Only allow classes from java.lang, java.util, java.math, java.sql
-            String pkg = cls.getPackage().getName();
-            return pkg.startsWith("java.lang") || 
-                   pkg.startsWith("java.math") || 
-                   pkg.startsWith("java.util") ||
-                   pkg.startsWith("java.sql");
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+        return className.startsWith("java.lang.") ||
+            className.startsWith("java.math.") ||
+            className.startsWith("java.util.") ||
+            className.startsWith("java.sql.");
     }
     
     /**

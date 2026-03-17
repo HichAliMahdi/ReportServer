@@ -70,12 +70,16 @@ docker-compose exec reportserver sh
 
 ## Data Persistence
 
-All data is stored in the `./data` directory:
-- `data/reportserver.*.db` - H2 database files
+Local development stores data in the `./data` directory:
+- `data/reportserver.*.db` - H2 database files (dev only)
 - `data/reports/` - Uploaded JRXML templates
 - `data/datasource_files/` - Uploaded CSV/XML/JSON files
 
-**Backup**: Simply copy the entire `data/` directory to back up your reports and configurations.
+Production compose uses PostgreSQL with a dedicated Docker volume (`postgres-data-prod`) plus application files in `data-production`.
+
+**Backup**:
+- Local: copy the `data/` directory
+- Production: back up both the PostgreSQL volume and `data-production`
 
 ## Customization
 
@@ -126,6 +130,20 @@ For production, consider:
 1. **Use environment-specific compose file**:
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+This activates:
+- PostgreSQL database container
+- `SPRING_PROFILES_ACTIVE=postgresql`
+- Flyway versioned migrations on startup
+- HikariCP production pool settings
+
+Set secure environment variables before running in production:
+
+```bash
+export POSTGRES_PASSWORD='strong-password'
+export JWT_SECRET='long-random-secret'
+export DATASOURCE_ENCRYPTION_KEY='base64-or-random-key'
 ```
 
 2. **Set resource limits**:

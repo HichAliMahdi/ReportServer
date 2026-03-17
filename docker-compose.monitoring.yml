@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  reportserver:
+    image: reportserver:latest
+    container_name: report-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - reportserver-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: reportserver-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - reportserver-network
+    depends_on:
+      - reportserver
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: reportserver-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - reportserver-network
+    depends_on:
+      - prometheus
+
+networks:
+  reportserver-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

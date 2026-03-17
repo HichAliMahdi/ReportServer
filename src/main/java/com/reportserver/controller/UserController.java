@@ -2,8 +2,10 @@ package com.reportserver.controller;
 
 import com.reportserver.dto.UserCreationDTO;
 import com.reportserver.model.User;
+import com.reportserver.security.UserSessionRegistry;
 import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -28,6 +30,9 @@ public class UserController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserSessionRegistry userSessionRegistry;
 
     @Value("${reportserver.pagination.default-page-size:20}")
     private int defaultPageSize;
@@ -223,6 +228,10 @@ public class UserController {
             }
             
             userService.resetPassword(id, newPassword);
+
+            userService.getUserById(id).ifPresent(user ->
+                userSessionRegistry.invalidateSessionsForUser(user.getUsername(), null)
+            );
             
             response.put("status", "success");
             response.put("message", "Password reset successfully. User must set a new password on next login");
@@ -267,7 +276,8 @@ public class UserController {
     // API: Change password (All authenticated users)
     @PostMapping("/api/change-password")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> request,
+                                                              HttpServletRequest httpServletRequest) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -277,9 +287,21 @@ public class UserController {
             String newPassword = request.get("newPassword");
             
             userService.changePassword(username, oldPassword, newPassword);
+
+            String currentSessionId = null;
+            if (httpServletRequest.getSession(false) != null) {
+                currentSessionId = httpServletRequest.getSession(false).getId();
+            }
+
+            userSessionRegistry.invalidateSessionsForUser(username, currentSessionId);
+
+            if (httpServletRequest.getSession(false) != null) {
+                httpServletRequest.getSession(false).invalidate();
+            }
+            SecurityContextHolder.clearContext();
             
             response.put("status", "success");
-            response.put("message", "Password changed successfully");
+            response.put("message", "Password changed successfully. Please log in again.");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status", "error");

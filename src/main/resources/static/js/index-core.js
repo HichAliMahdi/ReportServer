@@ -9,6 +9,80 @@ const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttri
 let currentUserRole = 'READ_ONLY'; // Default role
 let lastActionElement = null;
 
+// Pagination state
+let jrxmlPage = 0;
+let jrxmlTotalPages = 1;
+let genPage = 0;
+let genTotalPages = 1;
+let historyPage = 0;
+let historyTotalPages = 1;
+
+// Debounce timers
+let jrxmlSearchTimer = null;
+let genSearchTimer = null;
+
+function debouncedLoadJrxmlTemplates() {
+    clearTimeout(jrxmlSearchTimer);
+    jrxmlSearchTimer = setTimeout(() => loadJrxmlTemplates(0), 400);
+}
+
+function debouncedLoadGeneratedReports() {
+    clearTimeout(genSearchTimer);
+    genSearchTimer = setTimeout(() => loadGeneratedReports(0), 400);
+}
+
+// Render pagination controls into a container
+function renderPagination(containerId, currentPage, totalPages, onPageChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    const div = document.createElement('div');
+    div.className = 'pagination-controls';
+
+    const addBtn = (label, page, disabled, active) => {
+        const btn = document.createElement('button');
+        btn.className = 'pagination-btn' + (active ? ' active' : '');
+        btn.innerHTML = label;
+        btn.disabled = disabled;
+        if (!disabled) btn.onclick = () => onPageChange(page);
+        div.appendChild(btn);
+    };
+
+    addBtn('&lsaquo; Prev', currentPage - 1, currentPage === 0, false);
+
+    const start = Math.max(0, currentPage - 3);
+    const end = Math.min(totalPages - 1, currentPage + 3);
+
+    if (start > 0) {
+        addBtn('1', 0, false, false);
+        if (start > 1) {
+            const ell = document.createElement('span');
+            ell.className = 'pagination-ellipsis';
+            ell.textContent = '…';
+            div.appendChild(ell);
+        }
+    }
+    for (let i = start; i <= end; i++) {
+        addBtn(i + 1, i, false, i === currentPage);
+    }
+    if (end < totalPages - 1) {
+        if (end < totalPages - 2) {
+            const ell = document.createElement('span');
+            ell.className = 'pagination-ellipsis';
+            ell.textContent = '…';
+            div.appendChild(ell);
+        }
+        addBtn(totalPages, totalPages - 1, false, false);
+    }
+    addBtn('Next &rsaquo;', currentPage + 1, currentPage >= totalPages - 1, false);
+
+    container.innerHTML = '';
+    container.appendChild(div);
+}
+
 // Helper function for conditional logging
 function debugLog(...args) {
     if (DEBUG && console.log) {
@@ -52,6 +126,85 @@ function fetchCurrentUser() {
         });
 }
 
+function switchReportsSubTab(tabName) {
+    const tabMap = {
+        'generate': 'reportSubTabGenerate',
+        'update-jrxml': 'reportSubTabUpdateJrxml',
+        'templates': 'reportSubTabTemplates',
+        'available-reports': 'reportSubTabAvailableReports',
+        'execution-history': 'reportSubTabExecutionHistory'
+    };
+
+    document.querySelectorAll('.reports-subtab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-report-tab') === tabName);
+    });
+
+    Object.entries(tabMap).forEach(([name, panelId]) => {
+        const panel = document.getElementById(panelId);
+        if (panel) {
+            panel.classList.toggle('active', name === tabName);
+        }
+    });
+}
+
+function isSectionAvailable(sectionId) {
+    const section = document.getElementById(sectionId);
+    return !!section && section.style.display !== 'none';
+}
+
+function isReportSubTabAvailable(tabName) {
+    if (tabName === 'available-reports') {
+        return isSectionAvailable('adminGeneratedReportsSection') || isSectionAvailable('readOnlyReportsSection');
+    }
+
+    const sectionByTab = {
+        'generate': 'generateReportSection',
+        'update-jrxml': 'uploadReportSection',
+        'templates': 'jrxmlTemplatesSection',
+        'execution-history': 'executionHistorySection'
+    };
+
+    return isSectionAvailable(sectionByTab[tabName]);
+}
+
+function getFirstVisibleReportSubTab() {
+    const order = ['generate', 'update-jrxml', 'templates', 'available-reports', 'execution-history'];
+    for (const tabName of order) {
+        if (isReportSubTabAvailable(tabName)) {
+            return tabName;
+        }
+    }
+    return 'available-reports';
+}
+
+function updateReportsSubTabVisibility() {
+    const buttons = document.querySelectorAll('.reports-subtab-btn');
+    if (!buttons.length) return;
+
+    buttons.forEach(btn => {
+        const tabName = btn.getAttribute('data-report-tab');
+        btn.style.display = isReportSubTabAvailable(tabName) ? 'inline-flex' : 'none';
+    });
+
+    const activeBtn = document.querySelector('.reports-subtab-btn.active');
+    if (!activeBtn || activeBtn.style.display === 'none') {
+        switchReportsSubTab(getFirstVisibleReportSubTab());
+    }
+}
+
+function initReportsSubTabs() {
+    if (!document.querySelector('.reports-subtabs')) return;
+
+    updateReportsSubTabVisibility();
+
+    const preferredDefault = currentUserRole === 'READ_ONLY' ? 'available-reports' : 'generate';
+    const defaultTab = isReportSubTabAvailable(preferredDefault)
+        ? preferredDefault
+        : getFirstVisibleReportSubTab();
+
+    switchReportsSubTab(defaultTab);
+}
+
 // Update tab visibility based on user role
 function updateTabVisibility() {
     const restrictedTabs = {
@@ -90,6 +243,7 @@ function updateTabVisibility() {
     const jrxmlTemplatesSection = document.getElementById('jrxmlTemplatesSection');
     const adminGeneratedReportsSection = document.getElementById('adminGeneratedReportsSection');
     const readOnlyReportsSection = document.getElementById('readOnlyReportsSection');
+    const executionHistorySection = document.getElementById('executionHistorySection');
 
     const isReadOnly = currentUserRole === 'READ_ONLY';
 
@@ -108,6 +262,11 @@ function updateTabVisibility() {
     if (readOnlyReportsSection) {
         readOnlyReportsSection.style.display = isReadOnly ? 'block' : 'none';
     }
+    if (executionHistorySection) {
+        executionHistorySection.style.display = isReadOnly ? 'none' : 'block';
+    }
+
+    updateReportsSubTabVisibility();
 }
 
 // Load data on page load
@@ -115,6 +274,7 @@ window.onload = function() {
     fetchCurrentUser().then(() => {
         // Remove loading state after user role is determined
         document.body.classList.remove('page-loading');
+        initReportsSubTabs();
         loadReports();
         loadDatasources();
     });
@@ -197,7 +357,9 @@ function switchTab(tabName) {
     }
 
     // Load data for specific tabs
-    if (tabName === 'builder') {
+    if (tabName === 'reports') {
+        updateReportsSubTabVisibility();
+    } else if (tabName === 'builder') {
         loadBuilderDatasources();
     } else if (tabName === 'datasources') {
         loadDatasources();
@@ -207,10 +369,15 @@ function switchTab(tabName) {
 }
 
 // Toggle datasource dropdown visibility
-document.getElementById('useDatabaseCheck').addEventListener('change', function() {
-    const datasourceGroup = document.getElementById('datasourceGroup');
-    datasourceGroup.style.display = this.checked ? 'block' : 'none';
-});
+const useDatabaseCheck = document.getElementById('useDatabaseCheck');
+if (useDatabaseCheck) {
+    useDatabaseCheck.addEventListener('change', function() {
+        const datasourceGroup = document.getElementById('datasourceGroup');
+        if (datasourceGroup) {
+            datasourceGroup.style.display = this.checked ? 'block' : 'none';
+        }
+    });
+}
 
 function uploadFile() {
     const fileInput = document.getElementById('fileInput');
@@ -281,11 +448,13 @@ function uploadFile() {
 }
 
 function loadReports() {
-    loadJrxmlTemplates();
-    loadGeneratedReports();
+    loadJrxmlTemplates(0);
+    loadGeneratedReports(0);
+    loadExecutionHistory(0);
 }
 
-function loadJrxmlTemplates() {
+function loadJrxmlTemplates(page = 0) {
+    jrxmlPage = page;
     const list = document.getElementById('jrxmlTemplateList');
     
     if (!list) return; // Element might not exist for READ_ONLY users
@@ -297,16 +466,29 @@ function loadJrxmlTemplates() {
         <div class="skeleton skeleton-card"></div>
     `;
 
-    fetch('/reports?page=0&size=100')
+    const search = document.getElementById('jrxmlSearch')?.value?.trim() || '';
+    const category = document.getElementById('jrxmlCategory')?.value?.trim() || '';
+    const tag = document.getElementById('jrxmlTag')?.value?.trim() || '';
+
+    let url = `/reports?page=${page}&size=20`;
+    if (category) url += `&category=${encodeURIComponent(category)}`;
+    if (tag) url += `&tag=${encodeURIComponent(tag)}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+
+    fetch(url)
     .then(response => response.json())
     .then(payload => {
-        const reports = unwrapPagedContent(payload);
+        jrxmlTotalPages = payload.totalPages || 1;
+        const reports = payload.content || [];
         const select = document.getElementById('reportSelect');
         
         if (select) {
             // Clear existing options (keep first one)
             select.innerHTML = '<option value="">-- Select a report --</option>';
         }
+
+        renderPagination('jrxmlPaginationTop', jrxmlPage, jrxmlTotalPages, loadJrxmlTemplates);
+        renderPagination('jrxmlPaginationBottom', jrxmlPage, jrxmlTotalPages, loadJrxmlTemplates);
         
         list.innerHTML = '';
 
@@ -393,7 +575,7 @@ function loadJrxmlTemplates() {
                 <div class="empty-state-icon">⚠️</div>
                 <h3>Error Loading Templates</h3>
                 <p>${error.message || 'Unable to load templates. Please try again.'}</p>
-                <button class="btn" onclick="loadJrxmlTemplates()">
+                <button class="btn" onclick="loadJrxmlTemplates(0)">
                     🔄 Retry
                 </button>
             </div>
@@ -401,7 +583,8 @@ function loadJrxmlTemplates() {
     });
 }
 
-function loadGeneratedReports() {
+function loadGeneratedReports(page = 0) {
+    genPage = page;
     const adminList = document.getElementById('generatedReportList');
     const readOnlyList = document.getElementById('readOnlyReportList');
     const readOnlySection = document.getElementById('readOnlyReportsSection');
@@ -416,11 +599,24 @@ function loadGeneratedReports() {
         `;
     }
 
+    const search = document.getElementById('genSearch')?.value?.trim() || '';
+    const category = document.getElementById('genCategory')?.value?.trim() || '';
+    const tag = document.getElementById('genTag')?.value?.trim() || '';
     const sharedOnlyQuery = currentUserRole === 'READ_ONLY' ? '&sharedOnly=true' : '';
-    fetch('/api/generated-reports?page=0&size=100' + sharedOnlyQuery)
+
+    let url = `/api/generated-reports?page=${page}&size=20${sharedOnlyQuery}`;
+    if (category) url += `&category=${encodeURIComponent(category)}`;
+    if (tag) url += `&tag=${encodeURIComponent(tag)}`;
+
+    fetch(url)
     .then(response => response.json())
     .then(payload => {
-        const reportsData = unwrapPagedContent(payload);
+        genTotalPages = payload.totalPages || 1;
+        const reportsData = payload.content || [];
+
+        renderPagination('genPaginationTop', genPage, genTotalPages, loadGeneratedReports);
+        renderPagination('genPaginationBottom', genPage, genTotalPages, loadGeneratedReports);
+
         if (adminList) {
             adminList.innerHTML = '';
         }
@@ -473,6 +669,18 @@ function loadGeneratedReports() {
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'report-item-actions';
 
+            // Preview button - for PDF and HTML only
+            const previewableFormats = ['pdf', 'html'];
+            if (previewableFormats.includes((report.reportFormat || '').toLowerCase())) {
+                const previewBtn = document.createElement('button');
+                previewBtn.className = 'report-action-btn';
+                previewBtn.style.background = '#17a2b8';
+                previewBtn.innerHTML = '👁️ Preview';
+                previewBtn.title = 'Preview report in browser';
+                previewBtn.onclick = () => previewGeneratedReport(report.reportFileName);
+                actionsDiv.appendChild(previewBtn);
+            }
+
             // Download button - for all users
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'report-action-btn report-action-download';
@@ -489,6 +697,15 @@ function loadGeneratedReports() {
                 shareBtn.title = report.sharedWithReadOnly ? 'Remove from READ_ONLY users' : 'Share with READ_ONLY users';
                 shareBtn.onclick = () => toggleShareReport(report.id, !report.sharedWithReadOnly, shareBtn);
                 actionsDiv.appendChild(shareBtn);
+
+                // Share Link button
+                const linkBtn = document.createElement('button');
+                linkBtn.className = 'report-action-btn';
+                linkBtn.style.background = '#6f42c1';
+                linkBtn.innerHTML = '🔗 Share Link';
+                linkBtn.title = 'Create a temporary download link';
+                linkBtn.onclick = () => openShareLinkModal(report.id);
+                actionsDiv.appendChild(linkBtn);
 
                 // Delete button - only for ADMIN/OPERATOR
                 const deleteBtn = document.createElement('button');
@@ -514,7 +731,7 @@ function loadGeneratedReports() {
                 <div class="empty-state-icon">⚠️</div>
                 <h3>Error Loading Reports</h3>
                 <p>${error.message || 'Unable to load reports.'}</p>
-                <button class="btn" onclick="loadGeneratedReports()">
+                <button class="btn" onclick="loadGeneratedReports(0)">
                     🔄 Retry
                 </button>
             </div>
@@ -550,7 +767,7 @@ function toggleShareReport(reportId, shouldShare, actionButton) {
         .then(data => {
             if (data.status === 'success') {
                 showMessage(data.message, 'success', actionButton);
-                loadGeneratedReports();
+                loadGeneratedReports(genPage);
             } else {
                 showMessage(data.message, 'error', actionButton);
             }
@@ -573,7 +790,7 @@ function deleteGeneratedReport(reportId, actionButton) {
         .then(data => {
             if (data.status === 'success') {
                 showMessage(data.message, 'success', actionButton);
-                loadGeneratedReports();
+                loadGeneratedReports(genPage);
             } else {
                 showMessage(data.message, 'error', actionButton);
             }
@@ -1022,7 +1239,7 @@ document.getElementById('generateForm').onsubmit = function(e) {
         
         // Reload the generated reports list to show the new report
         setTimeout(() => {
-            loadGeneratedReports();
+            loadGeneratedReports(0);
         }, 500);
     })
     .catch(error => {
@@ -1463,3 +1680,163 @@ function showConfirmationModal(message, onConfirm) {
         modal.style.display = 'none';
     };
 }
+
+// ─── Feature 1: Report Preview ────────────────────────────────────────────────
+
+function previewGeneratedReport(fileName) {
+    const modal = document.getElementById('previewModal');
+    const frame = document.getElementById('previewFrame');
+    const title = document.getElementById('previewModalTitle');
+    if (!modal || !frame) return;
+    title.textContent = 'Preview: ' + fileName;
+    frame.src = '/api/preview-generated-report/' + encodeURIComponent(fileName);
+    modal.style.display = 'flex';
+}
+
+function closePreviewModal() {
+    const modal = document.getElementById('previewModal');
+    const frame = document.getElementById('previewFrame');
+    if (modal) modal.style.display = 'none';
+    if (frame) frame.src = '';
+}
+
+// ─── Feature 2: Execution History ─────────────────────────────────────────────
+
+function loadExecutionHistory(page = 0) {
+    historyPage = page;
+    const list = document.getElementById('executionHistoryList');
+    if (!list) return;
+
+    list.innerHTML = `
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+    `;
+
+    fetch(`/api/report-executions?page=${page}&size=20`)
+    .then(r => r.json())
+    .then(payload => {
+        historyTotalPages = payload.totalPages || 1;
+        const execs = payload.content || [];
+
+        renderPagination('historyPaginationTop', historyPage, historyTotalPages, loadExecutionHistory);
+        renderPagination('historyPaginationBottom', historyPage, historyTotalPages, loadExecutionHistory);
+
+        list.innerHTML = '';
+        if (execs.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📜</div>
+                    <h3>No Execution History Yet</h3>
+                    <p>History will appear here after reports are generated</p>
+                </div>
+            `;
+            return;
+        }
+
+        execs.forEach(exec => {
+            const item = document.createElement('div');
+            item.className = 'report-item';
+
+            const statusColor = exec.status === 'SUCCESS' ? '#28a745'
+                              : exec.status === 'FAILED'  ? '#dc3545'
+                              : '#fd7e14';
+            const duration = exec.durationMs ? `${(exec.durationMs / 1000).toFixed(1)}s` : '—';
+
+            const left = document.createElement('div');
+            left.style.flex = '1';
+            left.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="color: ${statusColor}; font-weight: bold; font-size: 12px; min-width:60px;">${exec.status}</span>
+                    <span class="report-item-name" style="font-size: 14px;">${exec.reportName} (${(exec.format || '').toUpperCase()})</span>
+                </div>
+                <div style="font-size: 12px; color: #888; margin-top: 4px;">
+                    By: ${exec.executedBy || '—'} · Type: ${exec.executionType || '—'} · Duration: ${duration} · ${exec.startedAt ? new Date(exec.startedAt).toLocaleString() : '—'}
+                </div>
+                ${exec.errorMessage ? `<div style="font-size: 12px; color: #dc3545; margin-top: 3px;">⚠️ ${exec.errorMessage}</div>` : ''}
+            `;
+            item.appendChild(left);
+            list.appendChild(item);
+        });
+    })
+    .catch(err => {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <h3>Error Loading History</h3>
+                <p>${err.message || 'Unable to load execution history'}</p>
+                <button class="btn" onclick="loadExecutionHistory(0)">🔄 Retry</button>
+            </div>
+        `;
+    });
+}
+
+// ─── Feature 6: Share Link ─────────────────────────────────────────────────────
+
+function openShareLinkModal(reportId) {
+    const modal = document.getElementById('shareLinkModal');
+    if (!modal) return;
+    document.getElementById('shareLinkReportId').value = reportId;
+    document.getElementById('shareLinkResult').style.display = 'none';
+    document.getElementById('shareLinkGenerating').style.display = 'none';
+    document.getElementById('shareLinkMessage').innerHTML = '';
+    document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
+    modal.style.display = 'flex';
+}
+
+function closeShareLinkModal() {
+    const modal = document.getElementById('shareLinkModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function generateShareLink() {
+    const reportId = document.getElementById('shareLinkReportId').value;
+    const expiryHours = parseInt(document.getElementById('shareLinkExpiry').value, 10);
+
+    document.getElementById('shareLinkGenerating').style.display = 'block';
+    document.getElementById('shareLinkResult').style.display = 'none';
+    document.getElementById('generateShareLinkBtn').style.display = 'none';
+    document.getElementById('shareLinkMessage').innerHTML = '';
+
+    fetch(`/api/generated-reports/${reportId}/create-share-link`, {
+        method: 'POST',
+        headers: getHeadersWithCSRF({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ expiryHours })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('shareLinkGenerating').style.display = 'none';
+        if (data.status === 'success') {
+            const url = `${window.location.origin}/s/${data.token}`;
+            document.getElementById('shareLinkUrl').value = url;
+            document.getElementById('shareLinkExpiryInfo').textContent =
+                `Expires: ${new Date(data.expiresAt).toLocaleString()}`;
+            document.getElementById('shareLinkResult').style.display = 'block';
+        } else {
+            document.getElementById('shareLinkMessage').innerHTML =
+                `<span style="color: #dc3545;">❌ ${data.message}</span>`;
+            document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
+        }
+    })
+    .catch(err => {
+        document.getElementById('shareLinkGenerating').style.display = 'none';
+        document.getElementById('shareLinkMessage').innerHTML =
+            `<span style="color: #dc3545;">❌ Error: ${err.message}</span>`;
+        document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
+    });
+}
+
+function copyShareLink() {
+    const urlInput = document.getElementById('shareLinkUrl');
+    urlInput.select();
+    urlInput.setSelectionRange(0, 99999);
+    const msgEl = document.getElementById('shareLinkMessage');
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(urlInput.value)
+            .then(() => showMessage('Link copied to clipboard!', 'success', msgEl));
+    } else {
+        document.execCommand('copy');
+        showMessage('Link copied to clipboard!', 'success', msgEl);
+    }
+}
+

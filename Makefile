@@ -8,7 +8,7 @@ DOCKER_COMPOSE := $(shell if docker compose version >/dev/null 2>&1; then echo "
 
 .DEFAULT_GOAL := help
 
-.PHONY: help prepare-dirs clean compile build package test verify run run-jar rebuild docker-up docker-up-prod docker-down docker-logs docker-ps
+.PHONY: help prepare-dirs clean compile build package test verify run run-postgresql run-mysql run-jar rebuild docker-up docker-up-prod docker-down docker-logs docker-ps
 
 help: ## Show available Make targets
 	@awk 'BEGIN {FS = ":.*## "; printf "Available targets:\n\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -37,6 +37,12 @@ verify: prepare-dirs ## Run the full Maven verification lifecycle
 
 run: prepare-dirs ## Run the application with Spring Boot Maven plugin
 	$(MVN) spring-boot:run
+
+run-postgresql: prepare-dirs ## Run app with PostgreSQL profile (expects PostgreSQL env vars)
+	SPRING_PROFILES_ACTIVE=postgresql $(MVN) spring-boot:run
+
+run-mysql: prepare-dirs ## Run app with MySQL profile (expects MySQL env vars)
+	SPRING_PROFILES_ACTIVE=mysql $(MVN) spring-boot:run
 
 run-jar: prepare-dirs ## Run the packaged jar from target/
 	@test -f $(APP_JAR) || (echo "Jar not found: $(APP_JAR). Run 'make build' first." && exit 1)

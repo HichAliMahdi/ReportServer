@@ -48,8 +48,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import com.reportserver.model.ReportShareToken;
+import com.reportserver.repository.ReportShareTokenRepository;
+import org.springframework.http.HttpStatus;
 import jakarta.annotation.PostConstruct;
 
 @Controller
@@ -85,6 +89,9 @@ public class ReportController {
 
     @Autowired
     private com.reportserver.repository.ReportThumbnailRepository reportThumbnailRepository;
+
+    @Autowired
+    private ReportShareTokenRepository shareTokenRepository;
 
 
     @Value("${reportserver.pagination.max-page-size:200}")
@@ -403,7 +410,8 @@ public class ReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String tag) {
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String search) {
         File dir = new File(this.uploadDir);
         if (!dir.exists()) {
             dir.mkdirs();
@@ -446,6 +454,16 @@ public class ReportController {
                     }
                     String itemTags = (String) item.get("tags");
                     return itemTags != null && itemTags.toLowerCase().contains(tag.toLowerCase());
+                })
+                .filter(item -> {
+                    if (search == null || search.isBlank()) {
+                        return true;
+                    }
+                    String lower = search.toLowerCase();
+                    String itemFileName = (String) item.get("reportFileName");
+                    String itemName = (String) item.get("reportName");
+                    return (itemFileName != null && itemFileName.toLowerCase().contains(lower))
+                            || (itemName != null && itemName.toLowerCase().contains(lower));
                 })
                 .collect(Collectors.toList());
 
@@ -812,8 +830,7 @@ public class ReportController {
     
     // API: Download a generated report
     @GetMapping("/api/download-generated-report/{fileName}")
-    public ResponseEntity<byte[]> downloadGeneratedReport(@PathVariable String fileName) {
-        try {
+    public ResponseEntity<byte[]> downloadGeneratedReport(@PathVariable String fileName) {        try {
             // Validate file name (security check to prevent path traversal)
             if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
                 logger.warn("Invalid file name in download request: " + fileName);
@@ -845,6 +862,186 @@ public class ReportController {
                     .body(fileContent);
         } catch (Exception e) {
             logger.error("Error downloading generated report: " + fileName, e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // API: Preview a generated report inline in the browser
+    @GetMapping("/api/preview-generated-report/{fileName}")
+    public ResponseEntity<byte[]> previewGeneratedReport(@PathVariable String fileName) {
+        try {
+            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+                logger.warn("Invalid file name in preview request: {}", fileName);
+                return ResponseEntity.badRequest().build();
+            }
+
+            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            File file = filePath.toFile();
+            if (!file.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            byte[] fileContent = Files.readAllBytes(filePath);
+            String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+            MediaType contentType = getContentType(extension);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(contentType);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"");
+            headers.setContentLength(fileContent.length);
+
+            return ResponseEntity.ok().headers(headers).body(fileContent);
+        } catch (Exception e) {
+            logger.error("Error previewing generated report: {}", fileName, e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // API: Create a temporary share link for a generated report
+    @PostMapping("/api/generated-reports/{reportId}/create-share-link")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> createShareLink(
+            @PathVariable Long reportId,
+            @RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Optional<SharedReport> optionalReport = sharedReportRepository.findById(reportId);
+            if (!optionalReport.isPresent()) {
+                response.put("status", "error");
+                response.put("message", "Report not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            SharedReport report = optionalReport.get();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth != null ? auth.getName() : "unknown";
+
+            int expiryHours = 24;
+            Object expiryObj = request.get("expiryHours");
+            if (expiryObj instanceof Number) {
+                expiryHours = Math.max(1, Math.min(((Number) expiryObj).intValue(), 720));
+            }
+
+            String token = UUID.randomUUID().toString().replace("-", "");
+            ReportShareToken shareToken = new ReportShareToken();
+            shareToken.setToken(token);
+            shareToken.setReportFileName(report.getReportFileName());
+            shareToken.setReportName(report.getReportName());
+            shareToken.setCreatedBy(username);
+            shareToken.setExpiresAt(LocalDateTime.now().plusHours(expiryHours));
+            shareTokenRepository.save(shareToken);
+
+            response.put("status", "success");
+            response.put("token", token);
+            response.put("expiresAt", shareToken.getExpiresAt().toString());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error creating share link for report {}", reportId, e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // Public: Download a report via a temporary share token (no authentication needed)
+    @GetMapping("/s/{token}")
+    public ResponseEntity<byte[]> downloadViaShareToken(@PathVariable String token) {
+        try {
+            if (token == null || token.length() > 64 || !token.matches("[a-f0-9]+")) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Optional<ReportShareToken> optToken = shareTokenRepository.findByToken(token);
+            if (!optToken.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            ReportShareToken shareToken = optToken.get();
+            if (shareToken.isRevoked() || shareToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+                return ResponseEntity.status(HttpStatus.GONE).build();
+            }
+
+            Path filePath = Paths.get(GENERATED_REPORTS_DIR + shareToken.getReportFileName());
+            File file = filePath.toFile();
+            if (!file.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            byte[] fileContent = Files.readAllBytes(filePath);
+            String ext = shareToken.getReportFileName()
+                    .substring(shareToken.getReportFileName().lastIndexOf('.') + 1).toLowerCase();
+            MediaType contentType = getContentType(ext);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(contentType);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + shareToken.getReportFileName() + "\"");
+            headers.setContentLength(fileContent.length);
+
+            logger.info("Report downloaded via share token: {}", shareToken.getReportFileName());
+            return ResponseEntity.ok().headers(headers).body(fileContent);
+        } catch (Exception e) {
+            logger.error("Error downloading via share token: {}", token, e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // API: Revoke a share token
+    @DeleteMapping("/api/share-tokens/{token}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> revokeShareToken(@PathVariable String token) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Optional<ReportShareToken> optToken = shareTokenRepository.findByToken(token);
+            if (!optToken.isPresent()) {
+                response.put("status", "error");
+                response.put("message", "Token not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+            ReportShareToken shareToken = optToken.get();
+            shareToken.setRevoked(true);
+            shareTokenRepository.save(shareToken);
+            response.put("status", "success");
+            response.put("message", "Share link revoked");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error revoking share token: {}", token, e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // API: List active share links for a generated report
+    @GetMapping("/api/generated-reports/{reportId}/share-links")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> getShareLinks(@PathVariable Long reportId) {
+        try {
+            Optional<SharedReport> optReport = sharedReportRepository.findById(reportId);
+            if (!optReport.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            SharedReport report = optReport.get();
+            List<ReportShareToken> tokens = shareTokenRepository
+                    .findByReportFileNameAndRevokedFalse(report.getReportFileName());
+
+            List<Map<String, Object>> result = tokens.stream()
+                    .filter(t -> t.getExpiresAt().isAfter(LocalDateTime.now()))
+                    .map(t -> {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("token", t.getToken());
+                        item.put("createdBy", t.getCreatedBy());
+                        item.put("createdAt", t.getCreatedAt().toString());
+                        item.put("expiresAt", t.getExpiresAt().toString());
+                        return item;
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Error getting share links for report {}", reportId, e);
             return ResponseEntity.status(500).build();
         }
     }

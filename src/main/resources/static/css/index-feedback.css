@@ -66,6 +66,16 @@
             padding: 60px 20px;
             color: #999;
         }
+        /* Empty-state cards are injected inside .report-list (CSS grid).
+           Span all columns so icon/message/button are truly centered. */
+        .report-list > .empty-state {
+            grid-column: 1 / -1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
         .empty-state-icon {
             font-size: 64px;
             margin-bottom: 20px;

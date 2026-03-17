@@ -25,7 +25,11 @@ public class AuthController {
                        @RequestParam(value = "logout", required = false) String logout,
                        Model model) {
         if (error != null) {
-            model.addAttribute("error", "Invalid username or password");
+            if ("rate_limit".equals(error)) {
+                model.addAttribute("error", "Too many login attempts. Please wait before retrying.");
+            } else {
+                model.addAttribute("error", "Invalid username or password");
+            }
         }
         if (logout != null) {
             model.addAttribute("message", "You have been logged out successfully");

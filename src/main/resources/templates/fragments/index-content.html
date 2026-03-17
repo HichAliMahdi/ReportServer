@@ -7,107 +7,160 @@
 
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content active">
-            <!-- Generate Report Section -->
-            <div id="generateReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                <h2>⚡ Generate Report</h2>
-                <form id="generateForm">
-                    <div class="form-group">
-                        <label for="reportSelect">Select Report:</label>
-                        <select id="reportSelect" name="reportName" required>
-                            <option value="">-- Select a report --</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="formatSelect">Output Format:</label>
-                        <select id="formatSelect" name="format">
-                            <option value="pdf">PDF</option>
-                            <option value="html">HTML</option>
-                            <option value="xlsx">Microsoft Excel (XLSX)</option>
-                            <option value="xls">Microsoft Excel (XLS)</option>
-                            <option value="docx">Microsoft Word (DOCX)</option>
-                            <option value="rtf">Rich Text Format (RTF)</option>
-                            <option value="odt">OpenDocument Text (ODT)</option>
-                            <option value="csv">CSV (Comma-separated values)</option>
-                            <option value="xml">XML</option>
-                            <option value="txt">Plain Text (TXT)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="generateCategory">Category (optional):</label>
-                        <input type="text" id="generateCategory" name="category" placeholder="Finance, Sales, Inventory...">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="generateTags">Tags (optional):</label>
-                        <input type="text" id="generateTags" name="tags" placeholder="monthly, kpi, executive">
-                    </div>
-
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="useDatabaseCheck" name="useDatabase">
-                        <label for="useDatabaseCheck">Use Database Connection</label>
-                    </div>
-
-                    <div class="form-group" id="datasourceGroup" style="display: none;">
-                        <label for="datasourceSelect">Select Datasource:</label>
-                        <select id="datasourceSelect" name="datasourceId">
-                            <option value="">-- Use default datasource --</option>
-                        </select>
-                    </div>
-
-                    <!-- Report Parameters Section -->
-                    <div id="parametersSection" style="display: none;">
-                        <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">📝 Report Parameters</h3>
-                        <div id="parametersContainer"></div>
-                    </div>
-
-                    <button type="submit" class="btn">Generate Report</button>
-                </form>
-                <div id="generateMessage" style="margin-top: 15px;"></div>
+            <div class="reports-subtabs" role="tablist" aria-label="Reports sections">
+                <button type="button" class="btn reports-subtab-btn active" data-report-tab="generate" onclick="switchReportsSubTab('generate')">
+                    Generate Report
+                </button>
+                <button type="button" class="btn reports-subtab-btn" data-report-tab="update-jrxml" onclick="switchReportsSubTab('update-jrxml')">
+                    Update JRXML Report
+                </button>
+                <button type="button" class="btn reports-subtab-btn" data-report-tab="templates" onclick="switchReportsSubTab('templates')">
+                    Templates
+                </button>
+                <button type="button" class="btn reports-subtab-btn" data-report-tab="available-reports" onclick="switchReportsSubTab('available-reports')">
+                    Available Reports
+                </button>
+                <button type="button" class="btn reports-subtab-btn" data-report-tab="execution-history" onclick="switchReportsSubTab('execution-history')">
+                    Execution History
+                </button>
             </div>
 
-            <!-- Upload Section -->
-            <div id="uploadReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                <h2>📤 Upload JRXML Report</h2>
-                <div class="form-group">
-                    <label for="uploadCategory">Category (optional):</label>
-                    <input type="text" id="uploadCategory" placeholder="Finance, Sales, Inventory...">
+            <div id="reportSubTabGenerate" class="report-subtab-panel active">
+                <!-- Generate Report Section -->
+                <div id="generateReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                    <h2>⚡ Generate Report</h2>
+                    <form id="generateForm">
+                        <div class="form-group">
+                            <label for="reportSelect">Select Report:</label>
+                            <select id="reportSelect" name="reportName" required>
+                                <option value="">-- Select a report --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="formatSelect">Output Format:</label>
+                            <select id="formatSelect" name="format">
+                                <option value="pdf">PDF</option>
+                                <option value="html">HTML</option>
+                                <option value="xlsx">Microsoft Excel (XLSX)</option>
+                                <option value="xls">Microsoft Excel (XLS)</option>
+                                <option value="docx">Microsoft Word (DOCX)</option>
+                                <option value="rtf">Rich Text Format (RTF)</option>
+                                <option value="odt">OpenDocument Text (ODT)</option>
+                                <option value="csv">CSV (Comma-separated values)</option>
+                                <option value="xml">XML</option>
+                                <option value="txt">Plain Text (TXT)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="generateCategory">Category (optional):</label>
+                            <input type="text" id="generateCategory" name="category" placeholder="Finance, Sales, Inventory...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="generateTags">Tags (optional):</label>
+                            <input type="text" id="generateTags" name="tags" placeholder="monthly, kpi, executive">
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="useDatabaseCheck" name="useDatabase">
+                            <label for="useDatabaseCheck">Use Database Connection</label>
+                        </div>
+
+                        <div class="form-group" id="datasourceGroup" style="display: none;">
+                            <label for="datasourceSelect">Select Datasource:</label>
+                            <select id="datasourceSelect" name="datasourceId">
+                                <option value="">-- Use default datasource --</option>
+                            </select>
+                        </div>
+
+                        <!-- Report Parameters Section -->
+                        <div id="parametersSection" style="display: none;">
+                            <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">📝 Report Parameters</h3>
+                            <div id="parametersContainer"></div>
+                        </div>
+
+                        <button type="submit" class="btn">Generate Report</button>
+                    </form>
+                    <div id="generateMessage" style="margin-top: 15px;"></div>
                 </div>
-                <div class="form-group">
-                    <label for="uploadTags">Tags (optional):</label>
-                    <input type="text" id="uploadTags" placeholder="invoice, monthly, dashboard">
-                </div>
-                <div class="form-group">
-                    <label for="uploadDescription">Description (optional):</label>
-                    <input type="text" id="uploadDescription" placeholder="Short description for this template">
-                </div>
-                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                    <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
-                    <p style="color: #667eea; font-size: 18px;">Click to select JRXML file</p>
-                    <p style="color: #999; margin-top: 10px;">or drag and drop here</p>
-                </div>
-                <input type="file" id="fileInput" accept=".jrxml" onchange="uploadFile()">
-                <div id="message"></div>
             </div>
 
-            <!-- Available JRXML Templates (for Admins/Operators) -->
-            <div id="jrxmlTemplatesSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                <h2>📋 Available JRXML Templates</h2>
-                <div id="jrxmlTemplateList" class="report-list"></div>
+            <div id="reportSubTabUpdateJrxml" class="report-subtab-panel">
+                <!-- Upload Section -->
+                <div id="uploadReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                    <h2>📤 Upload JRXML Report</h2>
+                    <div class="form-group">
+                        <label for="uploadCategory">Category (optional):</label>
+                        <input type="text" id="uploadCategory" placeholder="Finance, Sales, Inventory...">
+                    </div>
+                    <div class="form-group">
+                        <label for="uploadTags">Tags (optional):</label>
+                        <input type="text" id="uploadTags" placeholder="invoice, monthly, dashboard">
+                    </div>
+                    <div class="form-group">
+                        <label for="uploadDescription">Description (optional):</label>
+                        <input type="text" id="uploadDescription" placeholder="Short description for this template">
+                    </div>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
+                        <p style="color: #667eea; font-size: 18px;">Click to select JRXML file</p>
+                        <p style="color: #999; margin-top: 10px;">or drag and drop here</p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".jrxml" onchange="uploadFile()">
+                    <div id="message"></div>
+                </div>
             </div>
 
-            <!-- Available Reports (Generated Reports) -->
-            <div id="adminGeneratedReportsSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                <h2>📊 Available Reports</h2>
-                <div id="generatedReportList" class="report-list"></div>
+            <div id="reportSubTabTemplates" class="report-subtab-panel">
+                <!-- Available JRXML Templates (for Admins/Operators) -->
+                <div id="jrxmlTemplatesSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                    <h2>📋 Available JRXML Templates</h2>
+                    <div class="search-filter-bar">
+                        <input type="text" id="jrxmlSearch" class="filter-input" placeholder="🔍 Search templates..." oninput="debouncedLoadJrxmlTemplates()">
+                        <input type="text" id="jrxmlCategory" class="filter-input" placeholder="Category filter" oninput="debouncedLoadJrxmlTemplates()">
+                        <input type="text" id="jrxmlTag" class="filter-input" placeholder="Tag filter" oninput="debouncedLoadJrxmlTemplates()">
+                    </div>
+                    <div id="jrxmlPaginationTop" class="pagination-bar"></div>
+                    <div id="jrxmlTemplateList" class="report-list"></div>
+                    <div id="jrxmlPaginationBottom" class="pagination-bar"></div>
+                </div>
             </div>
 
-            <!-- Available Reports for READ_ONLY users (shared only) -->
-            <div id="readOnlyReportsSection" style="display: none;" sec:authorize="hasRole('READ_ONLY')">
-                <div class="card">
+            <div id="reportSubTabAvailableReports" class="report-subtab-panel">
+                <!-- Available Reports (Generated Reports) -->
+                <div id="adminGeneratedReportsSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                     <h2>📊 Available Reports</h2>
-                    <div id="readOnlyReportList" class="report-list"></div>
+                    <div class="search-filter-bar">
+                        <input type="text" id="genSearch" class="filter-input" placeholder="🔍 Search reports..." oninput="debouncedLoadGeneratedReports()">
+                        <input type="text" id="genCategory" class="filter-input" placeholder="Category filter" oninput="debouncedLoadGeneratedReports()">
+                        <input type="text" id="genTag" class="filter-input" placeholder="Tag filter" oninput="debouncedLoadGeneratedReports()">
+                    </div>
+                    <div id="genPaginationTop" class="pagination-bar"></div>
+                    <div id="generatedReportList" class="report-list"></div>
+                    <div id="genPaginationBottom" class="pagination-bar"></div>
+                </div>
+
+                <!-- Available Reports for READ_ONLY users (shared only) -->
+                <div id="readOnlyReportsSection" style="display: none;" sec:authorize="hasRole('READ_ONLY')">
+                    <div class="card">
+                        <h2>📊 Available Reports</h2>
+                        <div id="readOnlyReportList" class="report-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportSubTabExecutionHistory" class="report-subtab-panel">
+                <!-- Execution History Section -->
+                <div id="executionHistorySection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h2 style="margin: 0;">📜 Execution History</h2>
+                        <button class="btn" onclick="loadExecutionHistory(0)" style="padding: 6px 14px; background: #6c757d;">🔄 Refresh</button>
+                    </div>
+                    <div id="historyPaginationTop" class="pagination-bar"></div>
+                    <div id="executionHistoryList" class="report-list"></div>
+                    <div id="historyPaginationBottom" class="pagination-bar"></div>
                 </div>
             </div>
         </div>

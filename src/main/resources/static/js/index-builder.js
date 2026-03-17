@@ -684,6 +684,51 @@
                     readOnly: false,
                     wordWrap: 'on'
                 });
+
+                // Real-time JRXML validation (debounced, 1 s after last keystroke)
+                let validateTimer = null;
+                monacoEditor.onDidChangeModelContent(() => {
+                    const panel = document.getElementById('jrxmlValidationPanel');
+                    if (panel) panel.textContent = '⏳ Validating…';
+                    clearTimeout(validateTimer);
+                    validateTimer = setTimeout(validateJrxmlInEditor, 1000);
+                });
+
+                // Run initial validation
+                setTimeout(validateJrxmlInEditor, 500);
+            });
+        }
+
+        function validateJrxmlInEditor() {
+            if (!monacoEditor) return;
+            const panel = document.getElementById('jrxmlValidationPanel');
+            if (!panel) return;
+
+            const editorCsrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const editorCsrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+            const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            if (editorCsrfToken && editorCsrfHeader) {
+                headers[editorCsrfHeader] = editorCsrfToken;
+            }
+
+            const formData = new URLSearchParams();
+            formData.append('content', monacoEditor.getValue());
+
+            fetch('/api/jrxml/validate', { method: 'POST', headers, body: formData })
+            .then(r => r.json())
+            .then(result => {
+                if (result.valid && (!result.issues || result.issues.length === 0)) {
+                    panel.innerHTML = '<span style="color: #4caf50;">✅ JRXML is valid</span>';
+                } else if (result.issues && result.issues.length > 0) {
+                    panel.innerHTML = result.issues
+                        .map(iss => `<span style="color: #f48771; margin-right: 12px;">⚠️ ${iss.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`)
+                        .join('');
+                } else {
+                    panel.innerHTML = '<span style="color: #f48771;">❌ JRXML has issues</span>';
+                }
+            })
+            .catch(() => {
+                panel.innerHTML = '<span style="color: #fd7e14;">⚠️ Validation unavailable</span>';
             });
         }
 

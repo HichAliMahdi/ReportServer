@@ -69,6 +69,8 @@ make help
 make build
 make test
 make run
+make run-postgresql
+make run-mysql
 make run-jar
 make docker-up
 make docker-up-prod
@@ -103,7 +105,39 @@ After registration, the first user will have admin privileges. Subsequent users 
 
 ## Database Configuration
 
-The application now uses an embedded H2 database to store datasource configurations. This allows you to manage multiple database connections through the web interface without editing configuration files.
+The default local setup uses embedded H2 for convenience. For production, use the dedicated profiles with PostgreSQL or MySQL and Flyway-managed schema migrations.
+
+### Production Profiles
+
+- `postgresql` profile: PostgreSQL datasource, HikariCP pool tuning, Flyway enabled
+- `mysql` profile: MySQL datasource, HikariCP pool tuning, Flyway enabled
+
+Activate a profile with:
+
+```bash
+SPRING_PROFILES_ACTIVE=postgresql
+```
+
+or
+
+```bash
+SPRING_PROFILES_ACTIVE=mysql
+```
+
+### Flyway Migrations
+
+- PostgreSQL migrations: `src/main/resources/db/migration/postgresql`
+- MySQL migrations: `src/main/resources/db/migration/mysql`
+- Migrations are version-based and include both application tables and Quartz scheduler tables.
+
+### Connection Pooling (HikariCP)
+
+HikariCP is configured via Spring datasource properties and tuned per production profile. Common environment overrides:
+
+- `DB_POOL_MIN_IDLE`
+- `DB_POOL_MAX_SIZE`
+- `DB_POOL_CONNECTION_TIMEOUT_MS`
+- `DB_POOL_MAX_LIFETIME_MS`
 
 ### Managing Datasources
 
@@ -1072,7 +1106,11 @@ Used for storing datasource configurations and user data:
 ### Security Configuration
 - **Password Encoding**: BCrypt
 - **CSRF Protection**: Enabled (with exceptions for API endpoints)
-- **Session Management**: Form-based authentication
+- **Rate Limiting**: Login endpoints protected against brute-force bursts
+- **Security Headers**: CSP, HSTS, Referrer-Policy, X-Content-Type-Options, Permissions-Policy
+- **HTTPS Enforcement**: Enabled in production database profiles
+- **Audit Logging**: Persistent `audit_logs` table tracks who did what and when
+- **Session Management**: Form-based authentication with session invalidation on password change
 - **Default Login Page**: `/login`
 - **Default Logout URL**: `/logout`
 
@@ -1256,7 +1294,7 @@ spring.h2.console.path=/h2-console
 ### Performance
 - **Limit result sets**: Use pagination or date ranges in SQL queries
 - **Cache compiled reports**: ReportServer compiles reports on first use
-- **Connection pooling**: Consider implementing connection pooling for high-load scenarios
+- **Connection pooling**: HikariCP is enabled and tunable with `DB_POOL_*` environment variables
 - **Monitor resources**: Watch CPU, memory, and disk usage
 - **Regular cleanup**: Remove unused reports and datasources
 

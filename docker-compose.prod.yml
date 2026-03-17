@@ -4,14 +4,28 @@
 version: '3.8'
 
 services:
-  reportserver:
-    # Use pre-built image or specify version tag
-    image: reportserver:${VERSION:-latest}
-    
-    # Always restart on failure
+  postgres:
+    image: postgres:16
     restart: always
-    
-    # Resource limits for production
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-reportserver}
+      - POSTGRES_USER=${POSTGRES_USER:-reportserver}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reportserver} -d ${POSTGRES_DB:-reportserver}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  reportserver:
+    image: reportserver:${VERSION:-latest}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+
     deploy:
       resources:
         limits:
@@ -20,42 +34,46 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-    
+
     environment:
-      # Production JVM settings
       - JAVA_OPTS=-Xmx1536m -Xms768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
-      
-      # Production logging
       - LOGGING_LEVEL_ROOT=WARN
       - LOGGING_LEVEL_COM_REPORTSERVER=INFO
-      
-      # Disable H2 console in production
+      - SPRING_PROFILES_ACTIVE=postgresql
       - SPRING_H2_CONSOLE_ENABLED=false
-      
-      # Production database URL (use absolute path for reliability)
-      - SPRING_DATASOURCE_URL=jdbc:h2:file:/app/data/reportserver;AUTO_SERVER=TRUE;MODE=PostgreSQL
-      
-      # Higher file upload limits for production
+
+      # JDBC configuration (profile application-postgresql.properties)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-reportserver}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-reportserver}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-change-me}
+
+      # HikariCP pool tuning
+      - DB_POOL_MIN_IDLE=5
+      - DB_POOL_MAX_SIZE=30
+      - DB_POOL_IDLE_TIMEOUT_MS=300000
+      - DB_POOL_MAX_LIFETIME_MS=1800000
+      - DB_POOL_CONNECTION_TIMEOUT_MS=30000
+      - DB_POOL_VALIDATION_TIMEOUT_MS=5000
+
+      # Security-sensitive settings should be overridden in deployment env
+      - DATASOURCE_ENCRYPTION_KEY=${DATASOURCE_ENCRYPTION_KEY:-change-me-in-production}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+
       - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=100MB
       - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=100MB
-      
-      # Actuator security
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics
       - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=when-authorized
-    
-    # More aggressive health check for production
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
       start_period: 90s
-    
-    # Use named volumes instead of bind mounts for better performance
+
     volumes:
       - reportserver-data-prod:/app/data
-    
-    # Logging configuration
+
     logging:
       driver: "json-file"
       options:
@@ -69,3 +87,5 @@ volumes:
       type: none
       o: bind
       device: ./data-production
+  postgres-data-prod:
+    driver: local

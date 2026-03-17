@@ -2,6 +2,7 @@ package com.reportserver.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,12 @@ import java.util.Map;
 public class JrxmlEditorController {
     
     private static final Logger logger = LoggerFactory.getLogger(JrxmlEditorController.class);
+
+    @Autowired
+    private com.reportserver.service.JrxmlValidator jrxmlValidator;
+
+    @Autowired
+    private com.reportserver.service.ReportService reportService;
     
     @Value("${reportserver.upload.dir:data/reports/}")
     private String uploadDir;
@@ -88,6 +95,9 @@ public class JrxmlEditorController {
             try (FileWriter writer = new FileWriter(file)) {
                 writer.write(content);
             }
+
+            // Evict compiled report cache so next generation uses the new JRXML
+            reportService.evictCompiledReport(file.getAbsolutePath());
             
             logger.info("Successfully saved JRXML file: {}", fileName);
             
@@ -198,6 +208,26 @@ public class JrxmlEditorController {
             return "number";
         } else {
             return "text";
+        }
+    }
+
+    /**
+     * Validate JRXML content for security issues and syntax problems
+     */
+    @PostMapping("/validate")
+    @ResponseBody
+    public ResponseEntity<?> validateJrxmlContent(@RequestParam String content) {
+        try {
+            com.reportserver.service.JrxmlValidator.JrxmlValidationResult result =
+                    jrxmlValidator.validate(content);
+            return ResponseEntity.ok(Map.of(
+                "valid", result.valid,
+                "issues", result.getIssues()
+            ));
+        } catch (Exception e) {
+            logger.error("Error validating JRXML content", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("valid", false, "issues", List.of("Validation error: " + e.getMessage())));
         }
     }
 }
