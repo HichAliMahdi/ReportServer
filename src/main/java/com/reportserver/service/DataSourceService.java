@@ -157,6 +157,12 @@ public class DataSourceService {
             
             // Set max rows to prevent memory issues with large result sets
             statement.setMaxRows(maxRows);
+            // Bound execution time to avoid hanging the query tester indefinitely.
+            try {
+                statement.setQueryTimeout(30);
+            } catch (SQLException timeoutUnsupported) {
+                logger.debug("Query timeout not supported by JDBC driver: {}", timeoutUnsupported.getMessage());
+            }
             
             try (ResultSet resultSet = statement.executeQuery(query)) {
             

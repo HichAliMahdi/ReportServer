@@ -1347,6 +1347,49 @@ function toggleDatasourceFields() {
     }
 }
 
+function extractReadableTextFromHtml(html) {
+    if (!html) return '';
+    return String(html)
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+async function parseApiJsonResponse(response, fallbackMessage) {
+    const responseText = await response.text();
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    const trimmed = responseText.trim();
+
+    let payload = null;
+    const looksLikeJson = contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+
+    if (trimmed && looksLikeJson) {
+        try {
+            payload = JSON.parse(trimmed);
+        } catch (error) {
+            throw new Error('Server returned invalid JSON. Please retry.');
+        }
+    }
+
+    if (!response.ok) {
+        const messageFromPayload = payload?.message || payload?.error;
+        const messageFromHtml = extractReadableTextFromHtml(trimmed);
+        throw new Error(messageFromPayload || messageFromHtml || fallbackMessage || `Request failed (${response.status})`);
+    }
+
+    if (!payload) {
+        if (!trimmed) {
+            return {};
+        }
+        const messageFromHtml = extractReadableTextFromHtml(trimmed);
+        throw new Error(messageFromHtml || 'Unexpected non-JSON response from server.');
+    }
+
+    return payload;
+}
+
 function openDatasourceModal(datasourceId = null) {
     const modal = document.getElementById('datasourceModal');
     const form = document.getElementById('datasourceForm');
@@ -1354,13 +1397,14 @@ function openDatasourceModal(datasourceId = null) {
     const passwordField = document.getElementById('dsPassword');
 
     form.reset();
+
     document.getElementById('datasourceMessage').innerHTML = '';
 
     if (datasourceId) {
         title.textContent = 'Edit Datasource';
         // Load datasource data (password will not be returned from API)
         fetch('/api/datasources/' + datasourceId)
-        .then(response => response.json())
+        .then(response => parseApiJsonResponse(response, 'Failed to load datasource data'))
         .then(ds => {
             document.getElementById('datasourceId').value = ds.id;
             document.getElementById('dsName').value = ds.name;
@@ -1401,7 +1445,7 @@ function openDatasourceModal(datasourceId = null) {
         })
         .catch(error => {
             console.error('Error loading datasource:', error);
-            alert('Failed to load datasource data');
+            alert(error.message || 'Failed to load datasource data');
         });
     } else {
         title.textContent = 'Add Datasource';
@@ -1431,7 +1475,7 @@ function deleteDatasource(id) {
         method: 'DELETE',
         headers: getHeadersWithCSRF()
     })
-    .then(response => response.json())
+    .then(response => parseApiJsonResponse(response, 'Failed to delete datasource'))
     .then(data => {
         if (data.status === 'success') {
             showMessage(data.message, 'success');
@@ -1464,11 +1508,7 @@ document.getElementById('datasourceForm').onsubmit = async function(e) {
                 body: formData
             });
 
-            if (!uploadResponse.ok) {
-                throw new Error('File upload failed');
-            }
-
-            const uploadData = await uploadResponse.json();
+            const uploadData = await parseApiJsonResponse(uploadResponse, 'File upload failed');
             if (uploadData.status !== 'success') {
                 showDatasourceMessage('File upload failed: ' + uploadData.message, 'error');
                 return;
@@ -1529,7 +1569,7 @@ async function saveDatasourceWithFilePath(id, type, filePath) {
             body: JSON.stringify(formData)
         });
 
-        const data = await response.json();
+        const data = await parseApiJsonResponse(response, 'Failed to save datasource');
         if (data.status === 'success') {
             const savedDatasourceId = data.id || data.datasourceId || null;
             showDatasourceMessage(data.message, 'success');
@@ -1590,7 +1630,7 @@ function testDatasourceConnection() {
         }),
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => parseApiJsonResponse(response, 'Failed to test datasource connection'))
     .then(data => {
         if (data.status === 'success') {
             showDatasourceMessage('✓ ' + data.message, 'success');
@@ -1599,7 +1639,7 @@ function testDatasourceConnection() {
         }
     })
     .catch(error => {
-        showDatasourceMessage('Test failed: ' + error, 'error');
+        showDatasourceMessage('Test failed: ' + (error.message || error), 'error');
     });
 }
 

@@ -548,6 +548,7 @@
             const reportName = document.getElementById('builderReportName').value.trim();
             const datasourceId = document.getElementById('builderDatasource').value;
             const tableName = document.getElementById('builderTable').value;
+            const normalizedReportName = reportName.endsWith('.jrxml') ? reportName : `${reportName}.jrxml`;
 
             // Get selected columns
             const checkboxes = document.querySelectorAll('input[name="builderColumns"]:checked');
@@ -578,6 +579,17 @@
                 formData.append('variablesJson', JSON.stringify(reportVariables));
             }
 
+            // Optional shared cover settings from Cover Page tab (applies to Form Builder when selected).
+            if (typeof vbBuildSharedCoverOptions === 'function') {
+                const formCoverOptions = vbBuildSharedCoverOptions('form');
+                if (formCoverOptions && formCoverOptions.coverPageEnabled === true) {
+                    if (!formCoverOptions.coverTitle && (formCoverOptions.coverIncludeReportName !== false)) {
+                        formCoverOptions.coverTitle = normalizedReportName.replace(/\.jrxml$/i, '');
+                    }
+                    formData.append('reportOptionsJson', JSON.stringify(formCoverOptions));
+                }
+            }
+
             fetch('/api/builder/generate', {
                 method: 'POST',
                 headers: {
@@ -604,6 +616,9 @@
                     reportVariables = [];
                     displayParameters();
                     displayVariables();
+                    if (typeof vbHandleCoverTemplateSelectionChange === 'function') {
+                        vbHandleCoverTemplateSelectionChange('form');
+                    }
                 } else {
                     showBuilderMessage('✗ ' + data.message, 'error');
                 }

@@ -8,6 +8,8 @@ import com.reportserver.service.ReportService;
 import com.reportserver.service.SchemaIntrospectionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -32,6 +37,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,7 +153,8 @@ public class BuilderController {
             @RequestParam List<String> columns,
             @RequestParam Long datasourceId,
             @RequestParam(required = false) String parametersJson,
-            @RequestParam(required = false) String variablesJson) {
+            @RequestParam(required = false) String variablesJson,
+            @RequestParam(required = false) String reportOptionsJson) {
         
         Connection connection = null;
         try {
@@ -216,6 +223,19 @@ public class BuilderController {
                 }
             }
 
+            // Parse shared cover options from JSON if provided
+            Map<String, Object> reportOptions = new HashMap<>();
+            if (reportOptionsJson != null && !reportOptionsJson.trim().isEmpty()) {
+                try {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    reportOptions = objectMapper.readValue(reportOptionsJson, new TypeReference<Map<String, Object>>() {});
+                } catch (Exception e) {
+                    logger.error("Error parsing reportOptions JSON", e);
+                    return ResponseEntity.badRequest()
+                        .body(Map.of("success", false, "message", "Invalid report options format: " + e.getMessage()));
+                }
+            }
+
             // Generate JRXML content
             String jrxmlContent = jrxmlBuilderService.generateJrxml(
                 reportName.replace(".jrxml", ""), 
@@ -224,6 +244,8 @@ public class BuilderController {
                 parameters,
                 variables
             );
+
+            jrxmlContent = applySharedCoverToBuilderJrxml(jrxmlContent, reportName, reportOptions);
 
             // Save to file
             File uploadDir = new File(this.uploadDir);
@@ -261,6 +283,111 @@ public class BuilderController {
                 }
             }
         }
+    }
+
+    private String applySharedCoverToBuilderJrxml(String jrxmlContent, String reportName, Map<String, Object> reportOptions) {
+        if (jrxmlContent == null || jrxmlContent.isBlank() || reportOptions == null || reportOptions.isEmpty()) {
+            return jrxmlContent;
+        }
+
+        boolean coverPageEnabled = asBoolean(reportOptions.get("coverPageEnabled"));
+        if (!coverPageEnabled) {
+            return jrxmlContent;
+        }
+
+        String coverTitle = asString(reportOptions.get("coverTitle"));
+        String coverSubtitle = asString(reportOptions.get("coverSubtitle"));
+        String coverAuthor = asString(reportOptions.get("coverAuthor"));
+        boolean coverDateEnabled = asBoolean(reportOptions.get("coverDateEnabled"));
+        boolean coverIncludeReportName = !reportOptions.containsKey("coverIncludeReportName")
+            || asBoolean(reportOptions.get("coverIncludeReportName"));
+        String coverDatePattern = asString(reportOptions.get("coverDatePattern"));
+        String coverAlignment = normalizeHorizontalAlignment(asString(reportOptions.get("coverAlignment")));
+        String coverTheme = asString(reportOptions.get("coverTheme"));
+        if (coverTheme.isBlank()) {
+            coverTheme = "classicBlue";
+        }
+        boolean coverAccentEnabled = !reportOptions.containsKey("coverAccentEnabled")
+            || asBoolean(reportOptions.get("coverAccentEnabled"));
+        boolean coverBackgroundShapeEnabled = !reportOptions.containsKey("coverBackgroundShapeEnabled")
+            || asBoolean(reportOptions.get("coverBackgroundShapeEnabled"));
+        int coverTitleSize = asInt(reportOptions.get("coverTitleSize"), 30, 12, 72);
+        int coverSubtitleSize = asInt(reportOptions.get("coverSubtitleSize"), 16, 10, 48);
+        String coverLogoData = asString(reportOptions.get("coverLogoData"));
+        String coverPageFileData = asString(reportOptions.get("coverPageFileData"));
+
+        Map<String, List<Map<String, Object>>> coverBands = new HashMap<>();
+        injectCoverPageElements(
+            coverBands,
+            reportName,
+            coverTitle,
+            coverSubtitle,
+            coverAuthor,
+            coverIncludeReportName,
+            coverDateEnabled,
+            coverDatePattern,
+            coverAlignment,
+            coverTheme,
+            coverAccentEnabled,
+            coverBackgroundShapeEnabled,
+            coverTitleSize,
+            coverSubtitleSize,
+            coverLogoData,
+            coverPageFileData,
+            595,
+            20,
+            802,
+            true);
+
+        List<Map<String, Object>> titleElements = coverBands.get("title");
+        if (titleElements == null || titleElements.isEmpty()) {
+            return jrxmlContent;
+        }
+
+        int maxBottom = titleElements.stream()
+            .mapToInt(element -> ((Number) element.getOrDefault("y", 0)).intValue()
+                + Math.max(1, ((Number) element.getOrDefault("height", 20)).intValue()))
+            .max()
+            .orElse(555);
+        int titleBandHeight = Math.max(595, maxBottom + 20);
+
+        StringBuilder titleXml = new StringBuilder();
+        titleXml.append("\t<title>\n");
+        titleXml.append(String.format("\t\t<band height=\"%d\">\n", titleBandHeight));
+        for (Map<String, Object> element : titleElements) {
+            titleXml.append(generateElementXml(element, "title"));
+        }
+        titleXml.append("\t\t</band>\n");
+        titleXml.append("\t</title>\n");
+
+        return replaceTitleBand(jrxmlContent, titleXml.toString());
+    }
+
+    private String replaceTitleBand(String jrxmlContent, String titleBandXml) {
+        int titleStart = jrxmlContent.indexOf("\t<title>");
+        if (titleStart >= 0) {
+            int titleEnd = jrxmlContent.indexOf("\t</title>", titleStart);
+            if (titleEnd >= 0) {
+                int replaceEnd = titleEnd + "\t</title>".length();
+                if (replaceEnd < jrxmlContent.length() && jrxmlContent.charAt(replaceEnd) == '\r') {
+                    replaceEnd++;
+                }
+                if (replaceEnd < jrxmlContent.length() && jrxmlContent.charAt(replaceEnd) == '\n') {
+                    replaceEnd++;
+                }
+                return jrxmlContent.substring(0, titleStart) + titleBandXml + jrxmlContent.substring(replaceEnd);
+            }
+        }
+
+        int insertIndex = jrxmlContent.indexOf("\t<columnHeader>");
+        if (insertIndex < 0) {
+            insertIndex = jrxmlContent.indexOf("\t<detail>");
+        }
+        if (insertIndex < 0) {
+            return jrxmlContent;
+        }
+
+        return jrxmlContent.substring(0, insertIndex) + titleBandXml + jrxmlContent.substring(insertIndex);
     }
 
     /**
@@ -356,6 +483,85 @@ public class BuilderController {
             logger.error("Error uploading image", e);
             response.put("success", false);
             response.put("message", "Error uploading image: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Upload a cover page file and return image data that can be previewed and injected in JRXML.
+     * Supported formats: PDF (first page), PNG, JPG, JPEG, WEBP, GIF, BMP.
+     */
+    @PostMapping("/upload-cover-file")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> uploadCoverFile(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (file.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Please select a file to upload");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            if (file.getSize() > (20L * 1024L * 1024L)) {
+                response.put("success", false);
+                response.put("message", "File is too large. Maximum allowed size is 20 MB");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            String originalFilename = file.getOriginalFilename();
+            String filenameLower = originalFilename == null ? "" : originalFilename.toLowerCase();
+            String contentType = file.getContentType();
+            String contentTypeLower = contentType == null ? "" : contentType.toLowerCase();
+
+            boolean isPdf = "application/pdf".equals(contentTypeLower) || filenameLower.endsWith(".pdf");
+            boolean isImage = contentTypeLower.startsWith("image/")
+                    || filenameLower.matches(".*\\.(png|jpg|jpeg|webp|gif|bmp)$");
+
+            if (!isPdf && !isImage) {
+                response.put("success", false);
+                response.put("message", "Unsupported file format. Supported: PDF, PNG, JPG, JPEG, WEBP, GIF, BMP");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            String coverImageData;
+            boolean convertedFromPdf = false;
+
+            if (isPdf) {
+                byte[] pdfBytes = file.getBytes();
+                try (PDDocument document = PDDocument.load(pdfBytes);
+                     ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+                    if (document.getNumberOfPages() == 0) {
+                        response.put("success", false);
+                        response.put("message", "Uploaded PDF has no pages");
+                        return ResponseEntity.badRequest().body(response);
+                    }
+
+                    PDFRenderer renderer = new PDFRenderer(document);
+                    BufferedImage firstPage = renderer.renderImageWithDPI(0, 150);
+                    ImageIO.write(firstPage, "png", out);
+
+                    coverImageData = "data:image/png;base64," + Base64.getEncoder().encodeToString(out.toByteArray());
+                    convertedFromPdf = true;
+                }
+            } else {
+                String imageMimeType = resolveCoverImageMimeType(contentTypeLower, filenameLower);
+                coverImageData = "data:" + imageMimeType + ";base64," + Base64.getEncoder().encodeToString(file.getBytes());
+            }
+
+            response.put("success", true);
+            response.put("message", convertedFromPdf
+                    ? "PDF uploaded and first page converted successfully"
+                    : "Cover image uploaded successfully");
+            response.put("coverImageData", coverImageData);
+            response.put("convertedFromPdf", convertedFromPdf);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error uploading cover file", e);
+            response.put("success", false);
+            response.put("message", "Error uploading cover file: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
@@ -707,11 +913,22 @@ public class BuilderController {
         String coverSubtitle = asString(reportOptions.get("coverSubtitle"));
         String coverAuthor = asString(reportOptions.get("coverAuthor"));
         boolean coverDateEnabled = asBoolean(reportOptions.get("coverDateEnabled"));
+        boolean coverIncludeReportName = !reportOptions.containsKey("coverIncludeReportName")
+            || asBoolean(reportOptions.get("coverIncludeReportName"));
         String coverDatePattern = asString(reportOptions.get("coverDatePattern"));
         String coverAlignment = normalizeHorizontalAlignment(asString(reportOptions.get("coverAlignment")));
+        String coverTheme = asString(reportOptions.get("coverTheme"));
+        if (coverTheme.isBlank()) {
+            coverTheme = "classicBlue";
+        }
+        boolean coverAccentEnabled = !reportOptions.containsKey("coverAccentEnabled")
+            || asBoolean(reportOptions.get("coverAccentEnabled"));
+        boolean coverBackgroundShapeEnabled = !reportOptions.containsKey("coverBackgroundShapeEnabled")
+            || asBoolean(reportOptions.get("coverBackgroundShapeEnabled"));
         int coverTitleSize = asInt(reportOptions.get("coverTitleSize"), 30, 12, 72);
         int coverSubtitleSize = asInt(reportOptions.get("coverSubtitleSize"), 16, 10, 48);
         String coverLogoData = asString(reportOptions.get("coverLogoData"));
+        String coverPageFileData = asString(reportOptions.get("coverPageFileData"));
 
         if (sqlQuery == null || sqlQuery.trim().isEmpty()) {
             sqlQuery = inferSqlQueryFromElements(elements);
@@ -793,12 +1010,17 @@ public class BuilderController {
                     coverTitle,
                     coverSubtitle,
                     coverAuthor,
+                    coverIncludeReportName,
                     coverDateEnabled,
                     coverDatePattern,
                     coverAlignment,
+                    coverTheme,
+                    coverAccentEnabled,
+                    coverBackgroundShapeEnabled,
                     coverTitleSize,
                     coverSubtitleSize,
                     coverLogoData,
+                    coverPageFileData,
                     pageHeight,
                     topMargin,
                     printableWidth,
@@ -960,6 +1182,18 @@ public class BuilderController {
         }
     }
 
+    private String resolveCoverImageMimeType(String contentTypeLower, String filenameLower) {
+        if (contentTypeLower != null && contentTypeLower.startsWith("image/")) {
+            return contentTypeLower;
+        }
+        if (filenameLower.endsWith(".png")) return "image/png";
+        if (filenameLower.endsWith(".jpg") || filenameLower.endsWith(".jpeg")) return "image/jpeg";
+        if (filenameLower.endsWith(".webp")) return "image/webp";
+        if (filenameLower.endsWith(".gif")) return "image/gif";
+        if (filenameLower.endsWith(".bmp")) return "image/bmp";
+        return "image/png";
+    }
+
     private String resolveFieldClass(String fieldType) {
         if (fieldType == null || fieldType.isBlank()) {
             return "java.lang.String";
@@ -1081,6 +1315,22 @@ public class BuilderController {
         return Math.max(min, Math.min(max, parsed));
     }
 
+    private static final class CoverThemePalette {
+        private final String titleColor;
+        private final String subtitleColor;
+        private final String metaColor;
+        private final String accentColor;
+        private final String backgroundColor;
+
+        private CoverThemePalette(String titleColor, String subtitleColor, String metaColor, String accentColor, String backgroundColor) {
+            this.titleColor = titleColor;
+            this.subtitleColor = subtitleColor;
+            this.metaColor = metaColor;
+            this.accentColor = accentColor;
+            this.backgroundColor = backgroundColor;
+        }
+    }
+
     private String normalizeHorizontalAlignment(String value) {
         if (value == null) {
             return "Center";
@@ -1095,25 +1345,47 @@ public class BuilderController {
         return "Center";
     }
 
+    private CoverThemePalette resolveCoverThemePalette(String coverTheme) {
+        String normalized = coverTheme == null ? "" : coverTheme.trim().toLowerCase();
+        switch (normalized) {
+            case "forest":
+                return new CoverThemePalette("#1F4A38", "#2E6A52", "#4C7564", "#2F8F6D", "#EAF7F1");
+            case "sunrise":
+                return new CoverThemePalette("#6A3A1B", "#9A5728", "#A16C47", "#E07B39", "#FFF2E8");
+            case "charcoal":
+                return new CoverThemePalette("#2A2F36", "#3E4650", "#59626D", "#8C99A8", "#F2F5F8");
+            case "midnightgold":
+                return new CoverThemePalette("#2A2A3D", "#4A4762", "#666375", "#B08A2E", "#F6F1E3");
+            case "classicblue":
+            default:
+                return new CoverThemePalette("#143A62", "#2F5C8A", "#486A8E", "#2E75B6", "#EAF2FB");
+        }
+    }
+
     private void injectCoverPageElements(
             Map<String, List<Map<String, Object>>> bandElements,
             String reportName,
             String coverTitle,
             String coverSubtitle,
             String coverAuthor,
+            boolean coverIncludeReportName,
             boolean coverDateEnabled,
             String coverDatePattern,
             String coverAlignment,
+            String coverTheme,
+            boolean coverAccentEnabled,
+            boolean coverBackgroundShapeEnabled,
             int coverTitleSize,
             int coverSubtitleSize,
             String coverLogoData,
+            String coverPageFileData,
             int pageHeight,
             int topMargin,
             int printableWidth,
             boolean appendPageBreak) {
 
         String effectiveTitle = coverTitle;
-        if (effectiveTitle == null || effectiveTitle.isBlank()) {
+        if ((effectiveTitle == null || effectiveTitle.isBlank()) && coverIncludeReportName) {
             effectiveTitle = reportName;
         }
         if (effectiveTitle != null && effectiveTitle.toLowerCase().endsWith(".jrxml")) {
@@ -1121,32 +1393,57 @@ public class BuilderController {
         }
 
         List<Map<String, Object>> titleBand = bandElements.computeIfAbsent("title", key -> new ArrayList<>());
+        CoverThemePalette palette = resolveCoverThemePalette(coverTheme);
 
         int safePrintableWidth = Math.max(140, printableWidth);
         int titleY = Math.max(44, (pageHeight / 3) - topMargin);
         int subtitleY = titleY + Math.max(42, coverTitleSize + 12);
         int metaY = subtitleY + Math.max(36, coverSubtitleSize + 16);
 
+        if (coverPageFileData != null && !coverPageFileData.isBlank()) {
+            int coverImageHeight = Math.max(240, pageHeight - (topMargin * 2));
+            titleBand.add(createCoverBackgroundImageElement(0, 0, safePrintableWidth, coverImageHeight, coverPageFileData));
+        }
+
+        if (coverBackgroundShapeEnabled) {
+            int shapeHeight = Math.max(180, Math.min(280, pageHeight / 2));
+            titleBand.add(createCoverBackgroundShape(0, 0, safePrintableWidth, shapeHeight, palette.backgroundColor));
+        }
+
         if (coverLogoData != null && !coverLogoData.isBlank()) {
             int logoWidth = Math.max(120, Math.min(260, safePrintableWidth / 3));
-            int logoX = (safePrintableWidth - logoWidth) / 2;
+            int logoX;
+            if ("Left".equals(coverAlignment)) {
+                logoX = 0;
+            } else if ("Right".equals(coverAlignment)) {
+                logoX = Math.max(0, safePrintableWidth - logoWidth);
+            } else {
+                logoX = (safePrintableWidth - logoWidth) / 2;
+            }
             int logoY = Math.max(24, titleY - 112);
             titleBand.add(createCoverLogoElement(logoX, logoY, logoWidth, 80, coverLogoData));
         }
 
-        titleBand.add(createCoverTextElement(0, titleY, safePrintableWidth, Math.max(36, coverTitleSize + 10), effectiveTitle, coverTitleSize, true, coverAlignment));
+        if (effectiveTitle != null && !effectiveTitle.isBlank()) {
+            titleBand.add(createCoverTextElement(0, titleY, safePrintableWidth, Math.max(36, coverTitleSize + 10), effectiveTitle, coverTitleSize, true, coverAlignment, palette.titleColor));
+        }
         if (coverSubtitle != null && !coverSubtitle.isBlank()) {
-            titleBand.add(createCoverTextElement(0, subtitleY, safePrintableWidth, Math.max(24, coverSubtitleSize + 8), coverSubtitle, coverSubtitleSize, false, coverAlignment));
+            titleBand.add(createCoverTextElement(0, subtitleY, safePrintableWidth, Math.max(24, coverSubtitleSize + 8), coverSubtitle, coverSubtitleSize, false, coverAlignment, palette.subtitleColor));
         }
 
         if (coverAuthor != null && !coverAuthor.isBlank()) {
-            titleBand.add(createCoverTextElement(0, metaY, safePrintableWidth, 22, coverAuthor, 12, false, coverAlignment));
+            titleBand.add(createCoverTextElement(0, metaY, safePrintableWidth, 22, coverAuthor, 12, false, coverAlignment, palette.metaColor));
             metaY += 28;
         }
 
         if (coverDateEnabled) {
             String effectivePattern = (coverDatePattern == null || coverDatePattern.isBlank()) ? "dd/MM/yyyy" : coverDatePattern;
-            titleBand.add(createCoverDateElement(0, metaY, safePrintableWidth, 22, effectivePattern, coverAlignment));
+            titleBand.add(createCoverDateElement(0, metaY, safePrintableWidth, 22, effectivePattern, coverAlignment, palette.metaColor));
+            metaY += 28;
+        }
+
+        if (coverAccentEnabled) {
+            titleBand.add(createCoverAccentLine(0, metaY + 2, safePrintableWidth, palette.accentColor));
         }
 
         titleBand.removeIf(element -> "pageBreak".equals(element.get("type")));
@@ -1171,7 +1468,8 @@ public class BuilderController {
             String text,
             int fontSize,
             boolean bold,
-            String alignment) {
+            String alignment,
+            String color) {
 
         Map<String, Object> element = new HashMap<>();
         element.put("type", "staticText");
@@ -1185,7 +1483,7 @@ public class BuilderController {
         element.put("bold", bold);
         element.put("italic", false);
         element.put("alignment", alignment);
-        element.put("color", "#1A2735");
+        element.put("color", color);
         return element;
     }
 
@@ -1205,7 +1503,8 @@ public class BuilderController {
             int width,
             int height,
             String pattern,
-            String alignment) {
+            String alignment,
+            String color) {
 
         Map<String, Object> element = new HashMap<>();
         element.put("type", "date");
@@ -1217,6 +1516,56 @@ public class BuilderController {
         element.put("fontName", "DejaVu Sans");
         element.put("fontSize", 12);
         element.put("alignment", alignment);
+        element.put("color", color);
+        return element;
+    }
+
+    private Map<String, Object> createCoverBackgroundShape(
+            int x,
+            int y,
+            int width,
+            int height,
+            String backgroundColor) {
+
+        Map<String, Object> element = new HashMap<>();
+        element.put("type", "rectangle");
+        element.put("x", x);
+        element.put("y", y);
+        element.put("width", width);
+        element.put("height", height);
+        element.put("backgroundTransparent", false);
+        element.put("backgroundColor", backgroundColor);
+        element.put("borderColor", backgroundColor);
+        element.put("borderWidth", 0);
+        return element;
+    }
+
+    private Map<String, Object> createCoverBackgroundImageElement(
+            int x,
+            int y,
+            int width,
+            int height,
+            String imageData) {
+
+        Map<String, Object> element = new HashMap<>();
+        element.put("type", "image");
+        element.put("x", x);
+        element.put("y", y);
+        element.put("width", width);
+        element.put("height", height);
+        element.put("imageData", imageData);
+        return element;
+    }
+
+    private Map<String, Object> createCoverAccentLine(int x, int y, int width, String color) {
+        Map<String, Object> element = new HashMap<>();
+        element.put("type", "line");
+        element.put("x", x);
+        element.put("y", Math.max(0, y));
+        element.put("width", Math.max(1, width));
+        element.put("height", 2);
+        element.put("borderWidth", 1);
+        element.put("color", color);
         return element;
     }
 
@@ -1284,6 +1633,25 @@ public class BuilderController {
         element.put("width", width);
     }
 
+    private String normalizeHexColor(String color, String fallback) {
+        String effectiveFallback = (fallback == null || fallback.isBlank()) ? "#000000" : fallback;
+        if (color == null || color.isBlank()) {
+            return effectiveFallback;
+        }
+
+        String normalized = color.trim();
+        if (normalized.matches("#[0-9a-fA-F]{6}")) {
+            return normalized.toUpperCase();
+        }
+        if (normalized.matches("#[0-9a-fA-F]{3}")) {
+            char r = normalized.charAt(1);
+            char g = normalized.charAt(2);
+            char b = normalized.charAt(3);
+            return ("#" + r + r + g + g + b + b).toUpperCase();
+        }
+        return effectiveFallback;
+    }
+
     /**
      * Generate XML for a single element
      */
@@ -1306,9 +1674,10 @@ public class BuilderController {
                 boolean isItalic = (boolean) element.getOrDefault("italic", false);
                 String alignment = (String) element.getOrDefault("alignment", "Left");
                 String color = (String) element.getOrDefault("color", "#000000");
+                String textColor = normalizeHexColor(color, "#000000");
                 
                 xml.append("            <staticText>\n");
-                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" forecolor=\"%s\"/>\n", x, y, width, height, textColor));
                 xml.append("                <textElement");
                 if (!alignment.equals("Left")) {
                     xml.append(String.format(" textAlignment=\"%s\"", alignment));
@@ -1331,6 +1700,7 @@ public class BuilderController {
                 boolean fieldItalic = (boolean) element.getOrDefault("italic", false);
                 String fieldAlignment = (String) element.getOrDefault("alignment", "Left");
                 String fieldColor = (String) element.getOrDefault("color", "#000000");
+                String safeFieldColor = normalizeHexColor(fieldColor, "#000000");
                 String pattern = (String) element.getOrDefault("pattern", "");
                 
                 xml.append("            <textField");
@@ -1338,7 +1708,7 @@ public class BuilderController {
                     xml.append(String.format(" pattern=\"%s\"", pattern));
                 }
                 xml.append(">\n");
-                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" forecolor=\"%s\"/>\n", x, y, width, height, safeFieldColor));
                 xml.append("                <textElement");
                 if (!fieldAlignment.equals("Left")) {
                     xml.append(String.format(" textAlignment=\"%s\"", fieldAlignment));
@@ -1358,9 +1728,10 @@ public class BuilderController {
                 String pageFontName = (String) element.getOrDefault("fontName", "Arial");
                 int pageFontSize = ((Number) element.getOrDefault("fontSize", 10)).intValue();
                 String pageAlignment = (String) element.getOrDefault("alignment", "Right");
+                String pageColor = normalizeHexColor((String) element.getOrDefault("color", "#000000"), "#000000");
                 
                 xml.append("            <textField>\n");
-                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" forecolor=\"%s\"/>\n", x, y, width, height, pageColor));
                 xml.append("                <textElement");
                 if (!pageAlignment.equals("Left")) {
                     xml.append(String.format(" textAlignment=\"%s\"", pageAlignment));
@@ -1378,9 +1749,10 @@ public class BuilderController {
                 String dateFontName = (String) element.getOrDefault("fontName", "Arial");
                 int dateFontSize = ((Number) element.getOrDefault("fontSize", 10)).intValue();
                 String dateAlignment = (String) element.getOrDefault("alignment", "Left");
+                String dateColor = normalizeHexColor((String) element.getOrDefault("color", "#000000"), "#000000");
                 
                 xml.append(String.format("            <textField pattern=\"%s\">\n", datePattern));
-                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" forecolor=\"%s\"/>\n", x, y, width, height, dateColor));
                 xml.append("                <textElement");
                 if (!dateAlignment.equals("Left")) {
                     xml.append(String.format(" textAlignment=\"%s\"", dateAlignment));
@@ -1413,21 +1785,38 @@ public class BuilderController {
                 break;
                 
             case "line":
+                String lineColor = normalizeHexColor((String) element.getOrDefault("color", "#000000"), "#000000");
+                int lineWidth = Math.max(1, ((Number) element.getOrDefault("borderWidth", 1)).intValue());
                 xml.append("            <line>\n");
                 xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append("                <graphicElement>\n");
+                xml.append(String.format("                    <pen lineWidth=\"%d\" lineColor=\"%s\"/>\n", lineWidth, lineColor));
+                xml.append("                </graphicElement>\n");
                 xml.append("            </line>\n");
                 break;
                 
             case "rectangle":
+                String rectangleBorderColor = normalizeHexColor((String) element.getOrDefault("borderColor", "#000000"), "#000000");
+                String rectangleBackgroundColor = normalizeHexColor((String) element.getOrDefault("backgroundColor", "#FFFFFF"), "#FFFFFF");
+                int rectangleBorderWidth = Math.max(0, ((Number) element.getOrDefault("borderWidth", 1)).intValue());
+                boolean rectangleTransparent = !element.containsKey("backgroundTransparent")
+                        || asBoolean(element.get("backgroundTransparent"));
+
                 xml.append("            <rectangle>\n");
-                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n", x, y, width, height));
+                xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"", x, y, width, height));
+                if (!rectangleTransparent) {
+                    xml.append(String.format(" mode=\"Opaque\" backcolor=\"%s\"", rectangleBackgroundColor));
+                }
+                xml.append("/>\n");
+                xml.append("                <graphicElement>\n");
+                xml.append(String.format("                    <pen lineWidth=\"%d\" lineColor=\"%s\"/>\n", rectangleBorderWidth, rectangleBorderColor));
+                xml.append("                </graphicElement>\n");
                 xml.append("            </rectangle>\n");
                 break;
 
             case "pageBreak":
                 xml.append("            <break>\n");
                 xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"1\"/>\n", x, y, Math.max(1, width)));
-                xml.append("                <breakType>Page</breakType>\n");
                 xml.append("            </break>\n");
                 break;
         }

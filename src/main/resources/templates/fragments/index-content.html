@@ -176,6 +176,9 @@
                     <button class="btn" id="visualBuilderBtn" onclick="switchBuilderMode('visual')" style="flex: 1; max-width: 200px; background: #6c757d;">
                         🎨 Visual Builder
                     </button>
+                    <button class="btn" id="coverBuilderBtn" onclick="switchBuilderMode('cover')" style="flex: 1; max-width: 200px; background: #6c757d;">
+                        📘 Cover Page
+                    </button>
                 </div>
             </div>
             
@@ -189,6 +192,19 @@
                     <div class="form-group">
                         <label for="builderReportName">Report Name:</label>
                         <input type="text" id="builderReportName" required placeholder="MyReport" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fbCoverTemplateSelect">Cover Page Template:</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                            <select id="fbCoverTemplateSelect" onchange="vbHandleCoverTemplateSelectionChange('form')" style="min-width: 280px;">
+                                <option value="">-- No Cover Page --</option>
+                            </select>
+                            <button type="button" id="fbEditCoverTemplateBtn" class="btn vb-btn-secondary" style="display: none; padding: 6px 12px;" onclick="vbEditSelectedCoverTemplate('form')">
+                                Edit the cover page
+                            </button>
+                        </div>
+                        <p style="margin: 6px 0 0; color: #5d6f86; font-size: 12px;">Select a saved cover template. Use Cover Page Builder to create or modify templates.</p>
                     </div>
                     
                     <div class="form-group">
@@ -342,87 +358,15 @@
                             Header only on first page
                         </label>
 
-                        <label class="vb-inline-check" title="Insert a dedicated cover page before the report data.">
-                            <input type="checkbox" id="vbEnableCoverPage" onchange="vbToggleCoverOptions()" />
-                            Add cover page
-                        </label>
-                    </div>
-
-                    <div id="vbCoverEditor" class="vb-cover-editor" style="display: none;">
-                        <div class="vb-cover-editor-title">Cover Page Editor</div>
-
-                        <div class="vb-cover-preset-row">
-                            <div class="vb-prop-field">
-                                <label for="vbCoverPreset">Cover Template</label>
-                                <select id="vbCoverPreset" class="vb-select" onchange="vbApplyCoverPreset()">
-                                    <option value="custom" selected>Custom</option>
-                                    <option value="corporate">Corporate</option>
-                                    <option value="minimal">Minimal</option>
-                                    <option value="executive">Executive</option>
-                                </select>
-                            </div>
-
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbApplyCoverPreset()">Apply Template</button>
-                            <p class="vb-cover-hint">Templates prefill title, subtitle, author, date, alignment, and typography.</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                            <span style="font-size: 13px; color: #5d6f86;">Cover template:</span>
+                            <select id="vbVisualCoverTemplateSelect" class="vb-select" style="min-width: 240px;" onchange="vbHandleCoverTemplateSelectionChange('visual')">
+                                <option value="">-- No Cover Page --</option>
+                            </select>
+                            <button type="button" id="vbVisualEditCoverTemplateBtn" class="btn vb-btn-secondary" style="display: none; padding: 6px 12px;" onclick="vbEditSelectedCoverTemplate('visual')">
+                                Edit the cover page
+                            </button>
                         </div>
-
-                        <div class="vb-cover-grid">
-                            <div class="vb-prop-field">
-                                <label for="vbCoverTitle">Cover Title</label>
-                                <input type="text" id="vbCoverTitle" class="vb-input vb-cover-input" placeholder="Quarterly Sales Report" />
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverSubtitle">Cover Subtitle</label>
-                                <input type="text" id="vbCoverSubtitle" class="vb-input vb-cover-input" placeholder="Region, period, and KPI focus" />
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverAuthor">Author / Department</label>
-                                <input type="text" id="vbCoverAuthor" class="vb-input vb-cover-input" placeholder="Prepared by BI Team" />
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverAlignment">Text Alignment</label>
-                                <select id="vbCoverAlignment" class="vb-select">
-                                    <option value="Center" selected>Center</option>
-                                    <option value="Left">Left</option>
-                                    <option value="Right">Right</option>
-                                </select>
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverTitleSize">Title Size</label>
-                                <input type="number" id="vbCoverTitleSize" class="vb-input" min="12" max="72" value="30" />
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverSubtitleSize">Subtitle Size</label>
-                                <input type="number" id="vbCoverSubtitleSize" class="vb-input" min="10" max="48" value="16" />
-                            </div>
-
-                            <div class="vb-prop-field">
-                                <label for="vbCoverDatePattern">Date Format</label>
-                                <input type="text" id="vbCoverDatePattern" class="vb-input" value="dd/MM/yyyy" placeholder="dd/MM/yyyy" />
-                            </div>
-
-                            <div class="vb-prop-field vb-cover-check-row">
-                                <label class="vb-inline-check" title="Show generation date on the cover page.">
-                                    <input type="checkbox" id="vbCoverShowDate" checked />
-                                    Show Date
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="vb-cover-logo-row">
-                            <input type="hidden" id="vbCoverLogoData" />
-                            <input type="file" id="vbCoverLogoInput" accept="image/*" style="display: none;" onchange="vbUploadCoverLogo(event)" />
-                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverLogoInput').click()">Upload Cover Logo</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverLogo()">Remove Cover Logo</button>
-                            <span id="vbCoverLogoStatus" class="vb-cover-logo-status">No logo selected</span>
-                        </div>
-
-                        <div id="vbCoverLogoPreview" class="vb-cover-logo-preview" style="display: none;"></div>
                     </div>
 
                     <div class="vb-studio-layout">
@@ -470,6 +414,170 @@
                             <div class="vb-panel-title">Properties</div>
                             <div id="vbPropsPanel" class="vb-props-empty">Select an element on the canvas to edit its properties.</div>
                         </aside>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cover Builder Section -->
+            <div id="coverBuilderSection" style="display: none;">
+                <div class="card vb-studio-card">
+                    <div class="vb-studio-header">
+                        <div>
+                            <h2 class="vb-studio-title">Cover Page Builder</h2>
+                            <p class="vb-studio-subtitle">Design one reusable cover page and choose where to apply it.</p>
+                        </div>
+                    </div>
+
+                    <div class="vb-toolbar-options">
+                        <label class="vb-inline-check" title="Enable a dedicated cover page before report content.">
+                            <input type="checkbox" id="vbEnableCoverPage" checked onchange="vbToggleCoverOptions()" />
+                            Enable cover page
+                        </label>
+                        <span style="font-size: 13px; color: #5d6f86;">Save templates here, then select them in Visual Builder or Form Builder.</span>
+                    </div>
+
+                    <div id="vbCoverEditor" class="vb-cover-editor" style="display: none;">
+                        <div class="vb-cover-editor-title">Cover Page Editor</div>
+
+                        <div class="vb-cover-preset-row">
+                            <div class="vb-prop-field">
+                                <label for="vbCoverPreset">Cover Template</label>
+                                <select id="vbCoverPreset" class="vb-select" onchange="vbApplyCoverPreset()">
+                                    <option value="custom" selected>Custom</option>
+                                    <option value="corporate">Corporate</option>
+                                    <option value="minimal">Minimal</option>
+                                    <option value="executive">Executive</option>
+                                </select>
+                            </div>
+
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbApplyCoverPreset()">Apply Template</button>
+                            <p class="vb-cover-hint">Templates prefill title, subtitle, author, date, alignment, and typography.</p>
+                        </div>
+
+                        <div class="vb-cover-save-row">
+                            <input type="text" id="vbCoverPresetName" class="vb-input" placeholder="My template name" maxlength="60" />
+                            <label class="vb-inline-check" title="Store uploaded cover assets with the template in your browser.">
+                                <input type="checkbox" id="vbCoverPresetIncludeLogo" checked />
+                                Include uploaded files in template
+                            </label>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbSaveCoverPreset()">Save My Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbDeleteCoverPreset()">Delete Selected Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbDownloadCoverTemplate()">Download Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverTemplateImportInput').click()">Import Template</button>
+                            <input type="file" id="vbCoverTemplateImportInput" accept=".json,application/json" style="display: none;" onchange="vbImportCoverTemplate(event)" />
+                            <p class="vb-cover-hint">Saved templates are stored locally in your browser for quick reuse.</p>
+                        </div>
+
+                        <div class="vb-cover-grid">
+                            <div class="vb-prop-field">
+                                <label for="vbCoverTitle">Cover Title</label>
+                                <input type="text" id="vbCoverTitle" class="vb-input vb-cover-input" placeholder="Quarterly Sales Report" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverSubtitle">Cover Subtitle</label>
+                                <input type="text" id="vbCoverSubtitle" class="vb-input vb-cover-input" placeholder="Region, period, and KPI focus" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverAuthor">Author / Department</label>
+                                <input type="text" id="vbCoverAuthor" class="vb-input vb-cover-input" placeholder="Prepared by BI Team" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverAlignment">Text Alignment</label>
+                                <select id="vbCoverAlignment" class="vb-select">
+                                    <option value="Center" selected>Center</option>
+                                    <option value="Left">Left</option>
+                                    <option value="Right">Right</option>
+                                </select>
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverTheme">Cover Theme</label>
+                                <select id="vbCoverTheme" class="vb-select">
+                                    <option value="classicBlue" selected>Classic Blue</option>
+                                    <option value="forest">Forest</option>
+                                    <option value="sunrise">Sunrise</option>
+                                    <option value="charcoal">Charcoal</option>
+                                    <option value="midnightGold">Midnight Gold</option>
+                                </select>
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverTitleSize">Title Size</label>
+                                <input type="number" id="vbCoverTitleSize" class="vb-input" min="12" max="72" value="30" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverSubtitleSize">Subtitle Size</label>
+                                <input type="number" id="vbCoverSubtitleSize" class="vb-input" min="10" max="48" value="16" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverDatePattern">Date Format</label>
+                                <input type="text" id="vbCoverDatePattern" class="vb-input" value="dd/MM/yyyy" placeholder="dd/MM/yyyy" />
+                            </div>
+
+                            <div class="vb-prop-field vb-cover-check-row">
+                                <label class="vb-inline-check" title="Show generation date on the cover page.">
+                                    <input type="checkbox" id="vbCoverShowDate" checked />
+                                    Show Date
+                                </label>
+                            </div>
+
+                            <div class="vb-prop-field vb-cover-check-row">
+                                <label class="vb-inline-check" title="Include report name text on the cover page.">
+                                    <input type="checkbox" id="vbCoverIncludeReportName" checked />
+                                    Include Report Name
+                                </label>
+                            </div>
+
+                            <div class="vb-prop-field vb-cover-check-row">
+                                <label class="vb-inline-check" title="Draw an accent line under cover metadata.">
+                                    <input type="checkbox" id="vbCoverAccentEnabled" checked />
+                                    Accent Line
+                                </label>
+                            </div>
+
+                            <div class="vb-prop-field vb-cover-check-row">
+                                <label class="vb-inline-check" title="Add a soft background shape on the cover.">
+                                    <input type="checkbox" id="vbCoverBackgroundShapeEnabled" checked />
+                                    Background Shape
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="vb-cover-logo-row">
+                            <input type="hidden" id="vbCoverLogoData" />
+                            <input type="file" id="vbCoverLogoInput" accept="image/*" style="display: none;" onchange="vbUploadCoverLogo(event)" />
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverLogoInput').click()">Upload Cover Logo</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverLogo()">Remove Cover Logo</button>
+                            <span id="vbCoverLogoStatus" class="vb-cover-logo-status">No logo selected</span>
+                        </div>
+
+                        <div class="vb-cover-logo-row">
+                            <input type="hidden" id="vbCoverPageFileData" />
+                            <input type="file" id="vbCoverPageFileInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display: none;" onchange="vbUploadCoverPageFile(event)" />
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverPageFileInput').click()">Upload Cover Page File</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverPageFile()">Remove Cover Page File</button>
+                            <span id="vbCoverPageFileStatus" class="vb-cover-logo-status">No cover page file selected</span>
+                        </div>
+
+                        <div id="vbCoverLogoPreview" class="vb-cover-logo-preview" style="display: none;"></div>
+
+                        <div class="vb-cover-preview-wrap">
+                            <div class="vb-cover-editor-title">Live Preview</div>
+                            <div class="vb-cover-preview-toolbar">
+                                <label class="vb-inline-check" title="Preview with real A4 page dimensions. Scroll to inspect the full page.">
+                                    <input type="checkbox" id="vbCoverPreviewA4Scale" />
+                                    Full A4 Scale Preview
+                                </label>
+                            </div>
+                            <div class="vb-cover-live-preview-stage">
+                                <div id="vbCoverLivePreview" class="vb-cover-live-preview-empty">Enable cover page to preview.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

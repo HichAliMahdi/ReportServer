@@ -78,6 +78,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- PDF to image conversion for uploaded cover pages -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.31</version>
+        </dependency>
+
         <!-- Database drivers (add the ones you need) -->
         <dependency>
             <groupId>com.mysql</groupId>

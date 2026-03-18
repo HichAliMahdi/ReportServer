@@ -794,6 +794,7 @@ function vbChangeOrientation() {
     VB.applyOrientation();
     VB.elements.forEach((el) => VB.normalizeElementPosition(el));
     VB.render();
+    vbRenderCoverLivePreview();
 }
 
 function vbToggleCoverOptions() {
@@ -802,6 +803,158 @@ function vbToggleCoverOptions() {
 
     if (coverEditor) {
         coverEditor.style.display = enabled ? '' : 'none';
+    }
+}
+
+function vbIsCoverEnabled() {
+    return document.getElementById('vbEnableCoverPage')?.checked === true;
+}
+
+function vbCoverAppliesToTarget(target) {
+    const select = vbGetCoverTemplateSelect(target);
+    return !!(select && String(select.value || '').trim());
+}
+
+function vbGetCoverTemplateSelectId(target) {
+    return target === 'form' ? 'fbCoverTemplateSelect' : 'vbVisualCoverTemplateSelect';
+}
+
+function vbGetCoverTemplateEditButtonId(target) {
+    return target === 'form' ? 'fbEditCoverTemplateBtn' : 'vbVisualEditCoverTemplateBtn';
+}
+
+function vbGetCoverTemplateSelect(target) {
+    return document.getElementById(vbGetCoverTemplateSelectId(target));
+}
+
+function vbGetTargetReportName(target = 'visual') {
+    if (target === 'form') {
+        return (document.getElementById('builderReportName')?.value || '').trim();
+    }
+    return (document.getElementById('vbReportName')?.value || '').trim();
+}
+
+function vbResolveCoverReportNameFallback(target = 'visual') {
+    const targetName = vbGetTargetReportName(target);
+    if (targetName) {
+        return targetName;
+    }
+
+    const visualName = (document.getElementById('vbReportName')?.value || '').trim();
+    if (visualName) {
+        return visualName;
+    }
+
+    return (document.getElementById('builderReportName')?.value || '').trim();
+}
+
+function vbResolveCoverTemplateConfig(templateValue, target = 'visual') {
+    const value = String(templateValue || '').trim();
+    if (!value) {
+        return null;
+    }
+
+    const reportName = vbResolveCoverReportNameFallback(target);
+    const builtInPresets = vbGetBuiltInCoverPresets(reportName);
+    const customPresets = vbLoadCoverPresetsFromStorage();
+
+    if (value.startsWith('builtin:')) {
+        const presetKey = value.substring('builtin:'.length);
+        return builtInPresets[presetKey] ? { ...builtInPresets[presetKey] } : null;
+    }
+
+    if (value.startsWith('saved:')) {
+        const presetName = value.substring('saved:'.length);
+        return customPresets[presetName] ? { ...customPresets[presetName] } : null;
+    }
+
+    if (builtInPresets[value]) {
+        return { ...builtInPresets[value] };
+    }
+
+    return null;
+}
+
+function vbHandleCoverTemplateSelectionChange(target) {
+    const button = document.getElementById(vbGetCoverTemplateEditButtonId(target));
+    const select = vbGetCoverTemplateSelect(target);
+
+    if (button) {
+        button.style.display = (select && String(select.value || '').trim()) ? '' : 'none';
+    }
+}
+
+function vbRefreshBuilderCoverTemplateSelectors(preferredVisual = null, preferredForm = null) {
+    const customPresets = vbLoadCoverPresetsFromStorage();
+    const customPresetNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
+
+    const populate = (target, preferredValue) => {
+        const select = vbGetCoverTemplateSelect(target);
+        if (!select) {
+            return;
+        }
+
+        const desiredValue = preferredValue !== null ? preferredValue : (select.value || '');
+        select.innerHTML = `
+            <option value="">-- No Cover Page --</option>
+            <option value="builtin:corporate">Corporate</option>
+            <option value="builtin:minimal">Minimal</option>
+            <option value="builtin:executive">Executive</option>
+        `;
+
+        customPresetNames.forEach((name) => {
+            const option = document.createElement('option');
+            option.value = `saved:${name}`;
+            option.textContent = `My Template: ${name}`;
+            select.appendChild(option);
+        });
+
+        const hasDesiredValue = Array.from(select.options).some((option) => option.value === desiredValue);
+        select.value = hasDesiredValue ? desiredValue : '';
+
+        vbHandleCoverTemplateSelectionChange(target);
+    };
+
+    populate('visual', preferredVisual);
+    populate('form', preferredForm);
+}
+
+function vbEditSelectedCoverTemplate(target) {
+    const select = vbGetCoverTemplateSelect(target);
+    const templateValue = String(select?.value || '').trim();
+    if (!templateValue) {
+        if (typeof showMessage === 'function') {
+            showMessage('Select a cover template first.', 'error');
+        }
+        return;
+    }
+
+    const config = vbResolveCoverTemplateConfig(templateValue, target);
+    if (!config) {
+        if (typeof showMessage === 'function') {
+            showMessage('Unable to load selected cover template.', 'error');
+        }
+        return;
+    }
+
+    if (typeof switchBuilderMode === 'function') {
+        switchBuilderMode('cover');
+    }
+
+    const enableCoverCheckbox = document.getElementById('vbEnableCoverPage');
+    if (enableCoverCheckbox && !enableCoverCheckbox.checked) {
+        enableCoverCheckbox.checked = true;
+    }
+    vbToggleCoverOptions();
+
+    const presetValue = templateValue.startsWith('builtin:')
+        ? templateValue.substring('builtin:'.length)
+        : templateValue;
+    vbRefreshCoverPresetOptions(presetValue);
+    vbApplyCoverPresetConfig(config);
+
+    if (templateValue.startsWith('saved:')) {
+        vbSetInputValue('vbCoverPresetName', templateValue.substring('saved:'.length));
     }
 }
 
@@ -823,48 +976,554 @@ function vbCleanReportNameForCover(value) {
     return raw.replace(/\.jrxml$/i, '') || 'Report';
 }
 
+const VB_COVER_PRESET_STORAGE_KEY = 'reportserver.vb.coverPresets.v1';
+const VB_SUPPORTED_COVER_FILE_MIME_TYPES = new Set([
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/gif',
+    'image/bmp'
+]);
+const VB_SUPPORTED_COVER_FILE_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'];
+
+function vbResolveCoverThemePalette(theme) {
+    const normalized = String(theme || '').trim().toLowerCase();
+    switch (normalized) {
+        case 'forest':
+            return {
+                titleColor: '#1F4A38',
+                subtitleColor: '#2E6A52',
+                metaColor: '#4C7564',
+                accentColor: '#2F8F6D',
+                backgroundColor: '#EAF7F1'
+            };
+        case 'sunrise':
+            return {
+                titleColor: '#6A3A1B',
+                subtitleColor: '#9A5728',
+                metaColor: '#A16C47',
+                accentColor: '#E07B39',
+                backgroundColor: '#FFF2E8'
+            };
+        case 'charcoal':
+            return {
+                titleColor: '#2A2F36',
+                subtitleColor: '#3E4650',
+                metaColor: '#59626D',
+                accentColor: '#8C99A8',
+                backgroundColor: '#F2F5F8'
+            };
+        case 'midnightgold':
+            return {
+                titleColor: '#2A2A3D',
+                subtitleColor: '#4A4762',
+                metaColor: '#666375',
+                accentColor: '#B08A2E',
+                backgroundColor: '#F6F1E3'
+            };
+        case 'classicblue':
+        default:
+            return {
+                titleColor: '#143A62',
+                subtitleColor: '#2F5C8A',
+                metaColor: '#486A8E',
+                accentColor: '#2E75B6',
+                backgroundColor: '#EAF2FB'
+            };
+    }
+}
+
+function vbFormatPreviewDate(pattern) {
+    const now = new Date();
+    const yyyy = String(now.getFullYear());
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthFull = monthNames[now.getMonth()];
+    const monthShort = monthFull.substring(0, 3);
+
+    const source = String(pattern || 'dd/MM/yyyy').trim() || 'dd/MM/yyyy';
+    return source
+        .replace(/MMMM/g, monthFull)
+        .replace(/MMM/g, monthShort)
+        .replace(/yyyy/g, yyyy)
+        .replace(/MM/g, mm)
+        .replace(/dd/g, dd);
+}
+
+function vbBindCoverPreviewEvents() {
+    const watchedIds = [
+        'vbReportName',
+        'builderReportName',
+        'vbOrientationSelect',
+        'vbEnableCoverPage',
+        'vbVisualCoverTemplateSelect',
+        'fbCoverTemplateSelect',
+        'vbCoverPreviewA4Scale',
+        'vbCoverTitle',
+        'vbCoverSubtitle',
+        'vbCoverAuthor',
+        'vbCoverAlignment',
+        'vbCoverTheme',
+        'vbCoverTitleSize',
+        'vbCoverSubtitleSize',
+        'vbCoverDatePattern',
+        'vbCoverShowDate',
+        'vbCoverIncludeReportName',
+        'vbCoverAccentEnabled',
+        'vbCoverBackgroundShapeEnabled'
+    ];
+
+    watchedIds.forEach((id) => {
+        const element = document.getElementById(id);
+        if (!element || element.dataset.previewBound === '1') {
+            return;
+        }
+
+        const eventName = (element.tagName === 'SELECT' || element.type === 'checkbox') ? 'change' : 'input';
+        element.addEventListener(eventName, () => vbRenderCoverLivePreview());
+        if (eventName !== 'change') {
+            element.addEventListener('change', () => vbRenderCoverLivePreview());
+        }
+        element.dataset.previewBound = '1';
+    });
+}
+
+function vbRenderCoverLivePreview() {
+    const container = document.getElementById('vbCoverLivePreview');
+    if (!container) return;
+
+    const enabled = vbIsCoverEnabled();
+    if (!enabled) {
+        container.className = 'vb-cover-live-preview-empty';
+        container.style.cssText = '';
+        container.textContent = 'Enable cover page to preview.';
+        return;
+    }
+
+    const includeReportName = document.getElementById('vbCoverIncludeReportName')?.checked !== false;
+    const typedCoverTitle = (document.getElementById('vbCoverTitle')?.value || '').trim();
+    const title = typedCoverTitle || (includeReportName ? vbCleanReportNameForCover(vbResolveCoverReportNameFallback()) : '');
+    const subtitle = (document.getElementById('vbCoverSubtitle')?.value || '').trim();
+    const author = (document.getElementById('vbCoverAuthor')?.value || '').trim();
+    const alignment = (document.getElementById('vbCoverAlignment')?.value || 'Center').trim();
+    const titleSize = vbReadIntegerInput('vbCoverTitleSize', 30, 12, 72);
+    const subtitleSize = vbReadIntegerInput('vbCoverSubtitleSize', 16, 10, 48);
+    const showDate = document.getElementById('vbCoverShowDate')?.checked === true;
+    const datePattern = (document.getElementById('vbCoverDatePattern')?.value || 'dd/MM/yyyy').trim();
+    const showAccent = document.getElementById('vbCoverAccentEnabled')?.checked === true;
+    const showShape = document.getElementById('vbCoverBackgroundShapeEnabled')?.checked === true;
+    const logoData = (document.getElementById('vbCoverLogoData')?.value || '').trim();
+    const coverPageFileData = (document.getElementById('vbCoverPageFileData')?.value || '').trim();
+    const fullA4Scale = document.getElementById('vbCoverPreviewA4Scale')?.checked === true;
+    const isLandscape = VB.orientation === 'landscape';
+    const pageWidth = isLandscape ? 842 : 595;
+    const pageHeight = isLandscape ? 595 : 842;
+
+    const palette = vbResolveCoverThemePalette(document.getElementById('vbCoverTheme')?.value || 'classicBlue');
+
+    let alignCss = 'center';
+    if (alignment === 'Left') {
+        alignCss = 'left';
+    } else if (alignment === 'Right') {
+        alignCss = 'right';
+    }
+
+    const escape = (value) => vbEscapeHtml(String(value || ''));
+    const dateValue = showDate ? vbFormatPreviewDate(datePattern) : '';
+    const previewClassName = fullA4Scale
+        ? 'vb-cover-live-preview vb-cover-live-preview-a4'
+        : 'vb-cover-live-preview';
+    const previewStyle = fullA4Scale
+        ? `width:${pageWidth}px;min-height:${pageHeight}px;height:${pageHeight}px;padding:${Math.max(18, Math.round(pageHeight * 0.045))}px;`
+        : '';
+    const contentMinHeight = fullA4Scale ? Math.max(280, pageHeight - 96) : 224;
+
+    container.className = previewClassName;
+    container.style.cssText = previewStyle;
+    container.innerHTML = `
+        ${coverPageFileData ? `<img class="vb-cover-live-preview-shape" style="object-fit:cover;width:100%;height:100%;" src="${coverPageFileData}" alt="Cover page background">` : ''}
+        ${showShape ? `<div class="vb-cover-live-preview-shape" style="background:${palette.backgroundColor};"></div>` : ''}
+        <div class="vb-cover-live-preview-content" style="text-align:${alignCss};align-items:${alignCss === 'left' ? 'flex-start' : (alignCss === 'right' ? 'flex-end' : 'center')};min-height:${contentMinHeight}px;">
+            ${logoData ? `<img class="vb-cover-live-preview-logo" src="${logoData}" alt="Cover logo">` : ''}
+            ${title ? `<p class="vb-cover-live-preview-title" style="font-size:${titleSize}px;color:${palette.titleColor};">${escape(title)}</p>` : ''}
+            ${subtitle ? `<p class="vb-cover-live-preview-subtitle" style="font-size:${subtitleSize}px;color:${palette.subtitleColor};">${escape(subtitle)}</p>` : ''}
+            ${author ? `<p class="vb-cover-live-preview-meta" style="font-size:12px;color:${palette.metaColor};">${escape(author)}</p>` : ''}
+            ${dateValue ? `<p class="vb-cover-live-preview-date" style="font-size:12px;color:${palette.metaColor};">${escape(dateValue)}</p>` : ''}
+            ${showAccent ? `<div class="vb-cover-live-preview-accent" style="background:${palette.accentColor};"></div>` : ''}
+        </div>
+    `;
+}
+
+function vbGetBuiltInCoverPresets(reportName) {
+    const safeReportName = vbCleanReportNameForCover(reportName);
+    return {
+        corporate: {
+            title: `${safeReportName}`,
+            subtitle: 'Confidential Business Report',
+            author: 'Prepared by Business Intelligence Department',
+            alignment: 'Left',
+            theme: 'classicBlue',
+            titleSize: 34,
+            subtitleSize: 15,
+            showDate: true,
+            includeReportName: true,
+            datePattern: 'MMMM yyyy',
+            accentEnabled: true,
+            backgroundShapeEnabled: true
+        },
+        minimal: {
+            title: `${safeReportName}`,
+            subtitle: 'Summary and key figures',
+            author: '',
+            alignment: 'Center',
+            theme: 'charcoal',
+            titleSize: 28,
+            subtitleSize: 14,
+            showDate: true,
+            includeReportName: true,
+            datePattern: 'dd/MM/yyyy',
+            accentEnabled: false,
+            backgroundShapeEnabled: false
+        },
+        executive: {
+            title: `${safeReportName}`,
+            subtitle: 'Executive Performance Overview',
+            author: 'Executive Office',
+            alignment: 'Center',
+            theme: 'midnightGold',
+            titleSize: 40,
+            subtitleSize: 18,
+            showDate: true,
+            includeReportName: true,
+            datePattern: 'MMMM dd, yyyy',
+            accentEnabled: true,
+            backgroundShapeEnabled: true
+        }
+    };
+}
+
+function vbLoadCoverPresetsFromStorage() {
+    try {
+        const raw = window.localStorage.getItem(VB_COVER_PRESET_STORAGE_KEY);
+        if (!raw) {
+            return {};
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return {};
+        }
+        return parsed;
+    } catch (error) {
+        return {};
+    }
+}
+
+function vbPersistCoverPresetsToStorage(presets) {
+    try {
+        window.localStorage.setItem(VB_COVER_PRESET_STORAGE_KEY, JSON.stringify(presets));
+        return true;
+    } catch (error) {
+        if (typeof showMessage === 'function') {
+            showMessage('Unable to save template in browser storage.', 'error');
+        }
+        return false;
+    }
+}
+
+function vbRefreshCoverPresetOptions(preferredValue = null) {
+    const select = document.getElementById('vbCoverPreset');
+    if (!select) return;
+
+    const desiredValue = preferredValue || select.value || 'custom';
+    const customPresets = vbLoadCoverPresetsFromStorage();
+    const customNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
+
+    select.innerHTML = `
+        <option value="custom">Custom</option>
+        <option value="corporate">Corporate</option>
+        <option value="minimal">Minimal</option>
+        <option value="executive">Executive</option>
+    `;
+
+    customNames.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = `saved:${name}`;
+        option.textContent = `My Template: ${name}`;
+        select.appendChild(option);
+    });
+
+    const hasDesiredValue = Array.from(select.options).some((option) => option.value === desiredValue);
+    select.value = hasDesiredValue ? desiredValue : 'custom';
+}
+
+function vbBuildCoverPresetConfigFromInputs(includeLogo = true) {
+    return {
+        title: (document.getElementById('vbCoverTitle')?.value || '').trim(),
+        subtitle: (document.getElementById('vbCoverSubtitle')?.value || '').trim(),
+        author: (document.getElementById('vbCoverAuthor')?.value || '').trim(),
+        alignment: (document.getElementById('vbCoverAlignment')?.value || 'Center').trim(),
+        theme: (document.getElementById('vbCoverTheme')?.value || 'classicBlue').trim(),
+        titleSize: vbReadIntegerInput('vbCoverTitleSize', 30, 12, 72),
+        subtitleSize: vbReadIntegerInput('vbCoverSubtitleSize', 16, 10, 48),
+        showDate: document.getElementById('vbCoverShowDate')?.checked === true,
+        includeReportName: document.getElementById('vbCoverIncludeReportName')?.checked !== false,
+        datePattern: (document.getElementById('vbCoverDatePattern')?.value || 'dd/MM/yyyy').trim(),
+        accentEnabled: document.getElementById('vbCoverAccentEnabled')?.checked === true,
+        backgroundShapeEnabled: document.getElementById('vbCoverBackgroundShapeEnabled')?.checked === true,
+        logoData: includeLogo ? (document.getElementById('vbCoverLogoData')?.value || '').trim() : '',
+        coverPageFileData: includeLogo ? (document.getElementById('vbCoverPageFileData')?.value || '').trim() : ''
+    };
+}
+
+function vbApplyCoverPresetConfig(config) {
+    if (!config || typeof config !== 'object') {
+        return;
+    }
+
+    vbSetInputValue('vbCoverTitle', config.title || '');
+    vbSetInputValue('vbCoverSubtitle', config.subtitle || '');
+    vbSetInputValue('vbCoverAuthor', config.author || '');
+    vbSetInputValue('vbCoverAlignment', config.alignment || 'Center');
+    vbSetInputValue('vbCoverTheme', config.theme || 'classicBlue');
+    vbSetInputValue('vbCoverTitleSize', String(config.titleSize ?? 30));
+    vbSetInputValue('vbCoverSubtitleSize', String(config.subtitleSize ?? 16));
+    vbSetInputChecked('vbCoverShowDate', config.showDate !== false);
+    vbSetInputChecked('vbCoverIncludeReportName', config.includeReportName !== false);
+    vbSetInputValue('vbCoverDatePattern', config.datePattern || 'dd/MM/yyyy');
+    vbSetInputChecked('vbCoverAccentEnabled', config.accentEnabled !== false);
+    vbSetInputChecked('vbCoverBackgroundShapeEnabled', config.backgroundShapeEnabled !== false);
+
+    if (config.logoData) {
+        vbSetInputValue('vbCoverLogoData', config.logoData);
+        const preview = document.getElementById('vbCoverLogoPreview');
+        const status = document.getElementById('vbCoverLogoStatus');
+        if (preview) {
+            preview.style.display = '';
+            preview.innerHTML = `<img src="${config.logoData}" alt="Cover logo preview">`;
+        }
+        if (status) {
+            status.textContent = 'Logo loaded from template';
+        }
+    } else {
+        vbRemoveCoverLogo();
+    }
+
+    if (config.coverPageFileData) {
+        vbSetInputValue('vbCoverPageFileData', config.coverPageFileData);
+        const coverFileStatus = document.getElementById('vbCoverPageFileStatus');
+        if (coverFileStatus) {
+            coverFileStatus.textContent = 'Cover page file loaded from template';
+        }
+    } else {
+        vbRemoveCoverPageFile();
+    }
+
+    vbRenderCoverLivePreview();
+}
+
+function vbSaveCoverPreset() {
+    const nameInput = document.getElementById('vbCoverPresetName');
+    const rawName = String(nameInput?.value || '').trim();
+    const normalizedName = rawName.replace(/\s+/g, ' ').trim();
+
+    if (!normalizedName) {
+        if (typeof showMessage === 'function') {
+            showMessage('Enter a template name first.', 'error');
+        }
+        return;
+    }
+
+    const includeLogo = document.getElementById('vbCoverPresetIncludeLogo')?.checked === true;
+    const customPresets = vbLoadCoverPresetsFromStorage();
+    customPresets[normalizedName] = vbBuildCoverPresetConfigFromInputs(includeLogo);
+
+    if (!vbPersistCoverPresetsToStorage(customPresets)) {
+        return;
+    }
+
+    vbRefreshCoverPresetOptions(`saved:${normalizedName}`);
+    vbRefreshBuilderCoverTemplateSelectors();
+    if (typeof showMessage === 'function') {
+        showMessage(`Template "${normalizedName}" saved.`, 'success');
+    }
+}
+
+function vbDeleteCoverPreset() {
+    const presetSelect = document.getElementById('vbCoverPreset');
+    const selectedValue = presetSelect?.value || '';
+    if (!selectedValue.startsWith('saved:')) {
+        if (typeof showMessage === 'function') {
+            showMessage('Select one of your saved templates to delete.', 'error');
+        }
+        return;
+    }
+
+    const presetName = selectedValue.substring('saved:'.length);
+    const customPresets = vbLoadCoverPresetsFromStorage();
+    if (!Object.prototype.hasOwnProperty.call(customPresets, presetName)) {
+        vbRefreshCoverPresetOptions('custom');
+        vbRefreshBuilderCoverTemplateSelectors();
+        return;
+    }
+
+    delete customPresets[presetName];
+    if (!vbPersistCoverPresetsToStorage(customPresets)) {
+        return;
+    }
+
+    vbRefreshCoverPresetOptions('custom');
+    vbRefreshBuilderCoverTemplateSelectors();
+    if (typeof showMessage === 'function') {
+        showMessage(`Template "${presetName}" deleted.`, 'success');
+    }
+}
+
+function vbDownloadCoverTemplate() {
+    const presetSelect = document.getElementById('vbCoverPreset');
+    const selectedValue = String(presetSelect?.value || 'custom').trim();
+
+    let templateName = 'cover-template';
+    let templateConfig = null;
+
+    if (selectedValue === 'custom') {
+        const customName = String(document.getElementById('vbCoverPresetName')?.value || '').trim();
+        templateName = customName || 'cover-template';
+        templateConfig = vbBuildCoverPresetConfigFromInputs(true);
+    } else if (selectedValue.startsWith('saved:')) {
+        templateName = selectedValue.substring('saved:'.length) || 'cover-template';
+        templateConfig = vbResolveCoverTemplateConfig(selectedValue, 'visual');
+    } else {
+        templateName = selectedValue;
+        templateConfig = vbResolveCoverTemplateConfig(`builtin:${selectedValue}`, 'visual');
+    }
+
+    if (!templateConfig) {
+        if (typeof showMessage === 'function') {
+            showMessage('Unable to export cover template.', 'error');
+        }
+        return;
+    }
+
+    const payload = {
+        name: templateName,
+        exportedAt: new Date().toISOString(),
+        version: 1,
+        config: templateConfig
+    };
+
+    const fileSafeName = templateName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'cover-template';
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${fileSafeName}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+}
+
+function vbImportCoverTemplate(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) {
+        return;
+    }
+
+    const finalizeInput = () => {
+        const input = document.getElementById('vbCoverTemplateImportInput');
+        if (input) {
+            input.value = '';
+        }
+    };
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+        try {
+            const raw = String(loadEvent?.target?.result || '').trim();
+            if (!raw) {
+                throw new Error('Template file is empty.');
+            }
+
+            const parsed = JSON.parse(raw);
+            const importedConfig = (parsed && typeof parsed === 'object' && parsed.config && typeof parsed.config === 'object')
+                ? parsed.config
+                : parsed;
+
+            if (!importedConfig || typeof importedConfig !== 'object' || Array.isArray(importedConfig)) {
+                throw new Error('Invalid template format.');
+            }
+
+            const baseName = String((parsed && parsed.name) || file.name.replace(/\.json$/i, '') || '').trim();
+            const normalizedName = baseName.replace(/\s+/g, ' ').trim();
+            if (!normalizedName) {
+                throw new Error('Template name is missing.');
+            }
+
+            const customPresets = vbLoadCoverPresetsFromStorage();
+            customPresets[normalizedName] = importedConfig;
+            if (!vbPersistCoverPresetsToStorage(customPresets)) {
+                finalizeInput();
+                return;
+            }
+
+            const presetValue = `saved:${normalizedName}`;
+            vbRefreshCoverPresetOptions(presetValue);
+            vbRefreshBuilderCoverTemplateSelectors();
+
+            const coverEnabledCheckbox = document.getElementById('vbEnableCoverPage');
+            if (coverEnabledCheckbox && !coverEnabledCheckbox.checked) {
+                coverEnabledCheckbox.checked = true;
+                vbToggleCoverOptions();
+            }
+
+            vbApplyCoverPresetConfig(importedConfig);
+
+            if (typeof showMessage === 'function') {
+                showMessage(`Template "${normalizedName}" imported.`, 'success');
+            }
+        } catch (error) {
+            if (typeof showMessage === 'function') {
+                showMessage(error.message || 'Unable to import template.', 'error');
+            }
+        } finally {
+            finalizeInput();
+        }
+    };
+
+    reader.onerror = () => {
+        finalizeInput();
+        if (typeof showMessage === 'function') {
+            showMessage('Unable to read template file.', 'error');
+        }
+    };
+
+    reader.readAsText(file);
+}
+
 function vbApplyCoverPreset() {
     const presetSelect = document.getElementById('vbCoverPreset');
     const preset = presetSelect?.value || 'custom';
     if (preset === 'custom') {
+        vbRenderCoverLivePreview();
         return;
     }
 
-    const reportName = vbCleanReportNameForCover(document.getElementById('vbReportName')?.value);
-    const presets = {
-        corporate: {
-            title: `${reportName}`,
-            subtitle: 'Confidential Business Report',
-            author: 'Prepared by Business Intelligence Department',
-            alignment: 'Left',
-            titleSize: 34,
-            subtitleSize: 15,
-            showDate: true,
-            datePattern: 'MMMM yyyy'
-        },
-        minimal: {
-            title: `${reportName}`,
-            subtitle: 'Summary and key figures',
-            author: '',
-            alignment: 'Center',
-            titleSize: 28,
-            subtitleSize: 14,
-            showDate: true,
-            datePattern: 'dd/MM/yyyy'
-        },
-        executive: {
-            title: `${reportName}`,
-            subtitle: 'Executive Performance Overview',
-            author: 'Executive Office',
-            alignment: 'Center',
-            titleSize: 40,
-            subtitleSize: 18,
-            showDate: true,
-            datePattern: 'MMMM dd, yyyy'
-        }
-    };
+    const reportName = vbResolveCoverReportNameFallback();
+    const builtInPresets = vbGetBuiltInCoverPresets(reportName);
+    let selectedPreset = builtInPresets[preset];
 
-    const selectedPreset = presets[preset];
+    if (!selectedPreset && preset.startsWith('saved:')) {
+        const presetName = preset.substring('saved:'.length);
+        const customPresets = vbLoadCoverPresetsFromStorage();
+        selectedPreset = customPresets[presetName] || null;
+    }
+
     if (!selectedPreset) {
         return;
     }
@@ -875,14 +1534,7 @@ function vbApplyCoverPreset() {
         vbToggleCoverOptions();
     }
 
-    vbSetInputValue('vbCoverTitle', selectedPreset.title);
-    vbSetInputValue('vbCoverSubtitle', selectedPreset.subtitle);
-    vbSetInputValue('vbCoverAuthor', selectedPreset.author);
-    vbSetInputValue('vbCoverAlignment', selectedPreset.alignment);
-    vbSetInputValue('vbCoverTitleSize', String(selectedPreset.titleSize));
-    vbSetInputValue('vbCoverSubtitleSize', String(selectedPreset.subtitleSize));
-    vbSetInputChecked('vbCoverShowDate', selectedPreset.showDate);
-    vbSetInputValue('vbCoverDatePattern', selectedPreset.datePattern);
+    vbApplyCoverPresetConfig(selectedPreset);
 }
 
 function vbUploadCoverLogo(event) {
@@ -913,8 +1565,102 @@ function vbUploadCoverLogo(event) {
         if (status) {
             status.textContent = `Logo selected: ${file.name}`;
         }
+
+        vbRenderCoverLivePreview();
     };
     reader.readAsDataURL(file);
+}
+
+function vbIsSupportedCoverFile(file) {
+    if (!file) return false;
+    const mime = String(file.type || '').toLowerCase();
+    const fileName = String(file.name || '').toLowerCase();
+    const hasSupportedExtension = VB_SUPPORTED_COVER_FILE_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+
+    if (!mime) {
+        return hasSupportedExtension;
+    }
+    return VB_SUPPORTED_COVER_FILE_MIME_TYPES.has(mime) || hasSupportedExtension;
+}
+
+function vbUploadCoverPageFile(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    if (!vbIsSupportedCoverFile(file)) {
+        if (typeof showMessage === 'function') {
+            showMessage('Unsupported cover file format. Supported: PDF, PNG, JPG, JPEG, WEBP, GIF, BMP.', 'error');
+        }
+        const input = document.getElementById('vbCoverPageFileInput');
+        if (input) {
+            input.value = '';
+        }
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showLoading('Uploading cover page file...');
+    fetch('/api/builder/upload-cover-file', {
+        method: 'POST',
+        headers: {
+            ...vbGetCsrfHeaders()
+        },
+        body: formData
+    })
+        .then((response) => vbReadJsonResponse(response, 'Unable to upload cover page file'))
+        .then((data) => {
+            hideLoading();
+
+            const coverImageData = String(data?.coverImageData || '');
+            if (!coverImageData) {
+                throw new Error('Server did not return cover image data.');
+            }
+
+            const hiddenInput = document.getElementById('vbCoverPageFileData');
+            const status = document.getElementById('vbCoverPageFileStatus');
+            if (hiddenInput) {
+                hiddenInput.value = coverImageData;
+            }
+            if (status) {
+                status.textContent = data?.convertedFromPdf
+                    ? `Cover page PDF converted: ${file.name}`
+                    : `Cover page file selected: ${file.name}`;
+            }
+
+            vbRenderCoverLivePreview();
+        })
+        .catch((error) => {
+            hideLoading();
+
+            const input = document.getElementById('vbCoverPageFileInput');
+            if (input) {
+                input.value = '';
+            }
+
+            if (typeof showMessage === 'function') {
+                showMessage(error.message || 'Unable to upload cover page file.', 'error');
+            }
+        });
+}
+
+function vbRemoveCoverPageFile() {
+    const hiddenInput = document.getElementById('vbCoverPageFileData');
+    const status = document.getElementById('vbCoverPageFileStatus');
+    const fileInput = document.getElementById('vbCoverPageFileInput');
+
+    if (hiddenInput) {
+        hiddenInput.value = '';
+    }
+    if (status) {
+        status.textContent = 'No cover page file selected';
+    }
+    if (fileInput) {
+        fileInput.value = '';
+    }
+
+    vbRenderCoverLivePreview();
 }
 
 function vbRemoveCoverLogo() {
@@ -936,6 +1682,8 @@ function vbRemoveCoverLogo() {
     if (fileInput) {
         fileInput.value = '';
     }
+
+    vbRenderCoverLivePreview();
 }
 
 function vbReadIntegerInput(id, fallbackValue, minValue, maxValue) {
@@ -966,7 +1714,8 @@ function vbClear() {
 function vbGenerate() {
     const reportNameInput = document.getElementById('vbReportName');
     const reportName = (reportNameInput?.value || 'Report').trim();
-    const coverPageEnabled = document.getElementById('vbEnableCoverPage')?.checked === true;
+    const sharedCoverOptions = vbBuildSharedCoverOptions('visual');
+    const coverPageEnabled = sharedCoverOptions.coverPageEnabled === true;
 
     if (VB.elements.length === 0 && !coverPageEnabled) {
         if (typeof showMessage === 'function') {
@@ -988,16 +1737,7 @@ function vbGenerate() {
 
     const reportOptions = {
         headerFirstPageOnly: document.getElementById('vbHeaderFirstPageOnly')?.checked === true,
-        coverPageEnabled,
-        coverTitle: (document.getElementById('vbCoverTitle')?.value || '').trim(),
-        coverSubtitle: (document.getElementById('vbCoverSubtitle')?.value || '').trim(),
-        coverAuthor: (document.getElementById('vbCoverAuthor')?.value || '').trim(),
-        coverDateEnabled: document.getElementById('vbCoverShowDate')?.checked === true,
-        coverDatePattern: (document.getElementById('vbCoverDatePattern')?.value || 'dd/MM/yyyy').trim(),
-        coverAlignment: (document.getElementById('vbCoverAlignment')?.value || 'Center').trim(),
-        coverTitleSize: vbReadIntegerInput('vbCoverTitleSize', 30, 12, 72),
-        coverSubtitleSize: vbReadIntegerInput('vbCoverSubtitleSize', 16, 10, 48),
-        coverLogoData: (document.getElementById('vbCoverLogoData')?.value || '').trim()
+        ...sharedCoverOptions,
     };
 
     const designData = {
@@ -1036,10 +1776,47 @@ function vbGenerate() {
         });
 }
 
+function vbBuildSharedCoverOptions(target = 'visual') {
+    const templateValue = String(vbGetCoverTemplateSelect(target)?.value || '').trim();
+    const selectedTemplate = vbResolveCoverTemplateConfig(templateValue, target);
+
+    if (!selectedTemplate) {
+        return { coverPageEnabled: false };
+    }
+
+    return {
+        coverPageEnabled: true,
+        coverTitle: String(selectedTemplate.title || '').trim(),
+        coverSubtitle: String(selectedTemplate.subtitle || '').trim(),
+        coverAuthor: String(selectedTemplate.author || '').trim(),
+        coverDateEnabled: selectedTemplate.showDate !== false,
+        coverIncludeReportName: selectedTemplate.includeReportName !== false,
+        coverDatePattern: String(selectedTemplate.datePattern || 'dd/MM/yyyy').trim(),
+        coverAlignment: String(selectedTemplate.alignment || 'Center').trim(),
+        coverTheme: String(selectedTemplate.theme || 'classicBlue').trim(),
+        coverAccentEnabled: selectedTemplate.accentEnabled !== false,
+        coverBackgroundShapeEnabled: selectedTemplate.backgroundShapeEnabled !== false,
+        coverTitleSize: Number.isFinite(Number(selectedTemplate.titleSize))
+            ? Math.max(12, Math.min(72, Number.parseInt(selectedTemplate.titleSize, 10)))
+            : 30,
+        coverSubtitleSize: Number.isFinite(Number(selectedTemplate.subtitleSize))
+            ? Math.max(10, Math.min(48, Number.parseInt(selectedTemplate.subtitleSize, 10)))
+            : 16,
+        coverLogoData: String(selectedTemplate.logoData || '').trim(),
+        coverPageFileData: String(selectedTemplate.coverPageFileData || '').trim()
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         VB.init();
+        vbRefreshCoverPresetOptions('custom');
+        vbRefreshBuilderCoverTemplateSelectors();
         vbToggleCoverOptions();
+        vbBindCoverPreviewEvents();
+        vbHandleCoverTemplateSelectionChange('visual');
+        vbHandleCoverTemplateSelectionChange('form');
+        vbRenderCoverLivePreview();
     }, 200);
 });
 

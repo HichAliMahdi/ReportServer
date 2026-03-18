@@ -3,6 +3,44 @@
         // Store current query results for export
         let currentQueryResults = null;
 
+        function getQueryTesterHeaders(additionalHeaders = {}) {
+            if (typeof getHeadersWithCSRF === 'function') {
+                return getHeadersWithCSRF(additionalHeaders);
+            }
+
+            const headers = { ...additionalHeaders };
+            const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const headerName = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+            if (token && headerName) {
+                headers[headerName] = token;
+            }
+            return headers;
+        }
+
+        async function readQueryTesterResponse(response, fallbackMessage) {
+            const rawText = await response.text();
+            let payload = null;
+
+            if (rawText) {
+                try {
+                    payload = JSON.parse(rawText);
+                } catch (error) {
+                    payload = null;
+                }
+            }
+
+            if (!response.ok) {
+                const message = payload?.message || payload?.error || fallbackMessage || 'Query execution failed';
+                throw new Error(message);
+            }
+
+            if (!payload || typeof payload !== 'object') {
+                throw new Error('Unexpected server response while executing query');
+            }
+
+            return payload;
+        }
+
         function openQueryTesterModal(datasourceId, datasourceName) {
             document.getElementById('queryTesterDatasourceId').value = datasourceId;
             document.getElementById('queryTesterDatasourceName').value = datasourceName;
@@ -23,7 +61,7 @@
             document.getElementById('queryTesterModal').style.display = 'none';
         }
 
-        function executeQueryFromModal() {
+        async function executeQueryFromModal() {
             const datasourceId = document.getElementById('queryTesterDatasourceId').value;
             const query = document.getElementById('modalSqlQuery').value.trim();
             const maxRows = parseInt(document.getElementById('modalMaxRows').value) || 1000;
@@ -50,32 +88,35 @@
             document.getElementById('modalQueryError').style.borderColor = '#bee5eb';
             document.getElementById('modalQueryError').style.display = 'block';
 
-            // Execute query
-            fetch('/api/datasources/' + datasourceId + '/query', {
-                method: 'POST',
-                headers: getQueryTesterHeaders({
-                    'Content-Type': 'application/json'
-                }),
-                body: JSON.stringify({ query: query, maxRows: String(maxRows) })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Query execution failed');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            try {
+                const response = await fetch('/api/datasources/' + datasourceId + '/query', {
+                    method: 'POST',
+                    headers: getQueryTesterHeaders({
+                        'Content-Type': 'application/json'
+                    }),
+                    body: JSON.stringify({ query: query, maxRows: String(maxRows) }),
+                    signal: controller.signal
+                });
+
+                const data = await readQueryTesterResponse(response, 'Query execution failed');
+
                 // Hide loading message
                 document.getElementById('modalQueryError').style.display = 'none';
 
                 // Display results
                 displayModalQueryResults(data);
-            })
-            .catch(error => {
+            } catch (error) {
+                if (error?.name === 'AbortError') {
+                    showModalQueryError('Query timed out after 30 seconds. Please simplify the query or verify datasource connectivity.');
+                    return;
+                }
                 showModalQueryError(error.message || 'Failed to execute query');
-            });
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
         function displayModalQueryResults(data) {

@@ -23,19 +23,51 @@
         function switchBuilderMode(mode) {
             const formSection = document.getElementById('formBuilderSection');
             const visualSection = document.getElementById('visualBuilderSection');
+            const coverSection = document.getElementById('coverBuilderSection');
             const formBtn = document.getElementById('formBuilderBtn');
             const visualBtn = document.getElementById('visualBuilderBtn');
+            const coverBtn = document.getElementById('coverBuilderBtn');
 
             if (mode === 'form') {
                 formSection.style.display = 'block';
                 visualSection.style.display = 'none';
+                if (coverSection) {
+                    coverSection.style.display = 'none';
+                }
                 formBtn.style.background = '#667eea';
                 visualBtn.style.background = '#6c757d';
+                if (coverBtn) {
+                    coverBtn.style.background = '#6c757d';
+                }
+            } else if (mode === 'cover') {
+                formSection.style.display = 'none';
+                visualSection.style.display = 'none';
+                if (coverSection) {
+                    coverSection.style.display = 'block';
+                }
+                formBtn.style.background = '#6c757d';
+                visualBtn.style.background = '#6c757d';
+                if (coverBtn) {
+                    coverBtn.style.background = '#667eea';
+                }
+
+                if (typeof vbToggleCoverOptions === 'function') {
+                    vbToggleCoverOptions();
+                }
+                if (typeof vbRenderCoverLivePreview === 'function') {
+                    vbRenderCoverLivePreview();
+                }
             } else {
                 formSection.style.display = 'none';
                 visualSection.style.display = 'block';
+                if (coverSection) {
+                    coverSection.style.display = 'none';
+                }
                 formBtn.style.background = '#6c757d';
                 visualBtn.style.background = '#667eea';
+                if (coverBtn) {
+                    coverBtn.style.background = '#6c757d';
+                }
                 // Initialize visual builder
                 setTimeout(() => VB.init(), 100);
             }
