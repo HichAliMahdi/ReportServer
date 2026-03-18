@@ -327,14 +327,87 @@
                             <option value="">Select Datasource</option>
                         </select>
 
-                        <select id="vbBandSelect" class="vb-select" onchange="vbChangeBand()">
-                            <option value="title">Title Band</option>
-                            <option value="detail" selected>Detail Band</option>
-                            <option value="footer">Footer Band</option>
+                        <select id="vbOrientationSelect" class="vb-select" onchange="vbChangeOrientation()">
+                            <option value="portrait" selected>Portrait</option>
+                            <option value="landscape">Landscape</option>
                         </select>
 
-                        <button type="button" class="btn vb-btn-secondary" onclick="vbClear()">Clear Band</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="vbClear()">Clear Canvas</button>
                         <button type="button" class="btn" onclick="vbGenerate()">Generate JRXML</button>
+                    </div>
+
+                    <div class="vb-toolbar-options">
+                        <label class="vb-inline-check" title="When enabled, elements in the header zone print only on page 1.">
+                            <input type="checkbox" id="vbHeaderFirstPageOnly" />
+                            Header only on first page
+                        </label>
+
+                        <label class="vb-inline-check" title="Insert a dedicated cover page before the report data.">
+                            <input type="checkbox" id="vbEnableCoverPage" onchange="vbToggleCoverOptions()" />
+                            Add cover page
+                        </label>
+                    </div>
+
+                    <div id="vbCoverEditor" class="vb-cover-editor" style="display: none;">
+                        <div class="vb-cover-editor-title">Cover Page Editor</div>
+
+                        <div class="vb-cover-grid">
+                            <div class="vb-prop-field">
+                                <label for="vbCoverTitle">Cover Title</label>
+                                <input type="text" id="vbCoverTitle" class="vb-input vb-cover-input" placeholder="Quarterly Sales Report" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverSubtitle">Cover Subtitle</label>
+                                <input type="text" id="vbCoverSubtitle" class="vb-input vb-cover-input" placeholder="Region, period, and KPI focus" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverAuthor">Author / Department</label>
+                                <input type="text" id="vbCoverAuthor" class="vb-input vb-cover-input" placeholder="Prepared by BI Team" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverAlignment">Text Alignment</label>
+                                <select id="vbCoverAlignment" class="vb-select">
+                                    <option value="Center" selected>Center</option>
+                                    <option value="Left">Left</option>
+                                    <option value="Right">Right</option>
+                                </select>
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverTitleSize">Title Size</label>
+                                <input type="number" id="vbCoverTitleSize" class="vb-input" min="12" max="72" value="30" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverSubtitleSize">Subtitle Size</label>
+                                <input type="number" id="vbCoverSubtitleSize" class="vb-input" min="10" max="48" value="16" />
+                            </div>
+
+                            <div class="vb-prop-field">
+                                <label for="vbCoverDatePattern">Date Format</label>
+                                <input type="text" id="vbCoverDatePattern" class="vb-input" value="dd/MM/yyyy" placeholder="dd/MM/yyyy" />
+                            </div>
+
+                            <div class="vb-prop-field vb-cover-check-row">
+                                <label class="vb-inline-check" title="Show generation date on the cover page.">
+                                    <input type="checkbox" id="vbCoverShowDate" checked />
+                                    Show Date
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="vb-cover-logo-row">
+                            <input type="hidden" id="vbCoverLogoData" />
+                            <input type="file" id="vbCoverLogoInput" accept="image/*" style="display: none;" onchange="vbUploadCoverLogo(event)" />
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverLogoInput').click()">Upload Cover Logo</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverLogo()">Remove Cover Logo</button>
+                            <span id="vbCoverLogoStatus" class="vb-cover-logo-status">No logo selected</span>
+                        </div>
+
+                        <div id="vbCoverLogoPreview" class="vb-cover-logo-preview" style="display: none;"></div>
                     </div>
 
                     <div class="vb-studio-layout">
@@ -367,13 +440,13 @@
                         <section class="vb-workspace">
                             <div class="vb-workspace-header">
                                 <span>Canvas</span>
-                                <span class="vb-workspace-band-label" id="vbBandStatus">Band: Detail</span>
+                                <span class="vb-workspace-band-label" id="vbCanvasStatus">Orientation: Portrait · Zones: Header / Body / Footer</span>
                             </div>
 
                             <div id="vbCanvas" class="vb-canvas-surface">
                                 <div id="vbPlaceholder" class="vb-placeholder">
                                     <p class="vb-placeholder-title">Drop Components Here</p>
-                                    <p class="vb-placeholder-subtitle">Drag from palette or click an element to insert it in the active band.</p>
+                                    <p class="vb-placeholder-subtitle">Drag from palette or click an element to insert it into Header, Body, or Footer.</p>
                                 </div>
                             </div>
                         </section>

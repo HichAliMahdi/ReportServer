@@ -45,7 +45,7 @@ public class SecurityConfig {
     @Value("${reportserver.security.require-https:false}")
     private boolean requireHttps;
 
-    @Value("${reportserver.security.csp:default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'}")
+    @Value("${reportserver.security.csp:default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'}")
     private String cspPolicy;
     
     @Bean

@@ -7,7 +7,7 @@
     --vb-accent-strong: #16497f;
     --vb-text: #1d2733;
     --vb-muted: #5d6a79;
-    --vb-canvas-grid: rgba(31, 95, 167, 0.08);
+    --vb-canvas-grid: rgba(31, 95, 167, 0.16);
 }
 
 .vb-studio-card {
@@ -40,6 +40,89 @@
     grid-template-columns: 1.3fr 1fr auto auto auto;
     gap: 10px;
     margin-bottom: 14px;
+}
+
+.vb-toolbar-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin: -4px 0 14px;
+    align-items: center;
+}
+
+.vb-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #304255;
+    background: #f6f9fd;
+    border: 1px solid #d2dce9;
+    border-radius: 20px;
+    padding: 6px 10px;
+}
+
+.vb-cover-input {
+    min-width: 220px;
+}
+
+.vb-cover-editor {
+    border: 1px solid #cfd9e6;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 10px;
+    margin: -6px 0 14px;
+}
+
+.vb-cover-editor-title {
+    margin: 0 0 8px;
+    color: #22384f;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.vb-cover-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 8px 10px;
+}
+
+.vb-cover-check-row {
+    display: flex;
+    align-items: flex-end;
+}
+
+.vb-cover-logo-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.vb-cover-logo-status {
+    font-size: 12px;
+    color: #44566b;
+}
+
+.vb-cover-logo-preview {
+    margin-top: 8px;
+    border: 1px dashed #b9c9dc;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 8px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vb-cover-logo-preview img {
+    max-height: 80px;
+    max-width: 240px;
+    object-fit: contain;
 }
 
 .vb-input,
@@ -168,10 +251,58 @@
     border-radius: 8px;
     background-color: #fff;
     background-image:
-        linear-gradient(0deg, transparent 24%, var(--vb-canvas-grid) 25%, var(--vb-canvas-grid) 26%, transparent 27%, transparent 74%, var(--vb-canvas-grid) 75%, var(--vb-canvas-grid) 76%, transparent 77%, transparent),
-        linear-gradient(90deg, transparent 24%, var(--vb-canvas-grid) 25%, var(--vb-canvas-grid) 26%, transparent 27%, transparent 74%, var(--vb-canvas-grid) 75%, var(--vb-canvas-grid) 76%, transparent 77%, transparent);
+        repeating-linear-gradient(0deg, transparent 0, transparent 19px, var(--vb-canvas-grid) 19px, var(--vb-canvas-grid) 20px),
+        repeating-linear-gradient(90deg, transparent 0, transparent 19px, var(--vb-canvas-grid) 19px, var(--vb-canvas-grid) 20px);
     background-size: 20px 20px;
     box-shadow: inset 0 0 0 1px #eef3f8;
+}
+
+.vb-canvas-surface.vb-portrait {
+    min-height: 960px;
+}
+
+.vb-canvas-surface.vb-landscape {
+    min-height: 700px;
+}
+
+.vb-band-guide {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    border: 2px dashed rgba(31, 95, 167, 0.35);
+    border-radius: 8px;
+    background: transparent;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.vb-band-title {
+    border-color: rgba(33, 150, 243, 0.5);
+    background: transparent;
+}
+
+.vb-band-detail {
+    border-color: rgba(102, 126, 234, 0.45);
+    background: transparent;
+}
+
+.vb-band-footer {
+    border-color: rgba(118, 75, 162, 0.5);
+    background: transparent;
+}
+
+.vb-band-guide-label {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #34506d;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
 }
 
 .vb-canvas-surface.vb-drag-active {
@@ -188,6 +319,7 @@
     color: #6f7e8d;
     pointer-events: none;
     max-width: 280px;
+    z-index: 3;
 }
 
 .vb-placeholder-title {
@@ -212,6 +344,7 @@
     box-sizing: border-box;
     user-select: none;
     transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    z-index: 2;
 }
 
 .vb-element:hover {
@@ -409,6 +542,14 @@
         grid-template-columns: 1fr 1fr;
     }
 
+    .vb-cover-input {
+        min-width: 180px;
+    }
+
+    .vb-cover-grid {
+        grid-template-columns: repeat(2, minmax(130px, 1fr));
+    }
+
     .vb-studio-layout {
         grid-template-columns: 1fr;
         min-height: auto;
@@ -421,5 +562,11 @@
 
     .vb-canvas-surface {
         min-height: 520px;
+    }
+}
+
+@media (max-width: 740px) {
+    .vb-cover-grid {
+        grid-template-columns: 1fr;
     }
 }

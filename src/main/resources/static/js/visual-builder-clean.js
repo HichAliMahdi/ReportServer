@@ -5,41 +5,148 @@ const VB = {
     elements: [],
     selectedId: null,
     nextId: 1,
-    currentBand: 'detail',
+    orientation: 'portrait',
     dragState: null,
     datasourceId: null,
     availableTables: [],
     tableColumns: {},
     tableColumnDetails: {},
+    initialized: false,
 
     init() {
+        if (this.initialized) {
+            this.loadDatasources();
+            this.applyOrientation();
+            this.render();
+            return;
+        }
+
         this.canvas = document.getElementById('vbCanvas');
         if (!this.canvas) {
             console.error('Canvas not found!');
             return;
         }
-        console.log('Visual Builder initialized');
+
+        // Hint password-manager overlays to ignore the visual canvas subtree.
+        this.canvas.setAttribute('data-bwignore', 'true');
+        this.canvas.setAttribute('data-1p-ignore', 'true');
+        this.canvas.setAttribute('data-lpignore', 'true');
+
+        const studioSection = document.getElementById('visualBuilderSection');
+        if (studioSection) {
+            studioSection.setAttribute('data-bwignore', 'true');
+            studioSection.setAttribute('data-1p-ignore', 'true');
+            studioSection.setAttribute('data-lpignore', 'true');
+        }
+
         this.setupCanvasDragDrop();
         this.loadDatasources();
-        this.updateBandStatus();
+        this.applyOrientation();
         this.render();
+        this.initialized = true;
     },
 
-    loadDatasources() {
+    getCanvasLayout() {
+        const isLandscape = this.orientation === 'landscape';
+        const totalHeight = isLandscape ? 700 : 960;
+        const headerHeight = Math.round(totalHeight * 0.18);
+        const footerHeight = Math.round(totalHeight * 0.16);
+        const bodyHeight = totalHeight - headerHeight - footerHeight;
+
+        return {
+            totalHeight,
+            headerHeight,
+            bodyHeight,
+            footerHeight,
+            bodyTop: headerHeight,
+            footerTop: headerHeight + bodyHeight
+        };
+    },
+
+    getDefaultYForBand(band) {
+        const layout = this.getCanvasLayout();
+        if (band === 'title' || band === 'pageHeader') return 20;
+        if (band === 'footer' || band === 'pageFooter') return layout.footerTop + 20;
+        return layout.bodyTop + 20;
+    },
+
+    resolveBandFromY(y) {
+        const layout = this.getCanvasLayout();
+        if (y < layout.bodyTop) return 'pageHeader';
+        if (y >= layout.footerTop) return 'pageFooter';
+        return 'detail';
+    },
+
+    normalizeElementPosition(element) {
+        if (!this.canvas || !element) return;
+
+        const layout = this.getCanvasLayout();
+        const maxX = Math.max(0, this.canvas.clientWidth - element.width - 10);
+        const maxY = Math.max(0, layout.totalHeight - element.height);
+
+        element.x = Math.min(maxX, Math.max(0, element.x));
+        element.y = Math.min(maxY, Math.max(0, element.y));
+        element.band = this.resolveBandFromY(element.y);
+    },
+
+    applyOrientation() {
+        if (!this.canvas) return;
+
+        const layout = this.getCanvasLayout();
+        this.canvas.classList.toggle('vb-landscape', this.orientation === 'landscape');
+        this.canvas.classList.toggle('vb-portrait', this.orientation !== 'landscape');
+        this.canvas.style.minHeight = `${layout.totalHeight}px`;
+        this.updateCanvasStatus();
+    },
+
+    updateCanvasStatus() {
+        const label = document.getElementById('vbCanvasStatus');
+        if (!label) return;
+        const orientationLabel = this.orientation === 'landscape' ? 'Landscape' : 'Portrait';
+        const nextStatus = `Orientation: ${orientationLabel} · Zones: Header / Body / Footer`;
+        if (label.textContent !== nextStatus) {
+            label.textContent = nextStatus;
+        }
+    },
+
+    loadDatasources(preferredDatasourceId = null) {
+        const select = document.getElementById('vbDatasourceSelect');
+        if (!select) return;
+
+        const desiredSelection = preferredDatasourceId != null
+            ? String(preferredDatasourceId)
+            : (select.value || (this.datasourceId != null ? String(this.datasourceId) : ''));
+
         fetch('/api/datasources')
             .then(response => response.json())
             .then(datasources => {
-                const select = document.getElementById('vbDatasourceSelect');
                 select.innerHTML = '<option value="">Select Datasource</option>';
-                
-                datasources.forEach(ds => {
-                    if (ds.type === 'JDBC') { // Only show JDBC datasources for table browsing
-                        const option = document.createElement('option');
-                        option.value = ds.id;
-                        option.textContent = `${ds.name} (${ds.type})`;
-                        select.appendChild(option);
-                    }
+
+                const jdbcDatasources = datasources.filter(ds => ds.type === 'JDBC');
+                jdbcDatasources.forEach(ds => {
+                    const option = document.createElement('option');
+                    option.value = ds.id;
+                    option.textContent = `${ds.name} (${ds.type})`;
+                    select.appendChild(option);
                 });
+
+                const hasDesiredSelection = desiredSelection
+                    && jdbcDatasources.some(ds => String(ds.id) === desiredSelection);
+
+                if (hasDesiredSelection) {
+                    select.value = desiredSelection;
+                    this.datasourceId = parseInt(desiredSelection, 10);
+                    vbLoadTables();
+                } else {
+                    select.value = '';
+                    this.datasourceId = null;
+                    this.availableTables = [];
+
+                    const tablesList = document.getElementById('vbTablesList');
+                    if (tablesList) {
+                        tablesList.innerHTML = '<div class="vb-table-list-empty">Select a datasource to load tables</div>';
+                    }
+                }
             })
             .catch(error => {
                 console.error('Error loading datasources:', error);
@@ -69,8 +176,6 @@ const VB = {
 
             const elementType = e.dataTransfer.getData('elementType');
             const tableName = e.dataTransfer.getData('tableName');
-            console.log('Dropped element type:', elementType, 'tableName:', tableName);
-
             if (!elementType) {
                 console.error('No elementType in drop data');
                 return;
@@ -83,8 +188,6 @@ const VB = {
             const x = Math.max(10, e.clientX - rect.left + scrollLeft - 60);
             const y = Math.max(10, e.clientY - rect.top + scrollTop - 12);
 
-            console.log('Adding element at position:', x, y);
-            
             if (elementType === 'dbTable' && tableName) {
                 this.addElementAtPosition(elementType, x, y, { tableName });
             } else {
@@ -95,11 +198,12 @@ const VB = {
 
     addElementAtPosition(type, x, y) {
         const id = this.nextId++;
+        const targetBand = this.resolveBandFromY(y);
 
         const baseElement = {
             id,
             type,
-            band: this.currentBand,
+            band: targetBand,
             x,
             y,
             width: 120,
@@ -139,6 +243,7 @@ const VB = {
         }
 
         const element = baseElement;
+        this.normalizeElementPosition(element);
 
         this.elements.push(element);
         this.render();
@@ -148,7 +253,7 @@ const VB = {
     addElement(type) {
         const id = this.nextId++;
         const x = 50 + (id % 3) * 40;
-        const y = 50 + Math.floor(id / 3) * 40;
+        const y = this.getDefaultYForBand('detail') + Math.floor(id / 3) * 30;
 
         this.addElementAtPosition(type, x, y);
     },
@@ -166,19 +271,6 @@ const VB = {
             table: ' '
         };
         return texts[type] || type;
-    },
-
-    updateBandStatus() {
-        const label = document.getElementById('vbBandStatus');
-        if (!label) return;
-
-        const names = {
-            title: 'Title',
-            detail: 'Detail',
-            footer: 'Footer'
-        };
-
-        label.textContent = `Band: ${names[this.currentBand] || this.currentBand}`;
     },
 
     getJustifyContent(hAlign) {
@@ -213,24 +305,26 @@ const VB = {
             return;
         }
 
-        const bandElements = this.elements.filter((el) => el.band === this.currentBand);
         const placeholder = document.getElementById('vbPlaceholder');
 
         const elementDivs = this.canvas.querySelectorAll('.vb-element');
         elementDivs.forEach((div) => div.remove());
 
-        if (bandElements.length === 0) {
+        const oldGuides = this.canvas.querySelectorAll('.vb-band-guide');
+        oldGuides.forEach((guide) => guide.remove());
+        this.renderBandGuides();
+
+        if (this.elements.length === 0) {
             if (placeholder) placeholder.style.display = 'block';
             return;
         }
 
         if (placeholder) placeholder.style.display = 'none';
 
-        console.log('Rendering', bandElements.length, 'elements in band', this.currentBand);
-
-        bandElements.forEach((el) => {
+        this.elements.forEach((el) => {
             const div = document.createElement('div');
             div.className = 'vb-element' + (el.id === this.selectedId ? ' selected' : '');
+            div.setAttribute('data-band', el.band || 'detail');
             div.style.left = el.x + 'px';
             div.style.top = el.y + 'px';
             div.style.width = el.width + 'px';
@@ -311,6 +405,26 @@ const VB = {
         });
     },
 
+    renderBandGuides() {
+        if (!this.canvas) return;
+
+        const layout = this.getCanvasLayout();
+        const zones = [
+            { key: 'title', label: 'Header', top: 0, height: layout.headerHeight },
+            { key: 'detail', label: 'Body', top: layout.bodyTop, height: layout.bodyHeight },
+            { key: 'footer', label: 'Footer', top: layout.footerTop, height: layout.footerHeight }
+        ];
+
+        zones.forEach((zone) => {
+            const guide = document.createElement('div');
+            guide.className = `vb-band-guide vb-band-${zone.key}`;
+            guide.style.top = `${zone.top}px`;
+            guide.style.height = `${zone.height}px`;
+            guide.innerHTML = `<span class="vb-band-guide-label">${zone.label}</span>`;
+            this.canvas.appendChild(guide);
+        });
+    },
+
     startDrag(e, elementId) {
         const element = this.elements.find((el) => el.id === elementId);
         if (!element) return;
@@ -336,20 +450,37 @@ const VB = {
         const deltaX = e.clientX - VB.dragState.startX;
         const deltaY = e.clientY - VB.dragState.startY;
 
-        element.x = Math.max(0, VB.dragState.originalX + deltaX);
-        element.y = Math.max(0, VB.dragState.originalY + deltaY);
+        element.x = VB.dragState.originalX + deltaX;
+        element.y = VB.dragState.originalY + deltaY;
+        VB.normalizeElementPosition(element);
 
-        VB.render();
+        // During drag, update only the moved node to avoid full canvas DOM churn.
+        // This keeps drag smooth and reduces extension mutation side effects.
+        const elementNode = VB.canvas?.querySelector(`.vb-element[data-element-id="${element.id}"]`);
+        if (elementNode) {
+            elementNode.style.left = element.x + 'px';
+            elementNode.style.top = element.y + 'px';
+            elementNode.setAttribute('data-band', element.band || 'detail');
+        } else {
+            VB.render();
+        }
     },
 
     endDrag() {
         VB.dragState = null;
         document.onmousemove = null;
         document.onmouseup = null;
+        VB.updateProperties(true);
     },
 
-    updateProperties() {
+    updateProperties(preserveScroll = false) {
         const panel = document.getElementById('vbPropsPanel');
+        if (!panel) return;
+
+        const previousPanelScroll = preserveScroll ? panel.scrollTop : 0;
+        const previousColumnScroll = preserveScroll
+            ? (document.getElementById('vbColumnSelector')?.scrollTop || 0)
+            : 0;
 
         if (!this.selectedId) {
             panel.innerHTML = '<div class="vb-props-empty">Select an element on the canvas to edit its properties.</div>';
@@ -409,7 +540,7 @@ const VB = {
                     <label class="vb-prop-check"><input type="checkbox" ${el.alternateRows ? 'checked' : ''} onchange="VB.updateElement('alternateRows', this.checked)">Alternate Rows</label>
                     <div class="vb-prop-field">
                         <label>Columns to Display</label>
-                        <div style="max-height: 150px; overflow-y: auto; border: 1px solid #d2dbe6; border-radius: 4px; padding: 5px; font-size: 11px; background: #fff;">
+                        <div id="vbColumnSelector" style="max-height: 150px; overflow-y: auto; border: 1px solid #d2dbe6; border-radius: 4px; padding: 5px; font-size: 11px; background: #fff;">
                             ${el.columns ? el.columns.map((col) => `
                                 <label class="vb-prop-check" style="margin-bottom: 4px;">
                                     <input type="checkbox" ${el.selectedColumns && el.selectedColumns.includes(col) ? 'checked' : ''}
@@ -525,6 +656,14 @@ const VB = {
         `;
 
         panel.innerHTML = html;
+
+        if (preserveScroll) {
+            panel.scrollTop = previousPanelScroll;
+            const nextColumnSelector = document.getElementById('vbColumnSelector');
+            if (nextColumnSelector) {
+                nextColumnSelector.scrollTop = previousColumnScroll;
+            }
+        }
     },
 
     updateElement(property, value) {
@@ -540,8 +679,10 @@ const VB = {
             el[property] = value;
         }
 
+        this.normalizeElementPosition(el);
+
         this.render();
-        this.updateProperties();
+        this.updateProperties(true);
     }
 };
 
@@ -623,7 +764,6 @@ function vbCloseResultModal() {
 }
 
 function vbStartDrag(event, elementType) {
-    console.log('Starting drag for:', elementType);
     event.dataTransfer.effectAllowed = 'copy';
     event.dataTransfer.setData('elementType', elementType);
     event.dataTransfer.setData('text/plain', elementType);
@@ -641,55 +781,150 @@ function vbAddElement(type) {
 }
 
 function vbChangeBand() {
-    const select = document.getElementById('vbBandSelect');
-    VB.currentBand = select.value;
-    VB.updateBandStatus();
-    VB.selectedId = null;
+    // Backward compatibility no-op. Bands are now inferred from Y position
+    // inside Header / Body / Footer zones.
     VB.render();
-    VB.updateProperties();
-    console.log('Band changed to:', VB.currentBand);
+}
+
+function vbChangeOrientation() {
+    const select = document.getElementById('vbOrientationSelect');
+    if (!select) return;
+
+    VB.orientation = select.value === 'landscape' ? 'landscape' : 'portrait';
+    VB.applyOrientation();
+    VB.elements.forEach((el) => VB.normalizeElementPosition(el));
+    VB.render();
+}
+
+function vbToggleCoverOptions() {
+    const enabled = document.getElementById('vbEnableCoverPage')?.checked === true;
+    const coverEditor = document.getElementById('vbCoverEditor');
+
+    if (coverEditor) {
+        coverEditor.style.display = enabled ? '' : 'none';
+    }
+}
+
+function vbUploadCoverLogo(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+        const dataUrl = String(loadEvent?.target?.result || '');
+        if (!dataUrl) {
+            if (typeof showMessage === 'function') {
+                showMessage('Unable to read selected image.', 'error');
+            }
+            return;
+        }
+
+        const hiddenInput = document.getElementById('vbCoverLogoData');
+        const preview = document.getElementById('vbCoverLogoPreview');
+        const status = document.getElementById('vbCoverLogoStatus');
+
+        if (hiddenInput) {
+            hiddenInput.value = dataUrl;
+        }
+        if (preview) {
+            preview.style.display = '';
+            preview.innerHTML = `<img src="${dataUrl}" alt="Cover logo preview">`;
+        }
+        if (status) {
+            status.textContent = `Logo selected: ${file.name}`;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function vbRemoveCoverLogo() {
+    const hiddenInput = document.getElementById('vbCoverLogoData');
+    const preview = document.getElementById('vbCoverLogoPreview');
+    const status = document.getElementById('vbCoverLogoStatus');
+    const fileInput = document.getElementById('vbCoverLogoInput');
+
+    if (hiddenInput) {
+        hiddenInput.value = '';
+    }
+    if (preview) {
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+    }
+    if (status) {
+        status.textContent = 'No logo selected';
+    }
+    if (fileInput) {
+        fileInput.value = '';
+    }
+}
+
+function vbReadIntegerInput(id, fallbackValue, minValue, maxValue) {
+    const raw = document.getElementById(id)?.value;
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed)) {
+        return fallbackValue;
+    }
+    return Math.max(minValue, Math.min(maxValue, parsed));
 }
 
 function vbClear() {
-    const clearBand = () => {
-        VB.elements = VB.elements.filter((el) => el.band !== VB.currentBand);
+    const clearCanvas = () => {
+        VB.elements = [];
         VB.selectedId = null;
         VB.render();
         VB.updateProperties();
     };
 
     if (typeof showConfirmationModal === 'function') {
-        showConfirmationModal('Clear all elements from the current band?', clearBand);
+        showConfirmationModal('Clear all elements from the canvas?', clearCanvas);
         return;
     }
 
-    clearBand();
+    clearCanvas();
 }
 
 function vbGenerate() {
     const reportNameInput = document.getElementById('vbReportName');
     const reportName = (reportNameInput?.value || 'Report').trim();
+    const coverPageEnabled = document.getElementById('vbEnableCoverPage')?.checked === true;
 
-    if (VB.elements.length === 0) {
+    if (VB.elements.length === 0 && !coverPageEnabled) {
         if (typeof showMessage === 'function') {
-            showMessage('Add some elements to the canvas first.', 'error');
+            showMessage('Add elements to the canvas or enable a cover page first.', 'error');
         }
         return;
     }
 
+    const isLandscape = VB.orientation === 'landscape';
     const pageSettings = {
-        width: 595,
-        height: 842,
+        width: isLandscape ? 842 : 595,
+        height: isLandscape ? 595 : 842,
         leftMargin: 20,
         rightMargin: 20,
         topMargin: 20,
-        bottomMargin: 20
+        bottomMargin: 20,
+        orientation: isLandscape ? 'Landscape' : 'Portrait'
+    };
+
+    const reportOptions = {
+        headerFirstPageOnly: document.getElementById('vbHeaderFirstPageOnly')?.checked === true,
+        coverPageEnabled,
+        coverTitle: (document.getElementById('vbCoverTitle')?.value || '').trim(),
+        coverSubtitle: (document.getElementById('vbCoverSubtitle')?.value || '').trim(),
+        coverAuthor: (document.getElementById('vbCoverAuthor')?.value || '').trim(),
+        coverDateEnabled: document.getElementById('vbCoverShowDate')?.checked === true,
+        coverDatePattern: (document.getElementById('vbCoverDatePattern')?.value || 'dd/MM/yyyy').trim(),
+        coverAlignment: (document.getElementById('vbCoverAlignment')?.value || 'Center').trim(),
+        coverTitleSize: vbReadIntegerInput('vbCoverTitleSize', 30, 12, 72),
+        coverSubtitleSize: vbReadIntegerInput('vbCoverSubtitleSize', 16, 10, 48),
+        coverLogoData: (document.getElementById('vbCoverLogoData')?.value || '').trim()
     };
 
     const designData = {
         reportName,
         elements: VB.elements,
-        pageSettings
+        pageSettings,
+        reportOptions
     };
 
     showLoading('Saving JRXML template...');
@@ -722,20 +957,19 @@ function vbGenerate() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Page loaded, initializing Visual Builder...');
     setTimeout(() => {
         VB.init();
+        vbToggleCoverOptions();
     }, 200);
 });
 
-function vbTest() {
-    console.log('Visual Builder Status:');
-    console.log('- Canvas found:', !!VB.canvas);
-    console.log('- Elements:', VB.elements.length);
-    console.log('- Current band:', VB.currentBand);
+window.addEventListener('datasource:changed', (event) => {
+    const changedDatasourceId = event?.detail?.datasourceId ?? null;
+    VB.loadDatasources(changedDatasourceId);
+});
 
+function vbTest() {
     VB.addElement('text');
-    console.log('Test element added! Try dragging more elements now.');
 }
 
 function vbAddLogo() {
@@ -750,12 +984,13 @@ function vbUploadLogo(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const id = VB.nextId++;
+        const y = VB.getDefaultYForBand('detail');
         const logoData = {
             id,
             type: 'logo',
-            band: VB.currentBand,
+            band: 'detail',
             x: 50,
-            y: 50,
+            y,
             width: 150,
             height: 60,
             text: '',
@@ -774,10 +1009,11 @@ function vbUploadLogo(event) {
             imageData: e.target.result
         };
 
+        VB.normalizeElementPosition(logoData);
+
         VB.elements.push(logoData);
         VB.render();
         VB.select(id);
-        console.log('Logo added! You can drag to reposition or resize.');
     };
     reader.readAsDataURL(file);
 }
@@ -800,13 +1036,14 @@ function vbAddTable(numColumns = 3) {
 
     numColumns = parsedColumns;
     const id = VB.nextId++;
+    const y = VB.getDefaultYForBand('detail');
 
     const tableData = {
         id,
         type: 'table',
-        band: VB.currentBand,
+        band: 'detail',
         x: 50,
-        y: 100,
+        y,
         width: Math.min(500, 50 * numColumns),
         height: 150,
         text: '',
@@ -828,10 +1065,11 @@ function vbAddTable(numColumns = 3) {
         columns: []
     };
 
+    VB.normalizeElementPosition(tableData);
+
     VB.elements.push(tableData);
     VB.render();
     VB.select(id);
-    console.log(`Table with ${numColumns} columns added!`);
 }
 
 // Load tables from selected datasource
@@ -889,7 +1127,7 @@ function vbStartTableDrag(event, tableName) {
 }
 
 // Add table from database
-function vbAddTableFromDB(tableName) {
+function vbAddTableFromDB(tableName, dropPosition = null) {
     if (!VB.datasourceId) {
         if (typeof showMessage === 'function') {
             showMessage('Please select a datasource first', 'error');
@@ -913,13 +1151,19 @@ function vbAddTableFromDB(tableName) {
                 const id = VB.nextId++;
                 const columnWidth = 120;
                 const totalWidth = Math.min(600, columnWidth * columnNames.length);
+                const hasDropPosition = dropPosition
+                    && Number.isFinite(dropPosition.x)
+                    && Number.isFinite(dropPosition.y);
+
+                const x = hasDropPosition ? dropPosition.x : 50;
+                const y = hasDropPosition ? dropPosition.y : VB.getDefaultYForBand('detail');
                 
                 const tableData = {
                     id,
                     type: 'dbTable',
-                    band: VB.currentBand,
-                    x: 50,
-                    y: 100,
+                    band: 'detail',
+                    x,
+                    y,
                     width: totalWidth,
                     height: 200,
                     text: tableName,
@@ -937,11 +1181,14 @@ function vbAddTableFromDB(tableName) {
                     underline: false,
                     tableName: tableName,
                     columns: columnNames.slice(0, 10),
+                    columnDetails: data.columns,
                     selectedColumns: columnNames.slice(0, 10),
                     showHeaders: true,
                     headerBold: true,
                     alternateRows: true
                 };
+
+                VB.normalizeElementPosition(tableData);
                 
                 VB.elements.push(tableData);
                 VB.render();
@@ -965,16 +1212,7 @@ function vbAddTableFromDB(tableName) {
 VB.addElementAtPositionOriginal = VB.addElementAtPosition;
 VB.addElementAtPosition = function(type, x, y, data = {}) {
     if (type === 'dbTable' && data.tableName) {
-        vbAddTableFromDB(data.tableName);
-        // Adjust position of the last added element
-        setTimeout(() => {
-            if (VB.elements.length > 0) {
-                const lastEl = VB.elements[VB.elements.length - 1];
-                lastEl.x = x;
-                lastEl.y = y;
-                VB.render();
-            }
-        }, 100);
+        vbAddTableFromDB(data.tableName, { x, y });
     } else {
         VB.addElementAtPositionOriginal(type, x, y);
     }
@@ -1006,5 +1244,5 @@ function vbToggleColumn(columnName, checked) {
     el.width = Math.max(200, columnWidth * el.selectedColumns.length);
     
     VB.render();
-    VB.updateProperties();
+    VB.updateProperties(true);
 }

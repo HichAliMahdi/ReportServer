@@ -50,9 +50,13 @@ public class ReportService {
      * stale compiled objects are eventually replaced after JRXML edits.
      */
     public JasperReport compileReport(String jrxmlPath) throws JRException {
+        File jrxmlFile = new File(jrxmlPath);
+        long lastModified = jrxmlFile.exists() ? jrxmlFile.lastModified() : -1L;
+        String cacheKey = jrxmlPath + "::" + lastModified;
+
         Cache cache = cacheManager.getCache(CacheConfig.COMPILED_REPORTS_CACHE);
         if (cache != null) {
-            JasperReport cached = cache.get(jrxmlPath, JasperReport.class);
+            JasperReport cached = cache.get(cacheKey, JasperReport.class);
             if (cached != null) {
                 return cached;
             }
@@ -61,7 +65,7 @@ public class ReportService {
         logger.debug("Compiling JRXML (cache miss): {}", jrxmlPath);
         JasperReport compiled = JasperCompileManager.compileReport(jrxmlPath);
         if (cache != null) {
-            cache.put(jrxmlPath, compiled);
+            cache.put(cacheKey, compiled);
         }
         return compiled;
     }
@@ -72,9 +76,36 @@ public class ReportService {
     public void evictCompiledReport(String jrxmlPath) {
         Cache cache = cacheManager.getCache(CacheConfig.COMPILED_REPORTS_CACHE);
         if (cache != null) {
-            cache.evict(jrxmlPath);
+            Set<String> keysToEvict = new LinkedHashSet<>();
+            if (jrxmlPath != null && !jrxmlPath.isBlank()) {
+                keysToEvict.add(jrxmlPath);
+
+                File file = new File(jrxmlPath);
+                keysToEvict.add(file.getPath());
+                keysToEvict.add(file.getAbsolutePath());
+                try {
+                    keysToEvict.add(file.getCanonicalPath());
+                } catch (IOException ignored) {
+                    // Ignore canonical resolution failures and evict known forms.
+                }
+            }
+
+            for (String key : keysToEvict) {
+                cache.evict(key);
+            }
         }
-        logger.debug("Evicted compiled report cache for: {}", jrxmlPath);
+        logger.debug("Evicted compiled report cache variants for: {}", jrxmlPath);
+    }
+
+    /**
+     * Clear all compiled reports from cache after bulk template changes.
+     */
+    public void clearCompiledReportCache() {
+        Cache cache = cacheManager.getCache(CacheConfig.COMPILED_REPORTS_CACHE);
+        if (cache != null) {
+            cache.clear();
+        }
+        logger.debug("Cleared compiled report cache");
     }
 
     // ─── Public generation API ────────────────────────────────────────────────

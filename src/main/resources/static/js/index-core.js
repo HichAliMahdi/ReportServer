@@ -17,6 +17,18 @@ let genTotalPages = 1;
 let historyPage = 0;
 let historyTotalPages = 1;
 
+// Suppress known third-party autofill extension errors that are outside app code.
+window.addEventListener('unhandledrejection', (event) => {
+    const reason = event?.reason;
+    const message = String(reason?.message || reason || '');
+    const stack = String(reason?.stack || '');
+
+    if (message.includes('Cannot read properties of null (reading \'includes\')')
+        && stack.includes('bootstrap-autofill-overlay.js')) {
+        event.preventDefault();
+    }
+});
+
 // Debounce timers
 let jrxmlSearchTimer = null;
 let genSearchTimer = null;
@@ -927,11 +939,12 @@ function loadReportParameters(reportName) {
         parametersSection.style.display = 'block';
 
         data.parameters.forEach(param => {
+            const paramClass = param.class || 'java.lang.String';
             const formGroup = document.createElement('div');
             formGroup.className = 'form-group';
 
             const label = document.createElement('label');
-            label.textContent = param.name + ' (' + param.class.split('.').pop() + ')';
+            label.textContent = param.name + ' (' + paramClass.split('.').pop() + ')';
             label.setAttribute('for', 'param_' + param.name);
 
             let input;
@@ -940,29 +953,29 @@ function loadReportParameters(reportName) {
                 input.type = 'checkbox';
                 input.id = 'param_' + param.name;
                 input.name = param.name;
-                input.setAttribute('data-param-type', param.class);
+                input.setAttribute('data-param-type', paramClass);
             } else if (param.inputType === 'date') {
                 input = document.createElement('input');
                 input.type = 'date';
                 input.id = 'param_' + param.name;
                 input.name = param.name;
-                input.setAttribute('data-param-type', param.class);
+                input.setAttribute('data-param-type', paramClass);
             } else if (param.inputType === 'number') {
                 input = document.createElement('input');
                 input.type = 'number';
                 input.step = 'any';
                 input.id = 'param_' + param.name;
                 input.name = param.name;
-                input.setAttribute('data-param-type', param.class);
+                input.setAttribute('data-param-type', paramClass);
             } else {
                 input = document.createElement('input');
                 input.type = 'text';
                 input.id = 'param_' + param.name;
                 input.name = param.name;
-                input.setAttribute('data-param-type', param.class);
+                input.setAttribute('data-param-type', paramClass);
             }
 
-            input.setAttribute('data-param-class', param.class || 'java.lang.String');
+            input.setAttribute('data-param-class', paramClass);
             input.setAttribute('data-param-name', param.name);
             if (param.defaultValue && input.type !== 'checkbox') {
                 input.placeholder = `Default: ${param.defaultValue}`;
@@ -970,7 +983,7 @@ function loadReportParameters(reportName) {
 
             const hint = document.createElement('small');
             hint.style.color = '#777';
-            hint.textContent = `Expected type: ${param.class}`;
+            hint.textContent = `Expected type: ${paramClass}`;
 
             formGroup.appendChild(label);
             formGroup.appendChild(input);
@@ -1518,11 +1531,21 @@ async function saveDatasourceWithFilePath(id, type, filePath) {
 
         const data = await response.json();
         if (data.status === 'success') {
+            const savedDatasourceId = data.id || data.datasourceId || null;
             showDatasourceMessage(data.message, 'success');
             setTimeout(() => {
                 closeDatasourceModal();
                 loadDatasources();
-            }, 1500);
+
+                // Refresh Visual Builder datasource picker in-place so users keep their design.
+                const datasourceChangedEvent = new CustomEvent('datasource:changed', {
+                    detail: {
+                        datasourceId: savedDatasourceId,
+                        action: id ? 'updated' : 'created'
+                    }
+                });
+                window.dispatchEvent(datasourceChangedEvent);
+            }, 600);
         } else {
             showDatasourceMessage(data.message, 'error');
         }

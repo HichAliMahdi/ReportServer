@@ -14,6 +14,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.XMLConstants;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.xml.sax.InputSource;
 
 @Controller
 @RequestMapping("/api/jrxml")
@@ -98,6 +100,7 @@ public class JrxmlEditorController {
 
             // Evict compiled report cache so next generation uses the new JRXML
             reportService.evictCompiledReport(file.getAbsolutePath());
+            reportService.evictCompiledReport(this.uploadDir + fileName);
             
             logger.info("Successfully saved JRXML file: {}", fileName);
             
@@ -155,10 +158,19 @@ public class JrxmlEditorController {
         List<Map<String, String>> parameters = new ArrayList<>();
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         DocumentBuilder builder = factory.newDocumentBuilder();
+        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
         Document document = builder.parse(jrxmlFile);
 
-        NodeList parameterNodes = document.getElementsByTagName("parameter");
+        NodeList parameterNodes = document.getElementsByTagNameNS("*", "parameter");
+        if (parameterNodes.getLength() == 0) {
+            parameterNodes = document.getElementsByTagName("parameter");
+        }
 
         for (int i = 0; i < parameterNodes.getLength(); i++) {
             Element paramElement = (Element) parameterNodes.item(i);
