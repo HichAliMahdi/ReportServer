@@ -351,6 +351,21 @@
                     <div id="vbCoverEditor" class="vb-cover-editor" style="display: none;">
                         <div class="vb-cover-editor-title">Cover Page Editor</div>
 
+                        <div class="vb-cover-preset-row">
+                            <div class="vb-prop-field">
+                                <label for="vbCoverPreset">Cover Template</label>
+                                <select id="vbCoverPreset" class="vb-select" onchange="vbApplyCoverPreset()">
+                                    <option value="custom" selected>Custom</option>
+                                    <option value="corporate">Corporate</option>
+                                    <option value="minimal">Minimal</option>
+                                    <option value="executive">Executive</option>
+                                </select>
+                            </div>
+
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbApplyCoverPreset()">Apply Template</button>
+                            <p class="vb-cover-hint">Templates prefill title, subtitle, author, date, alignment, and typography.</p>
+                        </div>
+
                         <div class="vb-cover-grid">
                             <div class="vb-prop-field">
                                 <label for="vbCoverTitle">Cover Title</label>

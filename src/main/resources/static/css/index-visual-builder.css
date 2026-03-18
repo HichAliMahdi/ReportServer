@@ -83,6 +83,26 @@
     text-transform: uppercase;
 }
 
+.vb-cover-preset-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) auto 1fr;
+    gap: 8px 10px;
+    align-items: end;
+    margin-bottom: 8px;
+}
+
+.vb-cover-preset-row .btn {
+    font-size: 12px;
+    padding: 8px 12px;
+}
+
+.vb-cover-hint {
+    margin: 0;
+    font-size: 11px;
+    color: #607387;
+    line-height: 1.35;
+}
+
 .vb-cover-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(140px, 1fr));
@@ -548,6 +568,11 @@
 
     .vb-cover-grid {
         grid-template-columns: repeat(2, minmax(130px, 1fr));
+    }
+
+    .vb-cover-preset-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
     }
 
     .vb-studio-layout {

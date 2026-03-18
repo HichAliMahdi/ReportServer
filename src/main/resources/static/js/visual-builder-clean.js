@@ -805,6 +805,86 @@ function vbToggleCoverOptions() {
     }
 }
 
+function vbSetInputValue(id, value) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = value;
+}
+
+function vbSetInputChecked(id, checked) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.checked = checked === true;
+}
+
+function vbCleanReportNameForCover(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'Report';
+    return raw.replace(/\.jrxml$/i, '') || 'Report';
+}
+
+function vbApplyCoverPreset() {
+    const presetSelect = document.getElementById('vbCoverPreset');
+    const preset = presetSelect?.value || 'custom';
+    if (preset === 'custom') {
+        return;
+    }
+
+    const reportName = vbCleanReportNameForCover(document.getElementById('vbReportName')?.value);
+    const presets = {
+        corporate: {
+            title: `${reportName}`,
+            subtitle: 'Confidential Business Report',
+            author: 'Prepared by Business Intelligence Department',
+            alignment: 'Left',
+            titleSize: 34,
+            subtitleSize: 15,
+            showDate: true,
+            datePattern: 'MMMM yyyy'
+        },
+        minimal: {
+            title: `${reportName}`,
+            subtitle: 'Summary and key figures',
+            author: '',
+            alignment: 'Center',
+            titleSize: 28,
+            subtitleSize: 14,
+            showDate: true,
+            datePattern: 'dd/MM/yyyy'
+        },
+        executive: {
+            title: `${reportName}`,
+            subtitle: 'Executive Performance Overview',
+            author: 'Executive Office',
+            alignment: 'Center',
+            titleSize: 40,
+            subtitleSize: 18,
+            showDate: true,
+            datePattern: 'MMMM dd, yyyy'
+        }
+    };
+
+    const selectedPreset = presets[preset];
+    if (!selectedPreset) {
+        return;
+    }
+
+    const coverEnabledCheckbox = document.getElementById('vbEnableCoverPage');
+    if (coverEnabledCheckbox && !coverEnabledCheckbox.checked) {
+        coverEnabledCheckbox.checked = true;
+        vbToggleCoverOptions();
+    }
+
+    vbSetInputValue('vbCoverTitle', selectedPreset.title);
+    vbSetInputValue('vbCoverSubtitle', selectedPreset.subtitle);
+    vbSetInputValue('vbCoverAuthor', selectedPreset.author);
+    vbSetInputValue('vbCoverAlignment', selectedPreset.alignment);
+    vbSetInputValue('vbCoverTitleSize', String(selectedPreset.titleSize));
+    vbSetInputValue('vbCoverSubtitleSize', String(selectedPreset.subtitleSize));
+    vbSetInputChecked('vbCoverShowDate', selectedPreset.showDate);
+    vbSetInputValue('vbCoverDatePattern', selectedPreset.datePattern);
+}
+
 function vbUploadCoverLogo(event) {
     const file = event?.target?.files?.[0];
     if (!file) return;
