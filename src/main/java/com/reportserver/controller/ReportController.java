@@ -1,11 +1,14 @@
 package com.reportserver.controller;
 
+import com.reportserver.dto.ReportDownloadRequestDTO;
+import com.reportserver.dto.ReportGenerateRequestDTO;
 import com.reportserver.model.ReportExecutionLog;
 import com.reportserver.model.ReportTemplate;
 import com.reportserver.model.SharedReport;
 import com.reportserver.repository.ReportTemplateRepository;
 import com.reportserver.repository.SharedReportRepository;
 import com.reportserver.service.DataSourceService;
+import com.reportserver.service.JrxmlParameterService;
 import com.reportserver.service.ReportExecutionLogService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
@@ -23,27 +26,17 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
+import jakarta.validation.Valid;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Date;
 import java.sql.Connection;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +74,9 @@ public class ReportController {
 
     @Autowired
     private ReportExecutionLogService reportExecutionLogService;
+
+    @Autowired
+    private JrxmlParameterService jrxmlParameterService;
 
     @Value("${reportserver.pagination.default-page-size:20}")
     private int defaultPageSize;
@@ -221,13 +217,23 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> generateReport(
-            @RequestParam("reportName") String reportName,
-            @RequestParam(value = "format", defaultValue = "pdf") String format,
-            @RequestParam(value = "useDatabase", defaultValue = "false") boolean useDatabase,
-            @RequestParam(value = "datasourceId", required = false) Long datasourceId,
-            @RequestParam(value = "category", required = false) String category,
-            @RequestParam(value = "tags", required = false) String tags,
+            @Valid @ModelAttribute ReportGenerateRequestDTO request,
+            BindingResult bindingResult,
             @RequestParam(required = false) Map<String, String> parameters) {
+
+        if (bindingResult.hasErrors()) {
+            Map<String, Object> validationError = new HashMap<>();
+            validationError.put("status", "error");
+            validationError.put("message", bindingResult.getAllErrors().get(0).getDefaultMessage());
+            return ResponseEntity.badRequest().body(validationError);
+        }
+
+        String reportName = request.getReportName();
+        String format = request.getFormat();
+        boolean useDatabase = request.isUseDatabase();
+        Long datasourceId = request.getDatasourceId();
+        String category = request.getCategory();
+        String tags = request.getTags();
         
         Map<String, Object> response = new HashMap<>();
         Long logId = null;
@@ -250,7 +256,7 @@ public class ReportController {
             String username = auth != null ? auth.getName() : "unknown";
 
             // Validate and coerce user parameters to expected JRXML types.
-            Map<String, Object> reportParams = validateAndConvertReportParameters(jrxmlPath, parameters);
+            Map<String, Object> reportParams = jrxmlParameterService.validateAndConvertReportParameters(jrxmlPath, parameters);
             ReportExecutionLog log = reportExecutionLogService.startLog(
                     reportName,
                     format,
@@ -344,8 +350,16 @@ public class ReportController {
     @PostMapping("/download-report")
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','READ_ONLY')")
     public ResponseEntity<byte[]> downloadReport(
-            @RequestParam("reportName") String reportName,
-            @RequestParam(value = "format", defaultValue = "pdf") String format) {
+            @Valid @ModelAttribute ReportDownloadRequestDTO request,
+            BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            String message = bindingResult.getAllErrors().get(0).getDefaultMessage();
+            return ResponseEntity.badRequest().body(message.getBytes());
+        }
+
+        String reportName = request.getReportName();
+        String format = request.getFormat();
+
         Long logId = null;
         try {
             logger.info("Downloading report: {} in format: {}", reportName, format);
@@ -518,108 +532,6 @@ public class ReportController {
         } catch (Exception e) {
             logger.error("Error deleting report: " + reportName, e);
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
-    }
-
-    private Map<String, Object> validateAndConvertReportParameters(String jrxmlPath, Map<String, String> requestParameters) {
-        Map<String, Object> converted = new HashMap<>();
-        if (requestParameters == null || requestParameters.isEmpty()) {
-            return converted;
-        }
-
-        Map<String, String> expectedTypes = readExpectedParameterTypes(jrxmlPath);
-        for (Map.Entry<String, String> entry : requestParameters.entrySet()) {
-            String key = entry.getKey();
-            if (isReservedGenerateParameterName(key)) {
-                continue;
-            }
-
-            String rawValue = entry.getValue();
-            if (rawValue == null || rawValue.isBlank()) {
-                continue;
-            }
-
-            String expectedType = expectedTypes.get(key);
-            if (expectedType == null) {
-                converted.put(key, rawValue);
-                continue;
-            }
-
-            converted.put(key, convertParameterValue(key, rawValue, expectedType));
-        }
-        return converted;
-    }
-
-    private boolean isReservedGenerateParameterName(String key) {
-        return "reportName".equals(key)
-                || "format".equals(key)
-                || "useDatabase".equals(key)
-                || "datasourceId".equals(key)
-                || "category".equals(key)
-                || "tags".equals(key)
-                || "_csrf".equals(key);
-    }
-
-    private Map<String, String> readExpectedParameterTypes(String jrxmlPath) {
-        Map<String, String> expectedTypes = new HashMap<>();
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document document = builder.parse(new File(jrxmlPath));
-            NodeList parameterNodes = document.getElementsByTagName("parameter");
-
-            for (int i = 0; i < parameterNodes.getLength(); i++) {
-                Element paramElement = (Element) parameterNodes.item(i);
-                String name = paramElement.getAttribute("name");
-                String className = paramElement.getAttribute("class");
-                if (!name.startsWith("REPORT_") && !name.equals("JASPER_REPORT")) {
-                    expectedTypes.put(name, className);
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Could not parse JRXML parameter definitions for validation: {}", e.getMessage());
-        }
-        return expectedTypes;
-    }
-
-    private Object convertParameterValue(String parameterName, String rawValue, String javaType) {
-        try {
-            if (javaType == null || javaType.isBlank() || javaType.contains("String")) {
-                return rawValue;
-            }
-            if (javaType.contains("Boolean")) {
-                if (!"true".equalsIgnoreCase(rawValue) && !"false".equalsIgnoreCase(rawValue)) {
-                    throw new IllegalArgumentException("must be true or false");
-                }
-                return Boolean.parseBoolean(rawValue);
-            }
-            if (javaType.contains("Integer")) {
-                return Integer.parseInt(rawValue);
-            }
-            if (javaType.contains("Long")) {
-                return Long.parseLong(rawValue);
-            }
-            if (javaType.contains("Double")) {
-                return Double.parseDouble(rawValue);
-            }
-            if (javaType.contains("Float")) {
-                return Float.parseFloat(rawValue);
-            }
-            if (javaType.contains("BigDecimal")) {
-                return new BigDecimal(rawValue);
-            }
-            if (javaType.contains("BigInteger")) {
-                return new BigInteger(rawValue);
-            }
-            if (javaType.contains("Timestamp")) {
-                return Timestamp.from(Instant.parse(rawValue + "T00:00:00Z"));
-            }
-            if (javaType.contains("Date")) {
-                return Date.valueOf(rawValue);
-            }
-            return rawValue;
-        } catch (DateTimeParseException | IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Parameter '" + parameterName + "' expects " + javaType + " but got value '" + rawValue + "'");
         }
     }
 
