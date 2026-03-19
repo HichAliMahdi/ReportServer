@@ -275,4 +275,39 @@ public class DataSourceController {
             response.put("message", "Query execution failed: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
-    }}
+    }
+
+    /**
+     * List available JDBC tables/views for the selected datasource.
+     */
+    @GetMapping("/{id}/tables")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    public ResponseEntity<Map<String, Object>> listAvailableTables(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Optional<DataSource> dataSourceOpt = dataSourceService.getDataSourceById(id);
+            if (dataSourceOpt.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Datasource not found");
+                return ResponseEntity.status(404).body(response);
+            }
+
+            List<String> tables = dataSourceService.listAvailableTables(dataSourceOpt.get());
+            response.put("status", "success");
+            response.put("tables", tables);
+            response.put("count", tables.size());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid table listing request for datasource {}: {}", id, e.getMessage());
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            logger.error("Error listing tables for datasource {}", id, e);
+            response.put("status", "error");
+            response.put("message", "Failed to list datasource tables: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+}

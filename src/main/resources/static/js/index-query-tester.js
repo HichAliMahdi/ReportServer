@@ -54,11 +54,102 @@
             document.getElementById('modalQueryError').style.display = 'none';
             document.getElementById('modalQueryTruncatedWarning').style.display = 'none';
 
+            const tablesSelect = document.getElementById('modalAvailableTables');
+            if (tablesSelect) {
+                tablesSelect.innerHTML = '<option value="">Loading tables...</option>';
+            }
+            setQueryTesterTablesHint('Loading available tables for this datasource...');
+
             document.getElementById('queryTesterModal').style.display = 'block';
+            loadQueryTesterTables(datasourceId);
         }
 
         function closeQueryTesterModal() {
             document.getElementById('queryTesterModal').style.display = 'none';
+        }
+
+        function setQueryTesterTablesHint(message, isError = false) {
+            const hint = document.getElementById('modalAvailableTablesHint');
+            if (!hint) {
+                return;
+            }
+
+            hint.textContent = message || '';
+            hint.style.color = isError ? '#b33a3a' : '#666';
+        }
+
+        async function loadQueryTesterTables(datasourceIdOverride) {
+            const datasourceId = datasourceIdOverride || document.getElementById('queryTesterDatasourceId')?.value;
+            const tablesSelect = document.getElementById('modalAvailableTables');
+
+            if (!tablesSelect || !datasourceId) {
+                return;
+            }
+
+            tablesSelect.innerHTML = '<option value="">Loading tables...</option>';
+            tablesSelect.disabled = true;
+
+            try {
+                const response = await fetch('/api/datasources/' + datasourceId + '/tables', {
+                    method: 'GET',
+                    headers: getQueryTesterHeaders()
+                });
+
+                const data = await readQueryTesterResponse(response, 'Failed to load datasource tables');
+                const tables = Array.isArray(data.tables) ? data.tables : [];
+
+                tablesSelect.innerHTML = '';
+                if (tables.length === 0) {
+                    tablesSelect.innerHTML = '<option value="">No tables found</option>';
+                    setQueryTesterTablesHint('No tables or views were found for this datasource.');
+                } else {
+                    tablesSelect.appendChild(new Option('Select a table...', ''));
+                    tables.forEach((tableName) => {
+                        tablesSelect.appendChild(new Option(tableName, tableName));
+                    });
+                    setQueryTesterTablesHint('Loaded ' + tables.length + ' table(s)/view(s). Select one and click Insert.');
+                }
+            } catch (error) {
+                tablesSelect.innerHTML = '<option value="">Unable to load tables</option>';
+                setQueryTesterTablesHint(error.message || 'Unable to load tables for this datasource.', true);
+            } finally {
+                tablesSelect.disabled = false;
+            }
+        }
+
+        function quoteSqlIdentifier(identifier) {
+            if (!identifier) {
+                return '';
+            }
+            return '`' + String(identifier).replace(/`/g, '``') + '`';
+        }
+
+        function insertSelectedTableIntoQuery() {
+            const tablesSelect = document.getElementById('modalAvailableTables');
+            const queryTextarea = document.getElementById('modalSqlQuery');
+
+            if (!tablesSelect || !queryTextarea) {
+                return;
+            }
+
+            const selectedTable = tablesSelect.value;
+            if (!selectedTable) {
+                setQueryTesterTablesHint('Select a table first, then click Insert.', true);
+                return;
+            }
+
+            const quotedTable = quoteSqlIdentifier(selectedTable);
+            const insertion = quotedTable;
+            const start = queryTextarea.selectionStart ?? queryTextarea.value.length;
+            const end = queryTextarea.selectionEnd ?? queryTextarea.value.length;
+            const currentValue = queryTextarea.value;
+
+            queryTextarea.value = currentValue.slice(0, start) + insertion + currentValue.slice(end);
+            queryTextarea.focus();
+
+            const cursor = start + insertion.length;
+            queryTextarea.setSelectionRange(cursor, cursor);
+            setQueryTesterTablesHint('Inserted table ' + selectedTable + ' into SQL editor.');
         }
 
         async function executeQueryFromModal() {

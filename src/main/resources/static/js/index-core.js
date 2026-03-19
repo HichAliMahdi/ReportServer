@@ -1940,10 +1940,7 @@ function showConfirmationModal(message, onConfirm) {
 
 const embeddedViewerState = {
     fileName: '',
-    format: '',
-    page: 1,
-    zoom: 100,
-    pageCount: null
+    format: ''
 };
 
 function getReportFileFormat(fileName) {
@@ -1951,53 +1948,13 @@ function getReportFileFormat(fileName) {
     return fileName.split('.').pop().toLowerCase();
 }
 
-function buildEmbeddedPreviewUrl() {
-    const baseUrl = '/api/preview-generated-report/' + encodeURIComponent(embeddedViewerState.fileName);
-    if (embeddedViewerState.format === 'pdf') {
-        return `${baseUrl}#page=${embeddedViewerState.page}&zoom=${embeddedViewerState.zoom}`;
-    }
-    return baseUrl;
-}
-
-function updateEmbeddedViewerControls() {
-    const pageIndicator = document.getElementById('viewerPageIndicator');
-    const zoomIndicator = document.getElementById('viewerZoomIndicator');
-    const prevBtn = document.getElementById('viewerPrevPageBtn');
-    const nextBtn = document.getElementById('viewerNextPageBtn');
-    const exportBtn = document.getElementById('viewerExportBtn');
+function updateEmbeddedViewerMeta() {
     const meta = document.getElementById('embeddedViewerMeta');
-    const isPdf = embeddedViewerState.format === 'pdf';
-    const hasKnownPageCount = Number.isInteger(embeddedViewerState.pageCount) && embeddedViewerState.pageCount > 0;
 
-    if (pageIndicator) {
-        if (!isPdf) {
-            pageIndicator.textContent = 'Single page';
-        } else if (hasKnownPageCount) {
-            pageIndicator.textContent = `Page ${embeddedViewerState.page} / ${embeddedViewerState.pageCount}`;
-        } else {
-            pageIndicator.textContent = `Page ${embeddedViewerState.page}`;
-        }
-    }
-    if (zoomIndicator) {
-        zoomIndicator.textContent = `${embeddedViewerState.zoom}%`;
-    }
-    if (prevBtn) {
-        prevBtn.disabled = !isPdf || embeddedViewerState.page <= 1;
-    }
-    if (nextBtn) {
-        nextBtn.disabled = !isPdf || (hasKnownPageCount && embeddedViewerState.page >= embeddedViewerState.pageCount);
-    }
-    if (exportBtn) {
-        exportBtn.disabled = !embeddedViewerState.fileName;
-    }
     if (meta) {
         if (embeddedViewerState.fileName) {
             const formatLabel = (embeddedViewerState.format || 'file').toUpperCase();
-            if (isPdf && hasKnownPageCount) {
-                meta.textContent = `Viewing ${embeddedViewerState.fileName} (${formatLabel}, ${embeddedViewerState.pageCount} pages). Use Export to download a copy.`;
-            } else {
-                meta.textContent = `Viewing ${embeddedViewerState.fileName} (${formatLabel}). Use Export to download a copy.`;
-            }
+            meta.textContent = `Viewing ${embeddedViewerState.fileName} (${formatLabel}). Use the embedded viewer controls to navigate and export.`;
         } else {
             meta.textContent = 'Select a generated report and click Preview to open it here.';
         }
@@ -2008,42 +1965,9 @@ function applyEmbeddedViewerSource() {
     const frame = document.getElementById('embeddedPreviewFrame');
     if (!frame || !embeddedViewerState.fileName) return;
 
-    if (Number.isInteger(embeddedViewerState.pageCount) && embeddedViewerState.pageCount > 0) {
-        embeddedViewerState.page = Math.max(1, Math.min(embeddedViewerState.page, embeddedViewerState.pageCount));
-    }
-
-    frame.src = buildEmbeddedPreviewUrl();
+    frame.src = '/api/preview-generated-report/' + encodeURIComponent(embeddedViewerState.fileName);
     frame.style.display = 'block';
-    frame.style.zoom = `${embeddedViewerState.zoom}%`;
-    updateEmbeddedViewerControls();
-}
-
-function loadEmbeddedPdfPageCount(fileName) {
-    const pageCountEndpoint = '/api/generated-reports/' + encodeURIComponent(fileName) + '/pdf-page-count';
-    fetch(pageCountEndpoint)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Unable to fetch PDF page count');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (embeddedViewerState.fileName !== fileName) {
-                return;
-            }
-            if (data && data.status === 'success' && Number.isInteger(data.pageCount) && data.pageCount > 0) {
-                embeddedViewerState.pageCount = data.pageCount;
-            } else {
-                embeddedViewerState.pageCount = null;
-            }
-            updateEmbeddedViewerControls();
-        })
-        .catch(() => {
-            if (embeddedViewerState.fileName === fileName) {
-                embeddedViewerState.pageCount = null;
-                updateEmbeddedViewerControls();
-            }
-        });
+    updateEmbeddedViewerMeta();
 }
 
 function openEmbeddedViewer(fileName) {
@@ -2051,14 +1975,12 @@ function openEmbeddedViewer(fileName) {
     const title = document.getElementById('embeddedViewerTitle');
     const emptyState = document.getElementById('embeddedViewerEmpty');
     const frame = document.getElementById('embeddedPreviewFrame');
+    const closeBtn = document.getElementById('viewerCloseBtn');
 
     if (!viewerSection || !frame) return false;
 
     embeddedViewerState.fileName = fileName;
     embeddedViewerState.format = getReportFileFormat(fileName);
-    embeddedViewerState.page = 1;
-    embeddedViewerState.zoom = 100;
-    embeddedViewerState.pageCount = null;
 
     if (title) {
         title.textContent = `👁️ Embedded Report Viewer - ${fileName}`;
@@ -2066,11 +1988,11 @@ function openEmbeddedViewer(fileName) {
     if (emptyState) {
         emptyState.style.display = 'none';
     }
+    if (closeBtn) {
+        closeBtn.style.display = 'inline-block';
+    }
 
     applyEmbeddedViewerSource();
-    if (embeddedViewerState.format === 'pdf') {
-        loadEmbeddedPdfPageCount(fileName);
-    }
     viewerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
 }
@@ -2094,17 +2016,14 @@ function closeEmbeddedViewer() {
     const emptyState = document.getElementById('embeddedViewerEmpty');
     const frame = document.getElementById('embeddedPreviewFrame');
     const title = document.getElementById('embeddedViewerTitle');
+    const closeBtn = document.getElementById('viewerCloseBtn');
 
     embeddedViewerState.fileName = '';
     embeddedViewerState.format = '';
-    embeddedViewerState.page = 1;
-    embeddedViewerState.zoom = 100;
-    embeddedViewerState.pageCount = null;
 
     if (frame) {
         frame.src = '';
         frame.style.display = 'none';
-        frame.style.zoom = '100%';
     }
     if (emptyState) {
         emptyState.style.display = 'flex';
@@ -2112,48 +2031,11 @@ function closeEmbeddedViewer() {
     if (title) {
         title.textContent = '👁️ Embedded Report Viewer';
     }
-
-    updateEmbeddedViewerControls();
-}
-
-function viewerPrevPage() {
-    if (embeddedViewerState.format !== 'pdf' || embeddedViewerState.page <= 1) return;
-    embeddedViewerState.page -= 1;
-    applyEmbeddedViewerSource();
-}
-
-function viewerNextPage() {
-    if (embeddedViewerState.format !== 'pdf') return;
-    if (Number.isInteger(embeddedViewerState.pageCount)
-        && embeddedViewerState.pageCount > 0
-        && embeddedViewerState.page >= embeddedViewerState.pageCount) {
-        return;
+    if (closeBtn) {
+        closeBtn.style.display = 'none';
     }
-    embeddedViewerState.page += 1;
-    applyEmbeddedViewerSource();
-}
 
-function viewerZoomIn() {
-    if (!embeddedViewerState.fileName) return;
-    embeddedViewerState.zoom = Math.min(250, embeddedViewerState.zoom + 10);
-    applyEmbeddedViewerSource();
-}
-
-function viewerZoomOut() {
-    if (!embeddedViewerState.fileName) return;
-    embeddedViewerState.zoom = Math.max(50, embeddedViewerState.zoom - 10);
-    applyEmbeddedViewerSource();
-}
-
-function viewerZoomReset() {
-    if (!embeddedViewerState.fileName) return;
-    embeddedViewerState.zoom = 100;
-    applyEmbeddedViewerSource();
-}
-
-function viewerExportCurrent() {
-    if (!embeddedViewerState.fileName) return;
-    downloadGeneratedReport(embeddedViewerState.fileName);
+    updateEmbeddedViewerMeta();
 }
 
 function closePreviewModal() {

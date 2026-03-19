@@ -590,6 +590,18 @@
                 <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
                     <strong>Datasource:</strong> <span id="queryTesterDatasourceDisplay"></span>
                 </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="modalAvailableTables">Available Tables:</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="modalAvailableTables" style="flex: 1;">
+                            <option value="">Select a datasource to load tables</option>
+                        </select>
+                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="loadQueryTesterTables()">Refresh</button>
+                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="insertSelectedTableIntoQuery()">Insert</button>
+                    </div>
+                    <p id="modalAvailableTablesHint" style="margin-top: 6px; margin-bottom: 0; font-size: 12px; color: #666;">Select a table and click Insert to add it into your SQL.</p>
+                </div>
                 
                 <div class="form-group">
                     <label for="modalSqlQuery">SQL Query:</label>

@@ -1711,9 +1711,11 @@ function vbClear() {
     clearCanvas();
 }
 
-function vbGenerate() {
+function vbBuildGenerationDesignData() {
     const reportNameInput = document.getElementById('vbReportName');
+    const outputFormatSelect = document.getElementById('vbOutputFormat');
     const reportName = (reportNameInput?.value || 'Report').trim();
+    const reportFormat = (outputFormatSelect?.value || 'pdf').trim().toLowerCase();
     const sharedCoverOptions = vbBuildSharedCoverOptions('visual');
     const coverPageEnabled = sharedCoverOptions.coverPageEnabled === true;
 
@@ -1721,7 +1723,7 @@ function vbGenerate() {
         if (typeof showMessage === 'function') {
             showMessage('Add elements to the canvas or enable a cover page first.', 'error');
         }
-        return;
+        return null;
     }
 
     const isLandscape = VB.orientation === 'landscape';
@@ -1742,14 +1744,37 @@ function vbGenerate() {
 
     const designData = {
         reportName,
+        reportFormat,
         elements: VB.elements,
         pageSettings,
-        reportOptions
+        reportOptions,
+        datasourceId: VB.datasourceId
     };
 
-    showLoading('Saving JRXML template...');
+    return designData;
+}
 
-    fetch('/api/builder/visual/generate', {
+function vbSubmitGeneration(mode = 'jrxml') {
+    const endpointByMode = {
+        'jrxml': '/api/builder/visual/generate',
+        'jrxml-and-report': '/api/builder/visual/generate-and-report',
+        'report-only': '/api/builder/visual/generate-report-only'
+    };
+
+    const loadingByMode = {
+        'jrxml': 'Saving JRXML template...',
+        'jrxml-and-report': 'Saving JRXML template and generating report...',
+        'report-only': 'Generating report (without saving JRXML template)...'
+    };
+
+    const designData = vbBuildGenerationDesignData();
+    if (!designData) {
+        return;
+    }
+
+    showLoading(loadingByMode[mode] || 'Processing...');
+
+    fetch(endpointByMode[mode] || endpointByMode.jrxml, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1761,12 +1786,28 @@ function vbGenerate() {
         .then((data) => {
             hideLoading();
 
-            if (typeof loadJrxmlTemplates === 'function') {
+            if (typeof loadJrxmlTemplates === 'function' && mode !== 'report-only') {
                 loadJrxmlTemplates();
             }
+            if (typeof loadGeneratedReports === 'function' && mode !== 'jrxml') {
+                loadGeneratedReports(0);
+            }
+            if (typeof switchReportsSubTab === 'function' && mode !== 'jrxml') {
+                switchReportsSubTab('available-reports');
+            }
 
-            const generatedName = data.reportName || (reportName.endsWith('.jrxml') ? reportName : `${reportName}.jrxml`);
-            vbOpenResultModal('Template Saved', `${generatedName} is now available in "Available JRXML Templates".`);
+            const generatedName = data.reportName || (String(designData.reportName || 'Report').endsWith('.jrxml')
+                ? String(designData.reportName || 'Report')
+                : `${String(designData.reportName || 'Report')}.jrxml`);
+            if (mode === 'jrxml') {
+                vbOpenResultModal('Template Saved', `${generatedName} is now available in "Available JRXML Templates".`);
+            } else if (mode === 'jrxml-and-report') {
+                const reportFileName = data.fileName || 'generated report';
+                vbOpenResultModal('Template + Report Generated', `${generatedName} was saved and report ${reportFileName} is available in "Available Reports".`);
+            } else {
+                const reportFileName = data.fileName || 'generated report';
+                vbOpenResultModal('Report Generated', `${reportFileName} is available in "Available Reports". JRXML template was not saved.`);
+            }
         })
         .catch((error) => {
             hideLoading();
@@ -1774,6 +1815,18 @@ function vbGenerate() {
                 showMessage(error.message || 'Error generating report template', 'error');
             }
         });
+}
+
+function vbGenerate() {
+    vbSubmitGeneration('jrxml');
+}
+
+function vbGenerateAndReport() {
+    vbSubmitGeneration('jrxml-and-report');
+}
+
+function vbGenerateReportOnly() {
+    vbSubmitGeneration('report-only');
 }
 
 function vbBuildSharedCoverOptions(target = 'visual') {

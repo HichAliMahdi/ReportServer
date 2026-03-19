@@ -186,17 +186,7 @@
                 <div id="embeddedViewerSection" class="card embedded-viewer-card">
                     <div class="embedded-viewer-header">
                         <h2 id="embeddedViewerTitle">👁️ Embedded Report Viewer</h2>
-                        <div class="embedded-viewer-toolbar" role="toolbar" aria-label="Report viewer controls">
-                            <button type="button" class="viewer-tool-btn" id="viewerPrevPageBtn" onclick="viewerPrevPage()">◀ Prev</button>
-                            <span id="viewerPageIndicator" class="viewer-chip">Page 1</span>
-                            <button type="button" class="viewer-tool-btn" id="viewerNextPageBtn" onclick="viewerNextPage()">Next ▶</button>
-                            <button type="button" class="viewer-tool-btn" id="viewerZoomOutBtn" onclick="viewerZoomOut()">－</button>
-                            <span id="viewerZoomIndicator" class="viewer-chip">100%</span>
-                            <button type="button" class="viewer-tool-btn" id="viewerZoomInBtn" onclick="viewerZoomIn()">＋</button>
-                            <button type="button" class="viewer-tool-btn" id="viewerZoomResetBtn" onclick="viewerZoomReset()">Reset</button>
-                            <button type="button" class="viewer-tool-btn viewer-tool-btn-accent" id="viewerExportBtn" onclick="viewerExportCurrent()">📥 Export</button>
-                            <button type="button" class="viewer-tool-btn" id="viewerCloseBtn" onclick="closeEmbeddedViewer()">Close</button>
-                        </div>
+                        <button type="button" class="btn" id="viewerCloseBtn" onclick="closeEmbeddedViewer()" style="padding: 6px 14px; display: none;">Close</button>
                     </div>
                     <p id="embeddedViewerMeta" class="embedded-viewer-meta">Select a generated report and click Preview to open it here.</p>
                     <div class="embedded-viewer-stage">
@@ -265,6 +255,22 @@
                             </button>
                         </div>
                         <p style="margin: 6px 0 0; color: #5d6f86; font-size: 12px;">Select a saved cover template. Use Cover Page Builder to create or modify templates.</p>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label for="builderOutputFormat">Report Output Format:</label>
+                        <select id="builderOutputFormat">
+                            <option value="pdf" selected>PDF</option>
+                            <option value="html">HTML</option>
+                            <option value="xlsx">Microsoft Excel (XLSX)</option>
+                            <option value="xls">Microsoft Excel (XLS)</option>
+                            <option value="docx">Microsoft Word (DOCX)</option>
+                            <option value="rtf">Rich Text Format (RTF)</option>
+                            <option value="odt">OpenDocument Text (ODT)</option>
+                            <option value="csv">CSV</option>
+                            <option value="xml">XML</option>
+                            <option value="txt">Plain Text (TXT)</option>
+                        </select>
                     </div>
                     
                     <div class="form-group">
@@ -378,8 +384,12 @@
                             <p style="color: #999; text-align: center; margin: 20px 0;">No subreports added yet - Note: Upload subreport JRXML files first</p>
                         </div>
                     </div>
-                    
-                    <button type="submit" class="btn" style="margin-top: 20px;">🚀 Generate JRXML Report</button>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+                        <button type="submit" class="btn">🚀 Generate JRXML</button>
+                        <button type="button" class="btn" onclick="generateBuilderAndReport(event)">⚡ Generate JRXML and Report</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="generateBuilderReportOnly(event)">📄 Generate Report Only</button>
+                    </div>
                     
                     <div id="builderMessage" style="margin-top: 15px;"></div>
                 </form>
@@ -408,8 +418,23 @@
                             <option value="landscape">Landscape</option>
                         </select>
 
+                        <select id="vbOutputFormat" class="vb-select" title="Output format for report-generation actions">
+                            <option value="pdf" selected>PDF</option>
+                            <option value="html">HTML</option>
+                            <option value="xlsx">XLSX</option>
+                            <option value="xls">XLS</option>
+                            <option value="docx">DOCX</option>
+                            <option value="rtf">RTF</option>
+                            <option value="odt">ODT</option>
+                            <option value="csv">CSV</option>
+                            <option value="xml">XML</option>
+                            <option value="txt">TXT</option>
+                        </select>
+
                         <button type="button" class="btn vb-btn-secondary" onclick="vbClear()">Clear Canvas</button>
                         <button type="button" class="btn" onclick="vbGenerate()">Generate JRXML</button>
+                        <button type="button" class="btn" onclick="vbGenerateAndReport()">Generate JRXML and Report</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="vbGenerateReportOnly()">Generate Report Only</button>
                     </div>
 
                     <div class="vb-toolbar-options">

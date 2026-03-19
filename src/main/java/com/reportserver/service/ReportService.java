@@ -22,6 +22,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
@@ -120,6 +121,16 @@ public class ReportService {
         return generateReportInternal(jrxmlPath, parameters, outputFormat, null, dataSource);
     }
 
+    public byte[] generateReportFromJrxmlContent(String jrxmlContent, Map<String, Object> parameters,
+                                                  String outputFormat, Connection connection) throws Exception {
+        return generateReportFromJrxmlContentInternal(jrxmlContent, parameters, outputFormat, connection, null);
+    }
+
+    public byte[] generateReportFromJrxmlContentWithDataSource(String jrxmlContent, Map<String, Object> parameters,
+                                                                String outputFormat, Object dataSource) throws Exception {
+        return generateReportFromJrxmlContentInternal(jrxmlContent, parameters, outputFormat, null, dataSource);
+    }
+
     private byte[] generateReportInternal(String jrxmlPath, Map<String, Object> parameters,
                                            String outputFormat, Connection connection,
                                            Object dataSource) throws Exception {
@@ -149,6 +160,56 @@ public class ReportService {
                 }
             } else {
                 filledReport = JasperFillManager.fillReport(compiledReport, parameters, new JREmptyDataSource());
+            }
+
+            byte[] result = export(filledReport, outputFormat);
+            success = true;
+            return result;
+        } finally {
+            if (sample != null && meterRegistry != null) {
+                sample.stop(Timer.builder("reportserver.reports.generation.duration")
+                        .tag("format", outputFormat)
+                        .tag("status", success ? "success" : "failure")
+                        .description("Time to generate a report")
+                        .register(meterRegistry));
+            }
+            if (meterRegistry != null) {
+                Counter.builder("reportserver.reports.generated.total")
+                        .tag("format", outputFormat)
+                        .tag("status", success ? "success" : "failure")
+                        .description("Total reports generated")
+                        .register(meterRegistry)
+                        .increment();
+            }
+        }
+    }
+
+    private byte[] generateReportFromJrxmlContentInternal(String jrxmlContent, Map<String, Object> parameters,
+                                                           String outputFormat, Connection connection,
+                                                           Object dataSource) throws Exception {
+        if (jrxmlContent == null || jrxmlContent.isBlank()) {
+            throw new IllegalArgumentException("JRXML content is empty");
+        }
+
+        Timer.Sample sample = meterRegistry != null ? Timer.start(meterRegistry) : null;
+        boolean success = false;
+        try (InputStream inputStream = new ByteArrayInputStream(jrxmlContent.getBytes(StandardCharsets.UTF_8))) {
+            JasperReport compiledReport = JasperCompileManager.compileReport(inputStream);
+
+            Map<String, Object> safeParameters = parameters != null ? parameters : new HashMap<>();
+            JasperPrint filledReport;
+            if (connection != null) {
+                filledReport = JasperFillManager.fillReport(compiledReport, safeParameters, connection);
+            } else if (dataSource != null) {
+                if (dataSource instanceof JRDataSource) {
+                    filledReport = JasperFillManager.fillReport(compiledReport, safeParameters, (JRDataSource) dataSource);
+                } else if (dataSource instanceof Connection) {
+                    filledReport = JasperFillManager.fillReport(compiledReport, safeParameters, (Connection) dataSource);
+                } else {
+                    filledReport = JasperFillManager.fillReport(compiledReport, safeParameters, new JREmptyDataSource());
+                }
+            } else {
+                filledReport = JasperFillManager.fillReport(compiledReport, safeParameters, new JREmptyDataSource());
             }
 
             byte[] result = export(filledReport, outputFormat);

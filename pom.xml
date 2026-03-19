@@ -186,6 +186,13 @@
             <version>2.15.1</version>
         </dependency>
 
+        <!-- XML escaping for JRXML generation -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
         <!-- HTTP client for webhooks -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

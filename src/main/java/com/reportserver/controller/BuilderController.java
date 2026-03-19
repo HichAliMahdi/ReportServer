@@ -55,32 +55,23 @@ public class BuilderController {
     @GetMapping("/datasources/{datasourceId}/tables")
     @ResponseBody
     public ResponseEntity<?> getTables(@PathVariable Long datasourceId) {
-        Connection connection = null;
         try {
             logger.info("Fetching tables for datasource ID: {}", datasourceId);
             
-            connection = dataSourceService.getConnection(datasourceId);
-            if (connection == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "message", "Failed to connect to datasource"));
-            }
+            try (Connection connection = dataSourceService.getConnection(datasourceId)) {
+                if (connection == null) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "message", "Failed to connect to datasource"));
+                }
 
-            List<String> tables = schemaIntrospectionService.getTables(connection);
-            
-            return ResponseEntity.ok(Map.of("success", true, "tables", tables));
+                List<String> tables = schemaIntrospectionService.getTables(connection);
+                return ResponseEntity.ok(Map.of("success", true, "tables", tables));
+            }
             
         } catch (Exception e) {
             logger.error("Error fetching tables", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("success", false, "message", "Error: " + e.getMessage()));
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (Exception e) {
-                    logger.error("Error closing connection", e);
-                }
-            }
         }
     }
 
@@ -93,32 +84,23 @@ public class BuilderController {
             @PathVariable Long datasourceId,
             @PathVariable String tableName) {
         
-        Connection connection = null;
         try {
             logger.info("Fetching columns for table {} from datasource ID: {}", tableName, datasourceId);
             
-            connection = dataSourceService.getConnection(datasourceId);
-            if (connection == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "message", "Failed to connect to datasource"));
-            }
+            try (Connection connection = dataSourceService.getConnection(datasourceId)) {
+                if (connection == null) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "message", "Failed to connect to datasource"));
+                }
 
-            List<Map<String, String>> columns = schemaIntrospectionService.getColumns(connection, tableName);
-            
-            return ResponseEntity.ok(Map.of("success", true, "columns", columns));
+                List<Map<String, String>> columns = schemaIntrospectionService.getColumns(connection, tableName);
+                return ResponseEntity.ok(Map.of("success", true, "columns", columns));
+            }
             
         } catch (Exception e) {
             logger.error("Error fetching columns", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("success", false, "message", "Error: " + e.getMessage()));
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (Exception e) {
-                    logger.error("Error closing connection", e);
-                }
-            }
         }
     }
 
@@ -137,6 +119,40 @@ public class BuilderController {
         }
 
         return builderGenerationService.generateReport(request);
+    }
+
+    /**
+     * Generate JRXML and immediately generate the report output.
+     */
+    @PostMapping("/generate-and-report")
+    @ResponseBody
+    public ResponseEntity<?> generateAndReport(
+            @Valid @ModelAttribute BuilderGenerateRequestDTO request,
+            BindingResult bindingResult) {
+
+        if (bindingResult.hasErrors()) {
+            String message = bindingResult.getAllErrors().get(0).getDefaultMessage();
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+        }
+
+        return builderGenerationService.generateAndReport(request);
+    }
+
+    /**
+     * Generate report output directly without persisting the JRXML template.
+     */
+    @PostMapping("/generate-report-only")
+    @ResponseBody
+    public ResponseEntity<?> generateReportOnly(
+            @Valid @ModelAttribute BuilderGenerateRequestDTO request,
+            BindingResult bindingResult) {
+
+        if (bindingResult.hasErrors()) {
+            String message = bindingResult.getAllErrors().get(0).getDefaultMessage();
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", message));
+        }
+
+        return builderGenerationService.generateReportOnly(request);
     }
 
     /**
@@ -251,6 +267,24 @@ public class BuilderController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> generateFromVisualDesign(@RequestBody Map<String, Object> designData) {
         return builderGenerationService.generateFromVisualDesign(designData);
+    }
+
+    /**
+     * Generate visual JRXML and immediately generate the report output.
+     */
+    @PostMapping("/visual/generate-and-report")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> generateFromVisualDesignAndReport(@RequestBody Map<String, Object> designData) {
+        return builderGenerationService.generateFromVisualDesignAndReport(designData);
+    }
+
+    /**
+     * Generate report output from visual design without saving JRXML template.
+     */
+    @PostMapping("/visual/generate-report-only")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> generateFromVisualDesignReportOnly(@RequestBody Map<String, Object> designData) {
+        return builderGenerationService.generateFromVisualDesignReportOnly(designData);
     }
 
 }

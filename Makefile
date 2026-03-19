@@ -14,12 +14,13 @@ help: ## Show available Make targets
 	@awk 'BEGIN {FS = ":.*## "; printf "Available targets:\n\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 prepare-dirs: ## Create local data directories used by the app
-	@mkdir -p data/reports data/datasource_files data/thumbnails data/exports data/scheduled_output
+	@mkdir -p data/reports data/datasource_files data/generated-reports data/thumbnails data/exports data/scheduled_output
 
-clean: ## Remove Maven build output and reset local H2 credentials data
+clean: ## Remove Maven output and all local persisted app data
 	$(MVN) clean
 	@rm -f data/reportserver.mv.db data/reportserver.trace.db
-	@echo "Local H2 database files removed (credentials/passwords reset)."
+	@rm -rf data/reports/* data/datasource_files/* data/generated-reports/* data/thumbnails/* data/exports/* data/scheduled_output/*
+	@echo "Local app data cleaned: database, datasources, templates/reports, generated outputs, exports, schedules, and thumbnails."
 
 compile: prepare-dirs ## Compile the application without packaging
 	$(MVN) compile

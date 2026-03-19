@@ -9,9 +9,9 @@ import com.reportserver.repository.ReportTemplateRepository;
 import com.reportserver.repository.SharedReportRepository;
 import com.reportserver.service.DataSourceService;
 import com.reportserver.service.JrxmlParameterService;
+import com.reportserver.service.PdfUtilityService;
 import com.reportserver.service.ReportExecutionLogService;
 import com.reportserver.service.ReportService;
-import org.apache.pdfbox.pdmodel.PDDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +60,9 @@ public class ReportController {
 
     @Autowired
     private DataSourceService dataSourceService;
+    
+    @Autowired
+    private PdfUtilityService pdfUtilityService;
     
     @Autowired
     private com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService;
@@ -837,16 +840,22 @@ public class ReportController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
 
-            try (PDDocument document = PDDocument.load(file)) {
+            try {
+                int pageCount = pdfUtilityService.getPdfPageCount(file);
                 response.put("status", "success");
                 response.put("fileName", fileName);
-                response.put("pageCount", document.getNumberOfPages());
+                response.put("pageCount", pageCount);
                 return ResponseEntity.ok(response);
+            } catch (Exception e) {
+                logger.error("Error calculating PDF page count for {}", fileName, e);
+                response.put("status", "error");
+                response.put("message", "Failed to read PDF page count");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
             }
         } catch (Exception e) {
-            logger.error("Error calculating PDF page count for {}", fileName, e);
+            logger.error("Error processing PDF page count request", e);
             response.put("status", "error");
-            response.put("message", "Failed to read PDF page count");
+            response.put("message", "Failed to process request");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

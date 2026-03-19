@@ -27,6 +27,8 @@ public class BuilderGenerateRequestDTO {
 
     private String reportOptionsJson;
 
+    private String reportFormat;
+
     public String getReportName() {
         return reportName;
     }
@@ -81,5 +83,13 @@ public class BuilderGenerateRequestDTO {
 
     public void setReportOptionsJson(String reportOptionsJson) {
         this.reportOptionsJson = reportOptionsJson;
+    }
+
+    public String getReportFormat() {
+        return reportFormat;
+    }
+
+    public void setReportFormat(String reportFormat) {
+        this.reportFormat = reportFormat;
     }
 }

@@ -59,21 +59,12 @@ A comprehensive Reports Server application built with Spring Boot that supports 
    ```bash
   make run
    ```
-4. Open your browser to `http://localgit add .
-warning: in the working copy of 'src/main/java/com/reportserver/controller/ScheduleController.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/dto/ScheduledReportDTO.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/service/ScheduledReportService.java', CRLF will be replaced by LF the next time Git touches ithost:8080`
-5. **Register a new account** - The first user is automatically assigned admin privilegesgit add .
-warning: in the working copy of 'src/main/java/com/reportserver/controller/ScheduleController.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/dto/ScheduledReportDTO.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/service/ScheduledReportService.java', CRLF will be replaced by LF the next time Git touches it
+4. Open your browser to `http://localhost:8080`
+5. **Register a new account** - The first user is automatically assigned admin privileges
 6. Log in and start creating reports!
 
 ### Makefile Shortcuts
-git add .
-warning: in the working copy of 'src/main/java/com/reportserver/controller/ScheduleController.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/dto/ScheduledReportDTO.java', CRLF will be replaced by LF the next time Git touches it
-warning: in the working copy of 'src/main/java/com/reportserver/service/ScheduledReportService.java', CRLF will be replaced by LF the next time Git touches it
+
 Use the Makefile to keep the main workflows consistent:
 
 ```bash

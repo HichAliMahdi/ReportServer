@@ -2,6 +2,7 @@ package com.reportserver.service;
 
 import com.reportserver.dto.ParameterDTO;
 import com.reportserver.dto.VariableDTO;
+import org.apache.commons.text.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,12 +14,35 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class JrxmlBuilderService {
     
     private static final Logger logger = LoggerFactory.getLogger(JrxmlBuilderService.class);
+
+    /**
+     * Safely escape XML attribute values to prevent XML injection.
+     * Converts &, <, >, ", and ' to their XML entity equivalents.
+     */
+    private String escapeXmlAttribute(String value) {
+        if (value == null) {
+            return "";
+        }
+        return StringEscapeUtils.escapeXml11(value);
+    }
+
+    /**
+     * Safely escape XML text content (within CDATA is safer but still escaped for safety).
+     */
+    private String escapeXmlText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return StringEscapeUtils.escapeXml11(value);
+    }
 
     /**
      * Generate a JRXML file content based on table, columns, parameters, and variables
@@ -38,7 +62,7 @@ public class JrxmlBuilderService {
         jrxml.append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
         jrxml.append("xsi:schemaLocation=\"http://jasperreports.sourceforge.net/jasperreports ");
         jrxml.append("http://jasperreports.sourceforge.net/xsd/jasperreport.xsd\" ");
-        jrxml.append("name=\"").append(reportName).append("\" ");
+        jrxml.append("name=\"").append(escapeXmlAttribute(reportName)).append("\" ");
         jrxml.append("pageWidth=\"842\" pageHeight=\"595\" orientation=\"Landscape\" ");
         jrxml.append("columnWidth=\"802\" leftMargin=\"20\" rightMargin=\"20\" topMargin=\"20\" bottomMargin=\"20\" ");
         jrxml.append("uuid=\"").append(UUID.randomUUID().toString()).append("\">\n");
@@ -47,8 +71,8 @@ public class JrxmlBuilderService {
         if (parameters != null && !parameters.isEmpty()) {
             logger.info("Adding {} parameter(s) to JRXML", parameters.size());
             for (ParameterDTO parameter : parameters) {
-                jrxml.append("\t<parameter name=\"").append(parameter.getName()).append("\" ");
-                jrxml.append("class=\"").append(parameter.getJavaClass()).append("\">\n");
+                jrxml.append("\t<parameter name=\"").append(escapeXmlAttribute(parameter.getName())).append("\" ");
+                jrxml.append("class=\"").append(escapeXmlAttribute(parameter.getJavaClass())).append("\">\n");
                 
                 // Add default value expression if provided
                 if (parameter.getDefaultValueExpression() != null && !parameter.getDefaultValueExpression().trim().isEmpty()) {
@@ -66,18 +90,18 @@ public class JrxmlBuilderService {
         // Build SELECT clause
         for (int i = 0; i < selectedColumns.size(); i++) {
             if (i > 0) jrxml.append(", ");
-            jrxml.append("`").append(selectedColumns.get(i).get("name")).append("`");
+            jrxml.append("`").append(escapeXmlAttribute(selectedColumns.get(i).get("name"))).append("`");
         }
-        jrxml.append(" FROM `").append(tableName).append("`]]>\n");
+        jrxml.append(" FROM `").append(escapeXmlAttribute(tableName)).append("`]]>\n");
         jrxml.append("\t</queryString>\n");
         
         // Field Definitions
         for (Map<String, String> column : selectedColumns) {
-            jrxml.append("\t<field name=\"").append(column.get("name")).append("\" ");
-            jrxml.append("class=\"").append(column.get("javaClass")).append("\">\n");
-            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.name\" value=\"").append(column.get("name")).append("\"/>\n");
-            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.label\" value=\"").append(column.get("name")).append("\"/>\n");
-            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.tree.path\" value=\"").append(tableName).append("\"/>\n");
+            jrxml.append("\t<field name=\"").append(escapeXmlAttribute(column.get("name"))).append("\" ");
+            jrxml.append("class=\"").append(escapeXmlAttribute(column.get("javaClass"))).append("\">\n");
+            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.name\" value=\"").append(escapeXmlAttribute(column.get("name"))).append("\"/>\n");
+            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.label\" value=\"").append(escapeXmlAttribute(column.get("name"))).append("\"/>\n");
+            jrxml.append("\t\t<property name=\"com.jaspersoft.studio.field.tree.path\" value=\"").append(escapeXmlAttribute(tableName)).append("\"/>\n");
             jrxml.append("\t</field>\n");
         }
         
@@ -85,29 +109,29 @@ public class JrxmlBuilderService {
         if (variables != null && !variables.isEmpty()) {
             logger.info("Adding {} variable(s) to JRXML", variables.size());
             for (VariableDTO variable : variables) {
-                jrxml.append("\t<variable name=\"").append(variable.getName()).append("\" ");
-                jrxml.append("class=\"").append(variable.getJavaClass()).append("\" ");
+                jrxml.append("\t<variable name=\"").append(escapeXmlAttribute(variable.getName())).append("\" ");
+                jrxml.append("class=\"").append(escapeXmlAttribute(variable.getJavaClass())).append("\" ");
                 
                 // Add calculation type if not "Nothing"
                 if (variable.getCalculation() != null && !variable.getCalculation().equals("Nothing")) {
-                    jrxml.append("calculation=\"").append(variable.getCalculation()).append("\" ");
+                    jrxml.append("calculation=\"").append(escapeXmlAttribute(variable.getCalculation())).append("\" ");
                 }
                 
                 // Add reset type
                 if (variable.getResetType() != null && !variable.getResetType().equals("Report")) {
-                    jrxml.append("resetType=\"").append(variable.getResetType()).append("\" ");
+                    jrxml.append("resetType=\"").append(escapeXmlAttribute(variable.getResetType())).append("\" ");
                     // Add reset group if reset type is Group
                     if (variable.getResetType().equals("Group") && variable.getResetGroup() != null && !variable.getResetGroup().isEmpty()) {
-                        jrxml.append("resetGroup=\"").append(variable.getResetGroup()).append("\" ");
+                        jrxml.append("resetGroup=\"").append(escapeXmlAttribute(variable.getResetGroup())).append("\" ");
                     }
                 }
                 
                 // Add increment type if not "None"
                 if (variable.getIncrementType() != null && !variable.getIncrementType().equals("None")) {
-                    jrxml.append("incrementType=\"").append(variable.getIncrementType()).append("\" ");
+                    jrxml.append("incrementType=\"").append(escapeXmlAttribute(variable.getIncrementType())).append("\" ");
                     // Add increment group if increment type is Group
                     if (variable.getIncrementType().equals("Group") && variable.getIncrementGroup() != null && !variable.getIncrementGroup().isEmpty()) {
-                        jrxml.append("incrementGroup=\"").append(variable.getIncrementGroup()).append("\" ");
+                        jrxml.append("incrementGroup=\"").append(escapeXmlAttribute(variable.getIncrementGroup())).append("\" ");
                     }
                 }
                 
@@ -137,7 +161,7 @@ public class JrxmlBuilderService {
         jrxml.append("\t\t\t\t<textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">\n");
         jrxml.append("\t\t\t\t\t<font size=\"16\" isBold=\"true\"/>\n");
         jrxml.append("\t\t\t\t</textElement>\n");
-        jrxml.append("\t\t\t\t<text><![CDATA[").append(reportName).append("]]></text>\n");
+        jrxml.append("\t\t\t\t<text><![CDATA[").append(escapeXmlText(reportName)).append("]]></text>\n");
         jrxml.append("\t\t\t</staticText>\n");
         jrxml.append("\t\t</band>\n");
         jrxml.append("\t</title>\n");
@@ -156,7 +180,7 @@ public class JrxmlBuilderService {
             jrxml.append("\t\t\t\t<textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">\n");
             jrxml.append("\t\t\t\t\t<font isBold=\"true\"/>\n");
             jrxml.append("\t\t\t\t</textElement>\n");
-            jrxml.append("\t\t\t\t<text><![CDATA[").append(column.get("name")).append("]]></text>\n");
+            jrxml.append("\t\t\t\t<text><![CDATA[").append(escapeXmlText(column.get("name"))).append("]]></text>\n");
             jrxml.append("\t\t\t</staticText>\n");
             xPos += columnWidth;
         }
@@ -186,7 +210,7 @@ public class JrxmlBuilderService {
             jrxml.append("uuid=\"").append(UUID.randomUUID().toString()).append("\"/>\n");
             jrxml.append("\t\t\t\t<box><pen lineWidth=\"1.0\"/></box>\n");
             jrxml.append("\t\t\t\t<textElement textAlignment=\"Center\" verticalAlignment=\"Middle\"/>\n");
-            jrxml.append("\t\t\t\t<textFieldExpression><![CDATA[$F{").append(column.get("name")).append("}]]></textFieldExpression>\n");
+            jrxml.append("\t\t\t\t<textFieldExpression><![CDATA[$F{").append(escapeXmlText(column.get("name"))).append("}]]></textFieldExpression>\n");
             jrxml.append("\t\t\t</textField>\n");
             xPos += columnWidth;
         }
@@ -245,6 +269,23 @@ public class JrxmlBuilderService {
         String coverLogoData = asString(reportOptions.get("coverLogoData"));
         String coverPageFileData = asString(reportOptions.get("coverPageFileData"));
 
+        int pageWidth = extractJasperReportIntAttribute(jrxmlContent, "pageWidth", 842);
+        int pageHeight = extractJasperReportIntAttribute(jrxmlContent, "pageHeight", 595);
+        int topMargin = extractJasperReportIntAttribute(jrxmlContent, "topMargin", 20);
+        int bottomMargin = extractJasperReportIntAttribute(jrxmlContent, "bottomMargin", 20);
+        int leftMargin = extractJasperReportIntAttribute(jrxmlContent, "leftMargin", 20);
+        int rightMargin = extractJasperReportIntAttribute(jrxmlContent, "rightMargin", 20);
+        int columnWidth = extractJasperReportIntAttribute(
+            jrxmlContent,
+            "columnWidth",
+            Math.max(1, pageWidth - leftMargin - rightMargin));
+
+        int occupiedByOtherBands = extractSectionBandHeight(jrxmlContent, "pageHeader")
+            + extractSectionBandHeight(jrxmlContent, "columnHeader")
+            + extractSectionBandHeight(jrxmlContent, "columnFooter")
+            + extractSectionBandHeight(jrxmlContent, "pageFooter");
+        int maxTitleBandHeight = Math.max(1, pageHeight - topMargin - bottomMargin - occupiedByOtherBands);
+
         Map<String, List<Map<String, Object>>> coverBands = new HashMap<>();
         injectCoverPageElements(
             coverBands,
@@ -263,9 +304,9 @@ public class JrxmlBuilderService {
             coverSubtitleSize,
             coverLogoData,
             coverPageFileData,
-            595,
-            20,
-            802,
+            pageHeight,
+            topMargin,
+            columnWidth,
             true);
 
         List<Map<String, Object>> titleElements = coverBands.get("title");
@@ -277,8 +318,18 @@ public class JrxmlBuilderService {
             .mapToInt(element -> ((Number) element.getOrDefault("y", 0)).intValue()
                 + Math.max(1, ((Number) element.getOrDefault("height", 20)).intValue()))
             .max()
-            .orElse(555);
-        int titleBandHeight = Math.max(595, maxBottom + 20);
+            .orElse(Math.max(1, pageHeight - topMargin - bottomMargin));
+        int desiredTitleBandHeight = Math.max(1, maxBottom + 20);
+        int titleBandHeight = Math.min(desiredTitleBandHeight, maxTitleBandHeight);
+        if (titleBandHeight < desiredTitleBandHeight) {
+            logger.info(
+                "Cover title band height {} capped to {} to fit page layout (pageHeight={}, margins={}, occupiedBands={})",
+                desiredTitleBandHeight,
+                titleBandHeight,
+                pageHeight,
+                topMargin + bottomMargin,
+                occupiedByOtherBands);
+        }
 
         StringBuilder titleXml = new StringBuilder();
         titleXml.append("\t<title>\n");
@@ -314,7 +365,7 @@ public class JrxmlBuilderService {
         jrxml.append("<jasperReport xmlns=\"http://jasperreports.sourceforge.net/jasperreports\"\n");
         jrxml.append("              xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n");
         jrxml.append("              xsi:schemaLocation=\"http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd\"\n");
-        jrxml.append(String.format("              name=\"%s\"\n", reportName));
+        jrxml.append(String.format("              name=\"%s\"\n", escapeXmlAttribute(reportName)));
         jrxml.append(String.format("              pageWidth=\"%d\"\n", pageWidth));
         jrxml.append(String.format("              pageHeight=\"%d\"\n", pageHeight));
         jrxml.append(String.format("              orientation=\"%s\"\n", orientation));
@@ -388,8 +439,8 @@ public class JrxmlBuilderService {
                 String fieldType = (String) field.get("type");
                 if (fieldName != null && fieldNames.contains(fieldName)) {
                     jrxml.append(String.format("    <field name=\"%s\" class=\"%s\"/>\n",
-                        fieldName,
-                        resolveFieldClass(fieldType)));
+                        escapeXmlAttribute(fieldName),
+                        escapeXmlAttribute(resolveFieldClass(fieldType))));
                 }
             }
         } else {
@@ -405,7 +456,7 @@ public class JrxmlBuilderService {
                 }
 
                 jrxml.append(String.format("    <field name=\"%s\" class=\"java.lang.%s\"/>\n",
-                    fieldName, fieldType));
+                    escapeXmlAttribute(fieldName), escapeXmlAttribute(fieldType)));
             }
         }
 
@@ -602,6 +653,38 @@ public class JrxmlBuilderService {
         }
 
         return jrxmlContent.substring(0, insertIndex) + titleBandXml + jrxmlContent.substring(insertIndex);
+    }
+
+    private int extractJasperReportIntAttribute(String jrxmlContent, String attributeName, int fallback) {
+        Pattern pattern = Pattern.compile(
+            "<jasperReport\\b[^>]*\\b" + Pattern.quote(attributeName) + "\\s*=\\s*\"(\\d+)\"",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(jrxmlContent);
+        if (!matcher.find()) {
+            return fallback;
+        }
+
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private int extractSectionBandHeight(String jrxmlContent, String sectionName) {
+        Pattern sectionPattern = Pattern.compile(
+            "<" + Pattern.quote(sectionName) + "\\b[^>]*>\\s*<band\\b[^>]*\\bheight\\s*=\\s*\"(\\d+)\"",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = sectionPattern.matcher(jrxmlContent);
+        if (!matcher.find()) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private String mapSqlTypeToJavaClass(String sqlType) {
@@ -1113,12 +1196,12 @@ public class JrxmlBuilderService {
                     xml.append(String.format(" textAlignment=\"%s\"", alignment));
                 }
                 xml.append(">\n");
-                xml.append(String.format("                    <font fontName=\"%s\" size=\"%d\"", fontName, fontSize));
+                xml.append(String.format("                    <font fontName=\"%s\" size=\"%d\"", escapeXmlAttribute(fontName), fontSize));
                 if (isBold) xml.append(" isBold=\"true\"");
                 if (isItalic) xml.append(" isItalic=\"true\"");
                 xml.append("/>\n");
                 xml.append("                </textElement>\n");
-                xml.append(String.format("                <text><![CDATA[%s]]></text>\n", text));
+                xml.append(String.format("                <text><![CDATA[%s]]></text>\n", escapeXmlText(text)));
                 xml.append("            </staticText>\n");
                 break;
 
@@ -1135,7 +1218,7 @@ public class JrxmlBuilderService {
 
                 xml.append("            <textField");
                 if (pattern != null && !pattern.isEmpty()) {
-                    xml.append(String.format(" pattern=\"%s\"", pattern));
+                    xml.append(String.format(" pattern=\"%s\"", escapeXmlAttribute(pattern)));
                 }
                 xml.append(">\n");
                 xml.append(String.format("                <reportElement x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" forecolor=\"%s\"/>\n", x, y, width, height, safeFieldColor));
@@ -1144,12 +1227,12 @@ public class JrxmlBuilderService {
                     xml.append(String.format(" textAlignment=\"%s\"", fieldAlignment));
                 }
                 xml.append(">\n");
-                xml.append(String.format("                    <font fontName=\"%s\" size=\"%d\"", fieldFontName, fieldFontSize));
+                xml.append(String.format("                    <font fontName=\"%s\" size=\"%d\"", escapeXmlAttribute(fieldFontName), fieldFontSize));
                 if (fieldBold) xml.append(" isBold=\"true\"");
                 if (fieldItalic) xml.append(" isItalic=\"true\"");
                 xml.append("/>\n");
                 xml.append("                </textElement>\n");
-                xml.append(String.format("                <textFieldExpression><![CDATA[$F{%s}]]></textFieldExpression>\n", fieldName));
+                xml.append(String.format("                <textFieldExpression><![CDATA[$F{%s}]]></textFieldExpression>\n", escapeXmlText(fieldName)));
                 xml.append("            </textField>\n");
                 break;
 
@@ -1276,7 +1359,7 @@ public class JrxmlBuilderService {
             xml.append("                <textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">\n");
             xml.append("                    <font size=\"10\" isBold=\"true\"/>\n");
             xml.append("                </textElement>\n");
-            xml.append(String.format("                <text><![CDATA[%s]]></text>\n", column));
+            xml.append(String.format("                <text><![CDATA[%s]]></text>\n", escapeXmlText(column)));
             xml.append("            </staticText>\n");
         }
 
@@ -1305,7 +1388,7 @@ public class JrxmlBuilderService {
             xml.append("                <textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">\n");
             xml.append("                    <font size=\"10\"/>\n");
             xml.append("                </textElement>\n");
-            xml.append(String.format("                <textFieldExpression><![CDATA[$F{%s}]]></textFieldExpression>\n", column));
+            xml.append(String.format("                <textFieldExpression><![CDATA[$F{%s}]]></textFieldExpression>\n", escapeXmlText(column)));
             xml.append("            </textField>\n");
         }
 

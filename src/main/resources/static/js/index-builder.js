@@ -542,44 +542,34 @@
             checkboxes.forEach(cb => cb.checked = false);
         }
 
-        function generateBuilderReport(event) {
-            event.preventDefault();
-
+        function buildBuilderGenerationFormData() {
             const reportName = document.getElementById('builderReportName').value.trim();
             const datasourceId = document.getElementById('builderDatasource').value;
             const tableName = document.getElementById('builderTable').value;
+            const reportFormat = document.getElementById('builderOutputFormat')?.value || 'pdf';
             const normalizedReportName = reportName.endsWith('.jrxml') ? reportName : `${reportName}.jrxml`;
 
-            // Get selected columns
             const checkboxes = document.querySelectorAll('input[name="builderColumns"]:checked');
             const columns = Array.from(checkboxes).map(cb => cb.value);
-
             if (columns.length === 0) {
                 showBuilderMessage('Please select at least one column', 'error');
-                return;
+                return null;
             }
 
-            // Show loading message
-            showBuilderMessage('Generating JRXML file...', 'info');
-
-            // Build form data
             const formData = new URLSearchParams();
             formData.append('reportName', reportName);
             formData.append('tableName', tableName);
             formData.append('datasourceId', datasourceId);
+            formData.append('reportFormat', reportFormat);
             columns.forEach(col => formData.append('columns', col));
 
-            // Add parameters as JSON if any exist
             if (reportParameters.length > 0) {
                 formData.append('parametersJson', JSON.stringify(reportParameters));
             }
-
-            // Add variables as JSON if any exist
             if (reportVariables.length > 0) {
                 formData.append('variablesJson', JSON.stringify(reportVariables));
             }
 
-            // Optional shared cover settings from Cover Page tab (applies to Form Builder when selected).
             if (typeof vbBuildSharedCoverOptions === 'function') {
                 const formCoverOptions = vbBuildSharedCoverOptions('form');
                 if (formCoverOptions && formCoverOptions.coverPageEnabled === true) {
@@ -590,7 +580,54 @@
                 }
             }
 
-            fetch('/api/builder/generate', {
+            return formData;
+        }
+
+        function resetBuilderFormAfterGeneration() {
+            document.getElementById('builderForm').reset();
+            document.getElementById('builderTableGroup').style.display = 'none';
+            document.getElementById('builderColumnsGroup').style.display = 'none';
+            document.getElementById('builderParametersGroup').style.display = 'none';
+            document.getElementById('builderVariablesGroup').style.display = 'none';
+            document.getElementById('builderDatasetsGroup').style.display = 'none';
+            document.getElementById('builderSubreportsGroup').style.display = 'none';
+
+            reportParameters = [];
+            reportVariables = [];
+            displayParameters();
+            displayVariables();
+
+            if (typeof vbHandleCoverTemplateSelectionChange === 'function') {
+                vbHandleCoverTemplateSelectionChange('form');
+            }
+        }
+
+        function submitBuilderGeneration(mode, event) {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+
+            const endpointByMode = {
+                'jrxml': '/api/builder/generate',
+                'jrxml-and-report': '/api/builder/generate-and-report',
+                'report-only': '/api/builder/generate-report-only'
+            };
+
+            const loadingMessageByMode = {
+                'jrxml': 'Generating JRXML template...',
+                'jrxml-and-report': 'Generating JRXML template and report...',
+                'report-only': 'Generating report (without saving JRXML template)...'
+            };
+
+            const endpoint = endpointByMode[mode] || endpointByMode.jrxml;
+            const formData = buildBuilderGenerationFormData();
+            if (!formData) {
+                return;
+            }
+
+            showBuilderMessage(loadingMessageByMode[mode] || 'Processing...', 'info');
+
+            fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -600,32 +637,42 @@
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    showBuilderMessage('✓ ' + data.message + ' - Check Available Reports section to download', 'success');
+                if (!data.success) {
+                    showBuilderMessage('✗ ' + (data.message || 'Operation failed'), 'error');
+                    return;
+                }
 
-                    // Reload reports list
+                showBuilderMessage('✓ ' + data.message, 'success');
+
+                if (typeof loadReports === 'function' && mode !== 'report-only') {
                     loadReports();
-                    // Reset form
-                    document.getElementById('builderForm').reset();
-                    document.getElementById('builderTableGroup').style.display = 'none';
-                    document.getElementById('builderColumnsGroup').style.display = 'none';
-                    document.getElementById('builderParametersGroup').style.display = 'none';
-                    document.getElementById('builderVariablesGroup').style.display = 'none';
-                    // Clear parameters and variables
-                    reportParameters = [];
-                    reportVariables = [];
-                    displayParameters();
-                    displayVariables();
-                    if (typeof vbHandleCoverTemplateSelectionChange === 'function') {
-                        vbHandleCoverTemplateSelectionChange('form');
-                    }
-                } else {
-                    showBuilderMessage('✗ ' + data.message, 'error');
+                }
+                if (typeof loadGeneratedReports === 'function' && mode !== 'jrxml') {
+                    loadGeneratedReports(0);
+                }
+                if (typeof switchReportsSubTab === 'function' && mode !== 'jrxml') {
+                    switchReportsSubTab('available-reports');
+                }
+
+                if (mode !== 'report-only') {
+                    resetBuilderFormAfterGeneration();
                 }
             })
             .catch(error => {
                 showBuilderMessage('Error generating report: ' + error, 'error');
             });
+        }
+
+        function generateBuilderReport(event) {
+            submitBuilderGeneration('jrxml', event);
+        }
+
+        function generateBuilderAndReport(event) {
+            submitBuilderGeneration('jrxml-and-report', event);
+        }
+
+        function generateBuilderReportOnly(event) {
+            submitBuilderGeneration('report-only', event);
         }
 
         function showBuilderMessage(text, type) {

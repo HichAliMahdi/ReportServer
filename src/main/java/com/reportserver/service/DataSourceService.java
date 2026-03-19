@@ -211,4 +211,39 @@ public class DataSourceService {
         
         return result;
     }
+
+    /**
+     * List available tables and views for a JDBC datasource.
+     */
+    public List<String> listAvailableTables(DataSource dataSource) throws SQLException {
+        if (dataSource.getType() != DataSourceType.JDBC) {
+            throw new IllegalArgumentException("Table listing is only supported for JDBC datasources");
+        }
+
+        try {
+            Class.forName(dataSource.getDriverClassName());
+        } catch (ClassNotFoundException e) {
+            logger.error("Driver class not found: {}", dataSource.getDriverClassName(), e);
+            throw new SQLException("Driver not found: " + dataSource.getDriverClassName(), e);
+        }
+
+        List<String> tables = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(
+                dataSource.getUrl(),
+                dataSource.getUsername(),
+                dataSource.getPassword())) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            try (ResultSet rs = metaData.getTables(connection.getCatalog(), null, "%", new String[]{"TABLE", "VIEW"})) {
+                while (rs.next()) {
+                    String tableName = rs.getString("TABLE_NAME");
+                    if (tableName != null && !tableName.isBlank()) {
+                        tables.add(tableName);
+                    }
+                }
+            }
+        }
+
+        tables.sort(String.CASE_INSENSITIVE_ORDER);
+        return tables;
+    }
 }
