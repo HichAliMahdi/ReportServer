@@ -7,24 +7,57 @@
 
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content active">
-            <div class="reports-subtabs" role="tablist" aria-label="Reports sections">
-                <button type="button" class="btn reports-subtab-btn active" data-report-tab="generate" onclick="switchReportsSubTab('generate')">
-                    Generate Report
-                </button>
-                <button type="button" class="btn reports-subtab-btn" data-report-tab="update-jrxml" onclick="switchReportsSubTab('update-jrxml')">
-                    Update JRXML Report
-                </button>
-                <button type="button" class="btn reports-subtab-btn" data-report-tab="templates" onclick="switchReportsSubTab('templates')">
-                    Templates
-                </button>
-                <button type="button" class="btn reports-subtab-btn" data-report-tab="available-reports" onclick="switchReportsSubTab('available-reports')">
-                    Available Reports
-                </button>
-                <button type="button" class="btn reports-subtab-btn" data-report-tab="execution-history" onclick="switchReportsSubTab('execution-history')">
-                    Execution History
-                </button>
-            </div>
+            <div class="reports-workspace">
+                <aside class="reports-tree-panel" aria-label="Reports explorer">
+                    <div class="reports-tree-header">
+                        <h3>Reports Explorer</h3>
+                        <p>Browse authoring, library, and monitoring tools.</p>
+                    </div>
 
+                    <div class="reports-tree-group expanded" data-tree-section="authoring">
+                        <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('authoring')" aria-expanded="true">
+                            <span class="reports-tree-caret">▾</span>
+                            <span>Authoring</span>
+                        </button>
+                        <div class="reports-tree-children">
+                            <button type="button" class="reports-tree-item active" data-report-tab="generate" onclick="switchReportsSubTab('generate')">
+                                ⚡ Generate Report
+                            </button>
+                            <button type="button" class="reports-tree-item" data-report-tab="update-jrxml" onclick="switchReportsSubTab('update-jrxml')">
+                                📤 Update JRXML
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="reports-tree-group expanded" data-tree-section="library">
+                        <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('library')" aria-expanded="true">
+                            <span class="reports-tree-caret">▾</span>
+                            <span>Library</span>
+                        </button>
+                        <div class="reports-tree-children">
+                            <button type="button" class="reports-tree-item" data-report-tab="templates" onclick="switchReportsSubTab('templates')">
+                                📋 Templates
+                            </button>
+                            <button type="button" class="reports-tree-item" data-report-tab="available-reports" onclick="switchReportsSubTab('available-reports')">
+                                📊 Available Reports
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="reports-tree-group expanded" data-tree-section="monitoring">
+                        <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('monitoring')" aria-expanded="true">
+                            <span class="reports-tree-caret">▾</span>
+                            <span>Monitoring</span>
+                        </button>
+                        <div class="reports-tree-children">
+                            <button type="button" class="reports-tree-item" data-report-tab="execution-history" onclick="switchReportsSubTab('execution-history')">
+                                📜 Execution History
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="reports-detail-panel">
             <div id="reportSubTabGenerate" class="report-subtab-panel active">
                 <!-- Generate Report Section -->
                 <div id="generateReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
@@ -149,6 +182,31 @@
                         <div id="readOnlyReportList" class="report-list"></div>
                     </div>
                 </div>
+
+                <div id="embeddedViewerSection" class="card embedded-viewer-card">
+                    <div class="embedded-viewer-header">
+                        <h2 id="embeddedViewerTitle">👁️ Embedded Report Viewer</h2>
+                        <div class="embedded-viewer-toolbar" role="toolbar" aria-label="Report viewer controls">
+                            <button type="button" class="viewer-tool-btn" id="viewerPrevPageBtn" onclick="viewerPrevPage()">◀ Prev</button>
+                            <span id="viewerPageIndicator" class="viewer-chip">Page 1</span>
+                            <button type="button" class="viewer-tool-btn" id="viewerNextPageBtn" onclick="viewerNextPage()">Next ▶</button>
+                            <button type="button" class="viewer-tool-btn" id="viewerZoomOutBtn" onclick="viewerZoomOut()">－</button>
+                            <span id="viewerZoomIndicator" class="viewer-chip">100%</span>
+                            <button type="button" class="viewer-tool-btn" id="viewerZoomInBtn" onclick="viewerZoomIn()">＋</button>
+                            <button type="button" class="viewer-tool-btn" id="viewerZoomResetBtn" onclick="viewerZoomReset()">Reset</button>
+                            <button type="button" class="viewer-tool-btn viewer-tool-btn-accent" id="viewerExportBtn" onclick="viewerExportCurrent()">📥 Export</button>
+                            <button type="button" class="viewer-tool-btn" id="viewerCloseBtn" onclick="closeEmbeddedViewer()">Close</button>
+                        </div>
+                    </div>
+                    <p id="embeddedViewerMeta" class="embedded-viewer-meta">Select a generated report and click Preview to open it here.</p>
+                    <div class="embedded-viewer-stage">
+                        <div id="embeddedViewerEmpty" class="embedded-viewer-empty">
+                            <strong>No report selected</strong>
+                            <span>Use the Preview action from a generated report card to load the viewer.</span>
+                        </div>
+                        <iframe id="embeddedPreviewFrame" class="embedded-preview-frame" title="Embedded Report Preview"></iframe>
+                    </div>
+                </div>
             </div>
 
             <div id="reportSubTabExecutionHistory" class="report-subtab-panel">
@@ -162,6 +220,8 @@
                     <div id="executionHistoryList" class="report-list"></div>
                     <div id="historyPaginationBottom" class="pagination-bar"></div>
                 </div>
+            </div>
+                </section>
             </div>
         </div>
 

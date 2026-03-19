@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import jakarta.mail.internet.MimeMessage;
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +65,82 @@ public class ReportDeliveryService {
                 logger.error("Failed to deliver report {} via {}: {}",
                     reportName, delivery.getType(), e.getMessage(), e);
             }
+        }
+    }
+
+    /**
+     * Send a lightweight test email delivery without requiring a generated report file.
+     */
+    public void sendTestEmail(String recipientConfig, String reportName, String requestedBy) {
+        String[] recipients = parseRecipients(recipientConfig);
+        if (recipients.length == 0) {
+            throw new IllegalArgumentException("No valid email recipients were provided.");
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(recipients);
+        message.setSubject("Report Server Delivery Test: " + reportName);
+        message.setText(String.format(
+                "This is a test delivery from Report Server.\n\n" +
+                "Report: %s\n" +
+                "Triggered by: %s\n" +
+                "Time: %s\n\n" +
+                "If you received this message, email delivery is configured correctly.",
+                reportName,
+                requestedBy,
+                LocalDateTime.now()
+        ));
+
+        mailSender.send(message);
+        logger.info("Sent test email delivery for report '{}' to {} recipients", reportName, recipients.length);
+    }
+
+    /**
+     * Send a lightweight webhook test payload to validate endpoint connectivity.
+     */
+    public void sendTestWebhook(String webhookUrl, String reportName, String requestedBy) {
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            throw new IllegalArgumentException("Webhook URL is required.");
+        }
+
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "event", "REPORT_DELIVERY_TEST",
+                    "reportName", reportName,
+                    "requestedBy", requestedBy,
+                    "timestamp", LocalDateTime.now().toString()
+            ));
+
+            WebClient client = webClientBuilder.build();
+            for (int attempt = 0; attempt < webhookRetries; attempt++) {
+                try {
+                    client.post()
+                            .uri(webhookUrl)
+                            .header("Content-Type", "application/json")
+                            .header("X-Report-Delivery-Test", "true")
+                            .bodyValue(payload)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .block(java.time.Duration.ofMillis(webhookTimeout));
+
+                    logger.info("Successfully delivered test webhook for report '{}' to {}", reportName, webhookUrl);
+                    return;
+                } catch (Exception e) {
+                    logger.warn("Test webhook attempt {}/{} failed for {}: {}",
+                            attempt + 1, webhookRetries, webhookUrl, e.getMessage());
+                    if (attempt < webhookRetries - 1) {
+                        Thread.sleep(1000L * (attempt + 1));
+                    }
+                }
+            }
+
+            throw new RuntimeException("Webhook delivery failed after " + webhookRetries + " attempts");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Webhook delivery interrupted", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Webhook delivery failed", e);
         }
     }
 
@@ -196,7 +273,10 @@ public class ReportDeliveryService {
         }
 
         // Fall back to comma-separated
-        return recipientConfig.split(",\\s*");
+        return java.util.Arrays.stream(recipientConfig.split(",\\s*"))
+            .map(String::trim)
+            .filter(value -> !value.isEmpty())
+            .toArray(String[]::new);
     }
 
     /**

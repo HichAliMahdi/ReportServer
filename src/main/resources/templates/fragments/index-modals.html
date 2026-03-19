@@ -36,88 +36,96 @@
 
     <!-- Schedule Modal -->
     <div id="scheduleModal" class="modal">
-        <div class="modal-content" style="max-width: 700px;">
-            <div class="modal-header">
+        <div class="modal-content scheduler-dialog" style="max-width: 920px;">
+            <div class="modal-header scheduler-header">
                 <span class="close" onclick="closeScheduleModal()">&times;</span>
-                <h3 id="scheduleModalTitle">Create Scheduled Report</h3>
+                <div>
+                    <h3 id="scheduleModalTitle">Create Scheduled Report</h3>
+                    <p class="scheduler-subtitle">Configure trigger rules, recurrence pattern, and output delivery.</p>
+                </div>
             </div>
+
             <form id="scheduleForm" onsubmit="saveSchedule(event)">
                 <input type="hidden" id="scheduleId">
-                
-                <div class="form-group">
-                    <label for="scheduleName">Schedule Name: *</label>
-                    <input type="text" id="scheduleName" required placeholder="e.g. Weekly Sales Report">
+
+                <div class="scheduler-section">
+                    <div class="scheduler-section-title">General</div>
+                    <div class="scheduler-grid scheduler-grid-two">
+                        <div class="form-group">
+                            <label for="scheduleName">Schedule Name: *</label>
+                            <input type="text" id="scheduleName" required placeholder="e.g. Weekly Sales Snapshot">
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleStartDateTime">Start Date and Time:</label>
+                            <input type="datetime-local" id="scheduleStartDateTime" onchange="syncScheduleFieldsFromStartDate()">
+                            <small class="scheduler-note">Used to prefill recurrence fields and first expected run.</small>
+                        </div>
+                    </div>
+                    <div class="scheduler-grid scheduler-grid-two">
+                        <div class="form-group">
+                            <label for="scheduleReportName">Report Template: *</label>
+                            <select id="scheduleReportName" required>
+                                <option value="">-- Select a report --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleDatasource">Datasource (optional):</label>
+                            <select id="scheduleDatasource">
+                                <option value="">-- No datasource --</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label for="scheduleReportName">Report Template: *</label>
-                        <select id="scheduleReportName" required>
-                            <option value="">-- Select a report --</option>
-                        </select>
+                <div class="scheduler-section">
+                    <div class="scheduler-section-title">Recurrence Pattern</div>
+                    <div class="scheduler-grid scheduler-grid-three">
+                        <div class="form-group">
+                            <label for="scheduleType">Frequency: *</label>
+                            <select id="scheduleType" required onchange="updateScheduleFields()">
+                                <option value="HOURLY">Hourly</option>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY" selected>Weekly</option>
+                                <option value="MONTHLY">Monthly</option>
+                                <option value="YEARLY">Yearly</option>
+                            </select>
+                        </div>
+                        <div id="scheduleFieldDayOfWeek" class="form-group" style="display: none;">
+                            <label for="scheduleDayOfWeek">Day of Week:</label>
+                            <select id="scheduleDayOfWeek">
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                                <option value="7">Sunday</option>
+                            </select>
+                        </div>
+                        <div id="scheduleFieldDayOfMonth" class="form-group" style="display: none;">
+                            <label for="scheduleDayOfMonth">Day of Month:</label>
+                            <select id="scheduleDayOfMonth"></select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="scheduleFormat">Output Format: *</label>
-                        <select id="scheduleFormat" required>
-                            <option value="pdf">PDF</option>
-                            <option value="html">HTML</option>
-                            <option value="xlsx">Excel (XLSX)</option>
-                            <option value="xls">Excel (XLS)</option>
-                            <option value="docx">Word (DOCX)</option>
-                            <option value="csv">CSV</option>
-                            <option value="xml">XML</option>
-                            <option value="txt">Plain Text</option>
-                        </select>
-                    </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="scheduleType">Frequency: *</label>
-                    <select id="scheduleType" required onchange="updateScheduleFields()">
-                        <option value="HOURLY">Hourly</option>
-                        <option value="DAILY">Daily</option>
-                        <option value="WEEKLY" selected>Weekly</option>
-                        <option value="MONTHLY">Monthly</option>
-                        <option value="YEARLY">Yearly</option>
-                    </select>
-                </div>
-
-                <!-- Dynamic schedule fields -->
-                <div id="scheduleFieldsContainer" style="background: #f8f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <div id="scheduleFieldMonth" class="form-group" style="display: none;">
-                        <label for="scheduleMonth">Month:</label>
-                        <select id="scheduleMonth">
-                            <option value="1">January</option>
-                            <option value="2">February</option>
-                            <option value="3">March</option>
-                            <option value="4">April</option>
-                            <option value="5">May</option>
-                            <option value="6">June</option>
-                            <option value="7">July</option>
-                            <option value="8">August</option>
-                            <option value="9">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                    </div>
-                    <div id="scheduleFieldDayOfMonth" class="form-group" style="display: none;">
-                        <label for="scheduleDayOfMonth">Day of Month:</label>
-                        <select id="scheduleDayOfMonth"></select>
-                    </div>
-                    <div id="scheduleFieldDayOfWeek" class="form-group" style="display: none;">
-                        <label for="scheduleDayOfWeek">Day of Week:</label>
-                        <select id="scheduleDayOfWeek">
-                            <option value="1">Monday</option>
-                            <option value="2">Tuesday</option>
-                            <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option>
-                            <option value="5">Friday</option>
-                            <option value="6">Saturday</option>
-                            <option value="7">Sunday</option>
-                        </select>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div id="scheduleFieldsContainer" class="scheduler-grid scheduler-grid-three">
+                        <div id="scheduleFieldMonth" class="form-group" style="display: none;">
+                            <label for="scheduleMonth">Month:</label>
+                            <select id="scheduleMonth">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
                         <div id="scheduleFieldHour" class="form-group" style="display: none;">
                             <label for="scheduleHour">Hour (0-23):</label>
                             <select id="scheduleHour"></select>
@@ -127,29 +135,73 @@
                             <select id="scheduleMinute"></select>
                         </div>
                     </div>
+
+                    <div id="scheduleRecurrenceSummary" class="scheduler-summary">Weekly on Monday at 08:00</div>
                 </div>
 
-                <div class="form-group">
-                    <label for="scheduleDatasource">Datasource (optional):</label>
-                    <select id="scheduleDatasource">
-                        <option value="">-- No datasource --</option>
-                    </select>
+                <div class="scheduler-section">
+                    <div class="scheduler-section-title">Output and Delivery</div>
+                    <div class="scheduler-grid scheduler-grid-three">
+                        <div class="form-group">
+                            <label for="scheduleFormat">Output Format: *</label>
+                            <select id="scheduleFormat" required>
+                                <option value="pdf">PDF</option>
+                                <option value="html">HTML</option>
+                                <option value="xlsx">Excel (XLSX)</option>
+                                <option value="xls">Excel (XLS)</option>
+                                <option value="docx">Word (DOCX)</option>
+                                <option value="csv">CSV</option>
+                                <option value="xml">XML</option>
+                                <option value="txt">Plain Text</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleDeliveryMethod">Delivery Method:</label>
+                            <select id="scheduleDeliveryMethod" onchange="updateScheduleDeliveryOptions()">
+                                <option value="FILE_SYSTEM">Save to output directory</option>
+                                <option value="EMAIL">Email recipients</option>
+                                <option value="WEBHOOK">Webhook endpoint</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleOutputPath">Output Directory (optional):</label>
+                            <input type="text" id="scheduleOutputPath" placeholder="data/scheduled_output/">
+                            <small class="scheduler-note">Leave empty to use default output directory.</small>
+                        </div>
+                    </div>
+
+                    <div class="scheduler-grid scheduler-grid-two">
+                        <div id="scheduleEmailRecipientsGroup" class="form-group" style="display: none;">
+                            <label for="scheduleEmailRecipients">Email Recipients:</label>
+                            <textarea id="scheduleEmailRecipients" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="ops@example.com, finance@example.com"></textarea>
+                            <small class="scheduler-note">Provide one or more email addresses, separated by commas.</small>
+                        </div>
+                        <div id="scheduleWebhookUrlGroup" class="form-group" style="display: none;">
+                            <label for="scheduleWebhookUrl">Webhook URL:</label>
+                            <input type="url" id="scheduleWebhookUrl" placeholder="https://example.com/report-hook">
+                            <small class="scheduler-note">The server will POST delivery metadata after each run.</small>
+                        </div>
+                    </div>
+
+                    <div id="scheduleDeliveryUnsupportedNotice" class="scheduler-warning" style="display: none;">
+                        Configure a valid recipient list or webhook URL to enable this delivery method.
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="scheduleDescription">Description (optional):</label>
+                        <textarea id="scheduleDescription" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="Brief description of this scheduled report"></textarea>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="scheduleOutputPath">Output Directory (optional):</label>
-                    <input type="text" id="scheduleOutputPath" placeholder="data/scheduled_output/">
-                    <small style="color: #666;">Leave empty for default: data/scheduled_output/</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="scheduleDescription">Description (optional):</label>
-                    <textarea id="scheduleDescription" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="Brief description of this scheduled report"></textarea>
-                </div>
-
-                <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn" onclick="closeScheduleModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                    <button type="submit" class="btn">Save Schedule</button>
+                <div class="scheduler-actions">
+                    <div class="scheduler-test-tools">
+                        <button type="button" class="btn scheduler-test-btn" id="scheduleSendTestDeliveryBtn" onclick="sendTestScheduleDelivery()">Send Test Delivery</button>
+                        <span id="scheduleDeliveryTestMessage" class="scheduler-test-message" aria-live="polite"></span>
+                    </div>
+                    <div class="scheduler-primary-actions">
+                        <button type="button" class="btn" onclick="closeScheduleModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                        <button type="submit" id="scheduleSaveBtn" class="btn">Save Schedule</button>
+                    </div>
                 </div>
             </form>
         </div>

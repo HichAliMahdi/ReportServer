@@ -3,7 +3,9 @@ package com.reportserver.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reportserver.dto.ScheduledReportDTO;
+import com.reportserver.model.ReportDeliveryOption;
 import com.reportserver.model.ScheduledReport;
+import com.reportserver.repository.ReportDeliveryOptionRepository;
 import com.reportserver.repository.ScheduledReportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
@@ -23,6 +26,9 @@ import java.util.stream.Collectors;
 public class ScheduledReportService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScheduledReportService.class);
+    private static final String DELIVERY_FILE_SYSTEM = "FILE_SYSTEM";
+    private static final String DELIVERY_EMAIL = "EMAIL";
+    private static final String DELIVERY_WEBHOOK = "WEBHOOK";
 
     @Autowired
     private ScheduledReportRepository scheduledReportRepository;
@@ -32,6 +38,9 @@ public class ScheduledReportService {
 
     @Autowired
     private QuartzScheduleService quartzScheduleService;
+
+    @Autowired
+    private ReportDeliveryOptionRepository reportDeliveryOptionRepository;
 
     public List<ScheduledReportDTO> getAllScheduledReports() {
         return scheduledReportRepository.findAll().stream()
@@ -70,6 +79,7 @@ public class ScheduledReportService {
         scheduledReport.setNextRunTime(nextRun);
         
         ScheduledReport saved = scheduledReportRepository.save(scheduledReport);
+        syncDeliveryOptions(saved.getId(), dto);
         if (Boolean.TRUE.equals(saved.getEnabled())) {
             quartzScheduleService.scheduleOrUpdate(saved);
         }
@@ -91,6 +101,7 @@ public class ScheduledReportService {
         existing.setNextRunTime(nextRun);
         
         ScheduledReport updated = scheduledReportRepository.save(existing);
+        syncDeliveryOptions(updated.getId(), dto);
         if (Boolean.TRUE.equals(updated.getEnabled())) {
             quartzScheduleService.scheduleOrUpdate(updated);
         } else {
@@ -103,6 +114,7 @@ public class ScheduledReportService {
 
     public void deleteScheduledReport(Long id) {
         quartzScheduleService.unschedule(id);
+        reportDeliveryOptionRepository.deleteByScheduleId(id);
         scheduledReportRepository.deleteById(id);
         logger.info("Deleted scheduled report: {}", id);
     }
@@ -300,6 +312,7 @@ public class ScheduledReportService {
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
+        applyDeliveryOptions(dto, entity.getId());
         
         // Convert JSON string to Map
         if (entity.getParameters() != null && !entity.getParameters().isEmpty()) {
@@ -346,6 +359,126 @@ public class ScheduledReportService {
                 logger.error("Error serializing parameters to JSON", e);
             }
         }
+    }
+
+    private void applyDeliveryOptions(ScheduledReportDTO dto, Long scheduleId) {
+        List<ReportDeliveryOption> options = reportDeliveryOptionRepository.findByScheduleId(scheduleId);
+        if (options == null || options.isEmpty()) {
+            dto.setDeliveryMethod(DELIVERY_FILE_SYSTEM);
+            dto.setDeliveryEnabled(Boolean.TRUE);
+            return;
+        }
+
+        ReportDeliveryOption selected = options.stream()
+                .filter(option -> Boolean.TRUE.equals(option.getEnabled()))
+                .findFirst()
+                .orElse(options.get(0));
+
+        dto.setDeliveryMethod(selected.getType().name());
+        dto.setDeliveryEnabled(selected.getEnabled());
+
+        options.stream()
+                .filter(option -> option.getType() == ReportDeliveryOption.DeliveryType.EMAIL)
+                .findFirst()
+                .ifPresent(option -> dto.setEmailRecipients(option.getRecipientOrUrl()));
+
+        options.stream()
+                .filter(option -> option.getType() == ReportDeliveryOption.DeliveryType.WEBHOOK)
+                .findFirst()
+                .ifPresent(option -> dto.setWebhookUrl(option.getRecipientOrUrl()));
+    }
+
+    private void syncDeliveryOptions(Long scheduleId, ScheduledReportDTO dto) {
+        String normalizedMethod = normalizeDeliveryMethod(dto.getDeliveryMethod());
+        if (normalizedMethod == null) {
+            return;
+        }
+
+        reportDeliveryOptionRepository.deleteByScheduleId(scheduleId);
+        if (DELIVERY_FILE_SYSTEM.equals(normalizedMethod)) {
+            return;
+        }
+
+        boolean deliveryEnabled = dto.getDeliveryEnabled() == null || dto.getDeliveryEnabled();
+        if (DELIVERY_EMAIL.equals(normalizedMethod)) {
+            String recipients = dto.getEmailRecipients() == null ? "" : dto.getEmailRecipients().trim();
+            if (recipients.isEmpty()) {
+                throw new IllegalArgumentException("Email recipients are required when delivery method is EMAIL.");
+            }
+            validateEmailRecipients(recipients);
+            createDeliveryOption(scheduleId, ReportDeliveryOption.DeliveryType.EMAIL, recipients, deliveryEnabled);
+            return;
+        }
+
+        String webhookUrl = dto.getWebhookUrl() == null ? "" : dto.getWebhookUrl().trim();
+        if (webhookUrl.isEmpty()) {
+            throw new IllegalArgumentException("Webhook URL is required when delivery method is WEBHOOK.");
+        }
+        validateWebhookUrl(webhookUrl);
+        createDeliveryOption(scheduleId, ReportDeliveryOption.DeliveryType.WEBHOOK, webhookUrl, deliveryEnabled);
+    }
+
+    private String normalizeDeliveryMethod(String deliveryMethod) {
+        if (deliveryMethod == null || deliveryMethod.isBlank()) {
+            return null;
+        }
+
+        String method = deliveryMethod.trim().toUpperCase();
+        if (DELIVERY_FILE_SYSTEM.equals(method) || DELIVERY_EMAIL.equals(method) || DELIVERY_WEBHOOK.equals(method)) {
+            return method;
+        }
+        throw new IllegalArgumentException("Unsupported delivery method: " + deliveryMethod);
+    }
+
+    private void createDeliveryOption(Long scheduleId,
+                                      ReportDeliveryOption.DeliveryType type,
+                                      String recipientOrUrl,
+                                      boolean enabled) {
+        ReportDeliveryOption option = new ReportDeliveryOption();
+        option.setScheduleId(scheduleId);
+        option.setType(type);
+        option.setRecipientOrUrl(recipientOrUrl);
+        option.setEnabled(enabled);
+        reportDeliveryOptionRepository.save(option);
+    }
+
+    private void validateEmailRecipients(String recipients) {
+        String[] tokens = recipients.split(",");
+        if (tokens.length == 0) {
+            throw new IllegalArgumentException("At least one email recipient is required.");
+        }
+
+        boolean hasValidRecipient = false;
+
+        for (String token : tokens) {
+            String email = token == null ? "" : token.trim();
+            if (email.isEmpty()) {
+                continue;
+            }
+
+            if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                throw new IllegalArgumentException("Invalid email recipient: " + email);
+            }
+            hasValidRecipient = true;
+        }
+
+        if (!hasValidRecipient) {
+            throw new IllegalArgumentException("At least one email recipient is required.");
+        }
+    }
+
+    private void validateWebhookUrl(String webhookUrl) {
+        try {
+            URI uri = URI.create(webhookUrl);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+            if (("http".equals(scheme) || "https".equals(scheme)) && uri.getHost() != null) {
+                return;
+            }
+        } catch (Exception ignored) {
+            // Handled below.
+        }
+
+        throw new IllegalArgumentException("Invalid webhook URL: " + webhookUrl);
     }
 
     public void updateLastRunTime(Long id, LocalDateTime lastRunTime) {

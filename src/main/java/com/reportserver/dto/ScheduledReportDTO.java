@@ -23,6 +23,10 @@ public class ScheduledReportDTO {
     private Integer monthOfYear;
     private Integer hourOfDay;
     private Integer minuteOfHour;
+    private String deliveryMethod;
+    private String emailRecipients;
+    private String webhookUrl;
+    private Boolean deliveryEnabled;
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -171,6 +175,38 @@ public class ScheduledReportDTO {
 
     public void setMinuteOfHour(Integer minuteOfHour) {
         this.minuteOfHour = minuteOfHour;
+    }
+
+    public String getDeliveryMethod() {
+        return deliveryMethod;
+    }
+
+    public void setDeliveryMethod(String deliveryMethod) {
+        this.deliveryMethod = deliveryMethod;
+    }
+
+    public String getEmailRecipients() {
+        return emailRecipients;
+    }
+
+    public void setEmailRecipients(String emailRecipients) {
+        this.emailRecipients = emailRecipients;
+    }
+
+    public String getWebhookUrl() {
+        return webhookUrl;
+    }
+
+    public void setWebhookUrl(String webhookUrl) {
+        this.webhookUrl = webhookUrl;
+    }
+
+    public Boolean getDeliveryEnabled() {
+        return deliveryEnabled;
+    }
+
+    public void setDeliveryEnabled(Boolean deliveryEnabled) {
+        this.deliveryEnabled = deliveryEnabled;
     }
 
     public String getCreatedBy() {

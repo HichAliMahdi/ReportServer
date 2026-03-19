@@ -7,6 +7,7 @@ const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttri
 
 // Store current user role
 let currentUserRole = 'READ_ONLY'; // Default role
+let currentUsername = 'User';
 let lastActionElement = null;
 
 // Pagination state
@@ -121,6 +122,34 @@ function unwrapPagedContent(payload) {
     return [];
 }
 
+function formatRoleLabel(roleValue) {
+    if (!roleValue) return 'Unknown Role';
+    const normalized = String(roleValue).replace(/^ROLE_/, '');
+    const labels = {
+        ADMIN: 'Admin',
+        OPERATOR: 'Operator',
+        READ_ONLY: 'Read Only'
+    };
+    return labels[normalized] || normalized.replace(/_/g, ' ');
+}
+
+function applyCurrentUserDisplay() {
+    const sidebarUsername = document.getElementById('sidebarCurrentUsername');
+    if (sidebarUsername) {
+        sidebarUsername.textContent = currentUsername || 'User';
+    }
+
+    const userManagementUsername = document.getElementById('currentUserUsername');
+    if (userManagementUsername) {
+        userManagementUsername.textContent = currentUsername || 'User';
+    }
+
+    const userManagementRole = document.getElementById('currentUserRole');
+    if (userManagementRole) {
+        userManagementRole.textContent = formatRoleLabel(currentUserRole);
+    }
+}
+
 // Fetch the current user's role
 function fetchCurrentUser() {
     return fetch('/api/current-user')
@@ -128,7 +157,9 @@ function fetchCurrentUser() {
         .then(data => {
             if (data.status === 'success') {
                 currentUserRole = data.role;
+                currentUsername = data.username || currentUsername;
                 updateTabVisibility();
+                applyCurrentUserDisplay();
             }
             return data;
         })
@@ -136,6 +167,10 @@ function fetchCurrentUser() {
             console.error('Error fetching current user:', error);
             return { status: 'error' };
         });
+}
+
+function getReportsSubTabControls() {
+    return document.querySelectorAll('.reports-subtab-btn, .reports-tree-item');
 }
 
 function switchReportsSubTab(tabName) {
@@ -147,8 +182,8 @@ function switchReportsSubTab(tabName) {
         'execution-history': 'reportSubTabExecutionHistory'
     };
 
-    document.querySelectorAll('.reports-subtab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-report-tab') === tabName);
+    getReportsSubTabControls().forEach(control => {
+        control.classList.toggle('active', control.getAttribute('data-report-tab') === tabName);
     });
 
     Object.entries(tabMap).forEach(([name, panelId]) => {
@@ -157,6 +192,107 @@ function switchReportsSubTab(tabName) {
             panel.classList.toggle('active', name === tabName);
         }
     });
+
+    const activeTreeItem = document.querySelector(`.reports-tree-item[data-report-tab="${tabName}"]`);
+    if (activeTreeItem) {
+        const group = activeTreeItem.closest('.reports-tree-group');
+        if (group) {
+            group.classList.add('expanded');
+            const toggle = group.querySelector('.reports-tree-group-toggle');
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', 'true');
+            }
+        }
+    }
+}
+
+function toggleReportsTreeSection(sectionName) {
+    const group = document.querySelector(`.reports-tree-group[data-tree-section="${sectionName}"]`);
+    if (!group) return;
+
+    group.classList.toggle('expanded');
+    const toggle = group.querySelector('.reports-tree-group-toggle');
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', group.classList.contains('expanded') ? 'true' : 'false');
+    }
+}
+
+function toggleSidebarTreeSection(sectionName) {
+    const group = document.querySelector(`.sidebar-tree-group[data-sidebar-section="${sectionName}"]`);
+    if (!group) return;
+
+    group.classList.toggle('expanded');
+    const toggle = group.querySelector('.sidebar-tree-group-toggle');
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', group.classList.contains('expanded') ? 'true' : 'false');
+    }
+}
+
+function ensureActiveSidebarTreeGroup(tabName) {
+    const activeItem = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
+    if (!activeItem) return;
+
+    const group = activeItem.closest('.sidebar-tree-group');
+    if (!group) return;
+
+    group.classList.add('expanded');
+    const toggle = group.querySelector('.sidebar-tree-group-toggle');
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
+    }
+}
+
+function updateSidebarTreeVisibility() {
+    const groups = document.querySelectorAll('.sidebar-tree-group');
+    if (!groups.length) return;
+
+    groups.forEach(group => {
+        const hasVisibleItems = Array.from(group.querySelectorAll('.nav-item[data-tab]'))
+            .some(item => item.style.display !== 'none');
+        group.style.display = hasVisibleItems ? 'block' : 'none';
+    });
+}
+
+function toggleSidebarUserMenu() {
+    const menu = document.getElementById('sidebarSettingsMenu');
+    const gear = document.getElementById('sidebarSettingsToggle');
+    const chip = document.getElementById('sidebarUserChip');
+    if (!menu) return;
+
+    const isOpen = menu.classList.toggle('open');
+    if (gear) {
+        gear.classList.toggle('active', isOpen);
+        gear.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+    if (chip) {
+        chip.classList.toggle('active', isOpen);
+        chip.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+}
+
+function closeSidebarUserMenu() {
+    const menu = document.getElementById('sidebarSettingsMenu');
+    const gear = document.getElementById('sidebarSettingsToggle');
+    const chip = document.getElementById('sidebarUserChip');
+    if (!menu) return;
+
+    menu.classList.remove('open');
+    if (gear) {
+        gear.classList.remove('active');
+        gear.setAttribute('aria-expanded', 'false');
+    }
+    if (chip) {
+        chip.classList.remove('active');
+        chip.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function submitSidebarLogout() {
+    closeSidebarUserMenu();
+    const logoutForm = document.getElementById('sidebarLogoutForm');
+    if (logoutForm) {
+        logoutForm.submit();
+    }
 }
 
 function isSectionAvailable(sectionId) {
@@ -190,22 +326,31 @@ function getFirstVisibleReportSubTab() {
 }
 
 function updateReportsSubTabVisibility() {
-    const buttons = document.querySelectorAll('.reports-subtab-btn');
-    if (!buttons.length) return;
+    const controls = Array.from(getReportsSubTabControls());
+    if (!controls.length) return;
 
-    buttons.forEach(btn => {
-        const tabName = btn.getAttribute('data-report-tab');
-        btn.style.display = isReportSubTabAvailable(tabName) ? 'inline-flex' : 'none';
+    controls.forEach(control => {
+        const tabName = control.getAttribute('data-report-tab');
+        const isVisible = isReportSubTabAvailable(tabName);
+        control.style.display = isVisible
+            ? (control.classList.contains('reports-tree-item') ? 'block' : 'inline-flex')
+            : 'none';
     });
 
-    const activeBtn = document.querySelector('.reports-subtab-btn.active');
-    if (!activeBtn || activeBtn.style.display === 'none') {
+    document.querySelectorAll('.reports-tree-group').forEach(group => {
+        const hasVisibleChildren = Array.from(group.querySelectorAll('.reports-tree-item'))
+            .some(item => item.style.display !== 'none');
+        group.style.display = hasVisibleChildren ? 'block' : 'none';
+    });
+
+    const activeControl = document.querySelector('.reports-subtab-btn.active, .reports-tree-item.active');
+    if (!activeControl || activeControl.style.display === 'none') {
         switchReportsSubTab(getFirstVisibleReportSubTab());
     }
 }
 
 function initReportsSubTabs() {
-    if (!document.querySelector('.reports-subtabs')) return;
+    if (!document.querySelector('[data-report-tab]')) return;
 
     updateReportsSubTabVisibility();
 
@@ -215,6 +360,10 @@ function initReportsSubTabs() {
         : getFirstVisibleReportSubTab();
 
     switchReportsSubTab(defaultTab);
+
+    if (document.getElementById('embeddedViewerSection')) {
+        closeEmbeddedViewer();
+    }
 }
 
 // Update tab visibility based on user role
@@ -232,21 +381,21 @@ function updateTabVisibility() {
         const isAllowed = restrictedTabs[tabName].includes(currentUserRole);
         
         if (navElement) {
-            navElement.style.display = isAllowed ? 'block' : 'none';
+            navElement.style.display = isAllowed ? 'flex' : 'none';
         }
     });
 
     // Reports tab nav item is always visible
     const reportsNav = document.querySelector('.nav-item[data-tab="reports"]');
     if (reportsNav) {
-        reportsNav.style.display = 'block';
+        reportsNav.style.display = 'flex';
     }
     
     // Schedules tab is only visible to ADMIN and OPERATOR
     const schedulesNav = document.querySelector('.nav-item[data-tab="schedules"]');
     if (schedulesNav) {
         const isReadOnly = currentUserRole === 'READ_ONLY';
-        schedulesNav.style.display = isReadOnly ? 'none' : 'block';
+        schedulesNav.style.display = isReadOnly ? 'none' : 'flex';
     }
 
     // Reports tab section visibility (explicit role-based toggling)
@@ -278,7 +427,15 @@ function updateTabVisibility() {
         executionHistorySection.style.display = isReadOnly ? 'none' : 'block';
     }
 
+    updateSidebarTreeVisibility();
     updateReportsSubTabVisibility();
+}
+
+function getInitialTabFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get('tab');
+    const allowedTabs = ['reports', 'builder', 'datasources', 'schedules'];
+    return allowedTabs.includes(requestedTab) ? requestedTab : null;
 }
 
 // Load data on page load
@@ -289,6 +446,11 @@ window.onload = function() {
         initReportsSubTabs();
         loadReports();
         loadDatasources();
+
+        const initialTab = getInitialTabFromQuery();
+        if (initialTab && initialTab !== 'reports') {
+            switchTab(initialTab);
+        }
     });
 
     // Attach click event listeners to nav items
@@ -319,6 +481,18 @@ window.onload = function() {
         if (event.target === scheduleModal) {
             scheduleModal.style.display = 'none';
         }
+
+        const sidebarMenu = document.getElementById('sidebarSettingsMenu');
+        const sidebarToggle = document.getElementById('sidebarSettingsToggle');
+        const sidebarChip = document.getElementById('sidebarUserChip');
+        if (sidebarMenu) {
+            const clickedInsideMenu = sidebarMenu.contains(event.target);
+            const clickedToggle = sidebarToggle && (event.target === sidebarToggle || sidebarToggle.contains(event.target));
+            const clickedChip = sidebarChip && (event.target === sidebarChip || sidebarChip.contains(event.target));
+            if (!clickedInsideMenu && !clickedToggle && !clickedChip) {
+                closeSidebarUserMenu();
+            }
+        }
     };
 };
 
@@ -331,6 +505,8 @@ document.addEventListener('click', function(event) {
 
 // Tab switching
 function switchTab(tabName) {
+    closeSidebarUserMenu();
+
     // Check if user has access to this tab
     const restrictedTabs = {
         'builder': ['ADMIN', 'OPERATOR'],
@@ -366,6 +542,7 @@ function switchTab(tabName) {
 
     if (navElement) {
         navElement.classList.add('active');
+        ensureActiveSidebarTreeGroup(tabName);
     }
 
     // Load data for specific tabs
@@ -1746,7 +1923,149 @@ function showConfirmationModal(message, onConfirm) {
 
 // ─── Feature 1: Report Preview ────────────────────────────────────────────────
 
+const embeddedViewerState = {
+    fileName: '',
+    format: '',
+    page: 1,
+    zoom: 100,
+    pageCount: null
+};
+
+function getReportFileFormat(fileName) {
+    if (!fileName || !fileName.includes('.')) return '';
+    return fileName.split('.').pop().toLowerCase();
+}
+
+function buildEmbeddedPreviewUrl() {
+    const baseUrl = '/api/preview-generated-report/' + encodeURIComponent(embeddedViewerState.fileName);
+    if (embeddedViewerState.format === 'pdf') {
+        return `${baseUrl}#page=${embeddedViewerState.page}&zoom=${embeddedViewerState.zoom}`;
+    }
+    return baseUrl;
+}
+
+function updateEmbeddedViewerControls() {
+    const pageIndicator = document.getElementById('viewerPageIndicator');
+    const zoomIndicator = document.getElementById('viewerZoomIndicator');
+    const prevBtn = document.getElementById('viewerPrevPageBtn');
+    const nextBtn = document.getElementById('viewerNextPageBtn');
+    const exportBtn = document.getElementById('viewerExportBtn');
+    const meta = document.getElementById('embeddedViewerMeta');
+    const isPdf = embeddedViewerState.format === 'pdf';
+    const hasKnownPageCount = Number.isInteger(embeddedViewerState.pageCount) && embeddedViewerState.pageCount > 0;
+
+    if (pageIndicator) {
+        if (!isPdf) {
+            pageIndicator.textContent = 'Single page';
+        } else if (hasKnownPageCount) {
+            pageIndicator.textContent = `Page ${embeddedViewerState.page} / ${embeddedViewerState.pageCount}`;
+        } else {
+            pageIndicator.textContent = `Page ${embeddedViewerState.page}`;
+        }
+    }
+    if (zoomIndicator) {
+        zoomIndicator.textContent = `${embeddedViewerState.zoom}%`;
+    }
+    if (prevBtn) {
+        prevBtn.disabled = !isPdf || embeddedViewerState.page <= 1;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = !isPdf || (hasKnownPageCount && embeddedViewerState.page >= embeddedViewerState.pageCount);
+    }
+    if (exportBtn) {
+        exportBtn.disabled = !embeddedViewerState.fileName;
+    }
+    if (meta) {
+        if (embeddedViewerState.fileName) {
+            const formatLabel = (embeddedViewerState.format || 'file').toUpperCase();
+            if (isPdf && hasKnownPageCount) {
+                meta.textContent = `Viewing ${embeddedViewerState.fileName} (${formatLabel}, ${embeddedViewerState.pageCount} pages). Use Export to download a copy.`;
+            } else {
+                meta.textContent = `Viewing ${embeddedViewerState.fileName} (${formatLabel}). Use Export to download a copy.`;
+            }
+        } else {
+            meta.textContent = 'Select a generated report and click Preview to open it here.';
+        }
+    }
+}
+
+function applyEmbeddedViewerSource() {
+    const frame = document.getElementById('embeddedPreviewFrame');
+    if (!frame || !embeddedViewerState.fileName) return;
+
+    if (Number.isInteger(embeddedViewerState.pageCount) && embeddedViewerState.pageCount > 0) {
+        embeddedViewerState.page = Math.max(1, Math.min(embeddedViewerState.page, embeddedViewerState.pageCount));
+    }
+
+    frame.src = buildEmbeddedPreviewUrl();
+    frame.style.display = 'block';
+    frame.style.zoom = `${embeddedViewerState.zoom}%`;
+    updateEmbeddedViewerControls();
+}
+
+function loadEmbeddedPdfPageCount(fileName) {
+    const pageCountEndpoint = '/api/generated-reports/' + encodeURIComponent(fileName) + '/pdf-page-count';
+    fetch(pageCountEndpoint)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Unable to fetch PDF page count');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (embeddedViewerState.fileName !== fileName) {
+                return;
+            }
+            if (data && data.status === 'success' && Number.isInteger(data.pageCount) && data.pageCount > 0) {
+                embeddedViewerState.pageCount = data.pageCount;
+            } else {
+                embeddedViewerState.pageCount = null;
+            }
+            updateEmbeddedViewerControls();
+        })
+        .catch(() => {
+            if (embeddedViewerState.fileName === fileName) {
+                embeddedViewerState.pageCount = null;
+                updateEmbeddedViewerControls();
+            }
+        });
+}
+
+function openEmbeddedViewer(fileName) {
+    const viewerSection = document.getElementById('embeddedViewerSection');
+    const title = document.getElementById('embeddedViewerTitle');
+    const emptyState = document.getElementById('embeddedViewerEmpty');
+    const frame = document.getElementById('embeddedPreviewFrame');
+
+    if (!viewerSection || !frame) return false;
+
+    embeddedViewerState.fileName = fileName;
+    embeddedViewerState.format = getReportFileFormat(fileName);
+    embeddedViewerState.page = 1;
+    embeddedViewerState.zoom = 100;
+    embeddedViewerState.pageCount = null;
+
+    if (title) {
+        title.textContent = `👁️ Embedded Report Viewer - ${fileName}`;
+    }
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+
+    applyEmbeddedViewerSource();
+    if (embeddedViewerState.format === 'pdf') {
+        loadEmbeddedPdfPageCount(fileName);
+    }
+    viewerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+}
+
 function previewGeneratedReport(fileName) {
+    switchReportsSubTab('available-reports');
+    if (openEmbeddedViewer(fileName)) {
+        return;
+    }
+
     const modal = document.getElementById('previewModal');
     const frame = document.getElementById('previewFrame');
     const title = document.getElementById('previewModalTitle');
@@ -1754,6 +2073,72 @@ function previewGeneratedReport(fileName) {
     title.textContent = 'Preview: ' + fileName;
     frame.src = '/api/preview-generated-report/' + encodeURIComponent(fileName);
     modal.style.display = 'flex';
+}
+
+function closeEmbeddedViewer() {
+    const emptyState = document.getElementById('embeddedViewerEmpty');
+    const frame = document.getElementById('embeddedPreviewFrame');
+    const title = document.getElementById('embeddedViewerTitle');
+
+    embeddedViewerState.fileName = '';
+    embeddedViewerState.format = '';
+    embeddedViewerState.page = 1;
+    embeddedViewerState.zoom = 100;
+    embeddedViewerState.pageCount = null;
+
+    if (frame) {
+        frame.src = '';
+        frame.style.display = 'none';
+        frame.style.zoom = '100%';
+    }
+    if (emptyState) {
+        emptyState.style.display = 'flex';
+    }
+    if (title) {
+        title.textContent = '👁️ Embedded Report Viewer';
+    }
+
+    updateEmbeddedViewerControls();
+}
+
+function viewerPrevPage() {
+    if (embeddedViewerState.format !== 'pdf' || embeddedViewerState.page <= 1) return;
+    embeddedViewerState.page -= 1;
+    applyEmbeddedViewerSource();
+}
+
+function viewerNextPage() {
+    if (embeddedViewerState.format !== 'pdf') return;
+    if (Number.isInteger(embeddedViewerState.pageCount)
+        && embeddedViewerState.pageCount > 0
+        && embeddedViewerState.page >= embeddedViewerState.pageCount) {
+        return;
+    }
+    embeddedViewerState.page += 1;
+    applyEmbeddedViewerSource();
+}
+
+function viewerZoomIn() {
+    if (!embeddedViewerState.fileName) return;
+    embeddedViewerState.zoom = Math.min(250, embeddedViewerState.zoom + 10);
+    applyEmbeddedViewerSource();
+}
+
+function viewerZoomOut() {
+    if (!embeddedViewerState.fileName) return;
+    embeddedViewerState.zoom = Math.max(50, embeddedViewerState.zoom - 10);
+    applyEmbeddedViewerSource();
+}
+
+function viewerZoomReset() {
+    if (!embeddedViewerState.fileName) return;
+    embeddedViewerState.zoom = 100;
+    applyEmbeddedViewerSource();
+}
+
+function viewerExportCurrent() {
+    if (!embeddedViewerState.fileName) return;
+    downloadGeneratedReport(embeddedViewerState.fileName);
 }
 
 function closePreviewModal() {

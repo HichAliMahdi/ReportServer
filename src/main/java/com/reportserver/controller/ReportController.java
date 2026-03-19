@@ -11,6 +11,7 @@ import com.reportserver.service.DataSourceService;
 import com.reportserver.service.JrxmlParameterService;
 import com.reportserver.service.ReportExecutionLogService;
 import com.reportserver.service.ReportService;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -806,6 +807,47 @@ public class ReportController {
         } catch (Exception e) {
             logger.error("Error previewing generated report: {}", fileName, e);
             return ResponseEntity.status(500).build();
+        }
+    }
+
+    // API: Get a generated PDF page count for viewer navigation controls
+    @GetMapping("/api/generated-reports/{fileName}/pdf-page-count")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getGeneratedReportPdfPageCount(@PathVariable String fileName) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+                logger.warn("Invalid file name in page count request: {}", fileName);
+                response.put("status", "error");
+                response.put("message", "Invalid file name");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            if (!fileName.toLowerCase().endsWith(".pdf")) {
+                response.put("status", "error");
+                response.put("message", "Page count is available only for PDF files");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            File file = filePath.toFile();
+            if (!file.exists()) {
+                response.put("status", "error");
+                response.put("message", "Report file not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+            try (PDDocument document = PDDocument.load(file)) {
+                response.put("status", "success");
+                response.put("fileName", fileName);
+                response.put("pageCount", document.getNumberOfPages());
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            logger.error("Error calculating PDF page count for {}", fileName, e);
+            response.put("status", "error");
+            response.put("message", "Failed to read PDF page count");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 

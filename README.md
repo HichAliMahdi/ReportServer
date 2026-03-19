@@ -24,17 +24,20 @@ A comprehensive Reports Server application built with Spring Boot that supports 
 ### User Management & Security
 - **User authentication** - Secure login system with encrypted passwords
 - **User registration** - Self-service user registration
-- **Role-based access control** - Admin and regular user roles
+- **Role-based access control** - Admin, Operator, and Read Only roles
 - **Password management** - Change password functionality with first-login enforcement
 - **Password reset** - Forgot password with email-based reset flow
-- **Admin panel** - Manage users, reset passwords, toggle admin privileges
+- **Admin panel** - Manage users, roles, account status, and password resets
 
 ### Advanced Features
 - **Report parameters** - Dynamic report parameters with automatic type detection
 - **Database-driven reports** - Execute SQL queries within JRXML templates
-- **Scheduled reports** - Automate report generation on Hourly, Daily, Weekly, Monthly, or Yearly intervals
+- **Embedded report viewer** - Inline preview with zoom, pagination, and export controls
+- **Scheduled reports** - Automate report generation with Hourly/Daily/Weekly/Monthly/Yearly recurrence
+- **Schedule delivery options** - File system, email recipients, or webhook endpoint delivery
+- **Test delivery action** - Validate email/webhook delivery directly from the scheduler dialog
 - **RESTful API** - Complete API for programmatic access
-- **Modern web interface** - Clean, responsive UI with intuitive navigation
+- **Modern web interface** - Responsive tree-based navigation and role-aware sections
 - **CSRF protection** - Secure forms and API endpoints
 
 ## Prerequisites
@@ -79,7 +82,7 @@ make docker-down
 
 ### Default Admin Account
 
-After registration, the first user will have admin privileges. Subsequent users will have regular user privileges unless promoted by an admin.
+After registration, the first user will have admin privileges. Subsequent users default to the READ_ONLY role unless changed by an admin.
 
 ## User Authentication
 
@@ -101,7 +104,8 @@ After registration, the first user will have admin privileges. Subsequent users 
 
 ### User Roles
 - **Admin**: Full access to all features including user management
-- **User**: Access to reports, datasources, and report builder
+- **Operator**: Access to reports, report builder, datasources, and schedules (no user management)
+- **Read Only**: Access to reports and generated report viewing/download only
 
 ## Database Configuration
 
@@ -168,25 +172,26 @@ You can still view the application's internal H2 database configuration in `src/
 
 ### Reports Tab
 
-The Reports tab provides three main sections:
+The Reports area is organized as a tree workspace with Authoring, Library, and Monitoring groups.
 
-#### 1. Generate Report
-- Select an existing report template from the dropdown
-- Choose output format (PDF, HTML, Excel, Word, etc.)
-- Optionally select a database connection
-- Fill in any required report parameters
-- Click "Generate Report" to download
+#### 1. Authoring
+- **Generate Report**: Select template, output format, optional datasource, and parameters
+- **Update JRXML Report**: Upload or replace JRXML templates from the UI
 
-#### 2. Upload JRXML Report  
-- Click the upload area or drag-and-drop a .jrxml file
-- Supported file types: .jrxml only
-- Maximum file size: 10MB
+#### 2. Library
+- **Templates**: Browse uploaded JRXML templates
+- **Available Reports**: Manage generated outputs and actions
+  - **Preview**: Open reports in the embedded viewer
+  - **Export**: Download generated files
+  - **Share**: Toggle report visibility for READ_ONLY users (ADMIN/OPERATOR)
 
-#### 3. Available Reports
-- View all uploaded report templates
-- **Download**: Download the .jrxml file for external editing
-- **Edit**: Open the report in the built-in JRXML editor
-- **Delete**: Remove the report (with confirmation)
+#### 3. Embedded Viewer
+- Inline preview panel with page controls and zoom tools
+- PDF page count support through backend endpoint integration
+- Export action directly from the viewer toolbar
+
+#### 4. Monitoring
+- **Execution History**: Track report execution results and generated output references
 
 ### Report Builder Tab
 
@@ -280,6 +285,7 @@ Automate report generation on a recurring schedule:
    - **Schedule Name**: A descriptive name for the schedule
    - **Report Template**: Select which JRXML report to generate
    - **Output Format**: Choose the output format (PDF, Excel, Word, CSV, etc.)
+  - **Start Date and Time**: Initialize first run and recurrence defaults
    - **Frequency**: Select how often the report should run:
      - **Hourly** – Runs every hour at the specified minute
      - **Daily** – Runs once per day at the specified time
@@ -287,6 +293,8 @@ Automate report generation on a recurring schedule:
      - **Monthly** – Runs on a specific day of the month at the specified time
      - **Yearly** – Runs on a specific month and day at the specified time
    - **Datasource** (optional): Select a database connection for database-driven reports
+  - **Delivery Method**: File system, email recipients, or webhook endpoint
+  - **Delivery Test**: Send test email/webhook directly from the dialog
    - **Output Directory** (optional): Custom path for generated files (default: `data/scheduled_output/`)
 3. **Manage Schedules**:
    - **Pause/Resume**: Toggle a schedule on or off without deleting it
@@ -298,13 +306,15 @@ Automate report generation on a recurring schedule:
 
 ### User Management (Admin Only)
 
-Admins can manage users via the "User Management" link:
+Admins can manage users via the profile/settings menu (sidebar footer):
 
 - View all registered users
-- Toggle admin privileges
+- Assign or change role (ADMIN / OPERATOR / READ_ONLY)
+- Enable or disable user accounts
 - Reset user passwords
 - Delete users
 - View user roles and status
+- See the currently authenticated username and formatted role in the page header
 
 ## Building the Application
 
@@ -495,6 +505,22 @@ Supported formats:
 - `csv` - Comma-separated values
 - `xml` - XML format
 - `txt` - Plain text format
+
+#### Generated Report Viewer Metadata (PDF)
+```bash
+GET /api/generated-reports/{fileName}/pdf-page-count
+
+curl "http://localhost:8080/api/generated-reports/Sales_1730000000000.pdf/pdf-page-count"
+```
+
+Response example:
+```json
+{
+  "status": "success",
+  "fileName": "Sales_1730000000000.pdf",
+  "pageCount": 14
+}
+```
 
 #### List Available Reports
 ```bash
@@ -743,7 +769,7 @@ curl -X POST http://localhost:8080/api/users \
     "username": "newuser",
     "email": "user@example.com",
     "password": "securepass123",
-    "role": "USER"
+    "role": "READ_ONLY"
   }'
 ```
 
@@ -755,9 +781,9 @@ Content-Type: application/json
 curl -X PUT http://localhost:8080/api/users/1 \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "updateduser",
     "email": "updated@example.com",
-    "role": "ADMIN"
+    "role": "OPERATOR",
+    "enabled": true
   }'
 ```
 
@@ -772,14 +798,18 @@ curl -X DELETE http://localhost:8080/api/users/1
 ```bash
 POST /api/users/{id}/reset-password
 
-curl -X POST http://localhost:8080/api/users/1/reset-password
+curl -X POST http://localhost:8080/api/users/1/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newPassword": "NewSecurePass123"
+  }'
 ```
 
-#### Toggle Admin Status
+#### Get Current Authenticated User
 ```bash
-POST /api/users/{id}/toggle-admin
+GET /api/current-user
 
-curl -X POST http://localhost:8080/api/users/1/toggle-admin
+curl http://localhost:8080/api/current-user
 ```
 
 ### Report Schedule API
@@ -816,7 +846,10 @@ curl -X POST http://localhost:8080/api/schedules \
     "minuteOfHour": 0,
     "datasourceId": 1,
     "outputPath": "data/scheduled_output/",
-    "description": "Generates sales PDF every Monday at 08:00"
+    "description": "Generates sales PDF every Monday at 08:00",
+    "deliveryMethod": "EMAIL",
+    "emailRecipients": "ops@example.com,finance@example.com",
+    "deliveryEnabled": true
   }'
 ```
 
@@ -828,7 +861,11 @@ Schedule type options: `HOURLY`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`.
 | `hourOfDay` | DAILY, WEEKLY, MONTHLY, YEARLY | Hour of the day (0-23) |
 | `dayOfWeek` | WEEKLY | Day of the week (1=Monday … 7=Sunday) |
 | `dayOfMonth` | MONTHLY, YEARLY | Day of the month (1-31) |
-| `month` | YEARLY | Month of the year (1-12) |
+| `monthOfYear` | YEARLY | Month of the year (1-12) |
+| `deliveryMethod` | Optional | `FILE_SYSTEM`, `EMAIL`, or `WEBHOOK` |
+| `emailRecipients` | EMAIL | Comma-separated recipient addresses |
+| `webhookUrl` | WEBHOOK | HTTP(S) endpoint for delivery notification |
+| `deliveryEnabled` | Optional | Enable/disable configured delivery action |
 
 #### Update Schedule
 ```bash
@@ -869,15 +906,41 @@ curl -X POST http://localhost:8080/api/schedules/1/execute
 ```
 Triggers an immediate execution regardless of the next scheduled time.
 
+#### Send Test Schedule Delivery
+```bash
+POST /api/schedules/test-delivery
+Content-Type: application/json
+
+# Test email delivery
+curl -X POST http://localhost:8080/api/schedules/test-delivery \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deliveryMethod": "EMAIL",
+    "reportName": "SalesReport.jrxml",
+    "emailRecipients": "ops@example.com"
+  }'
+
+# Test webhook delivery
+curl -X POST http://localhost:8080/api/schedules/test-delivery \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deliveryMethod": "WEBHOOK",
+    "reportName": "SalesReport.jrxml",
+    "webhookUrl": "https://example.com/report-hook"
+  }'
+```
+
 #### Change Own Password
 ```bash
 POST /api/change-password
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/json
 
 curl -X POST http://localhost:8080/api/change-password \
-  -d "currentPassword=oldpass" \
-  -d "newPassword=newpass123" \
-  -d "confirmPassword=newpass123"
+  -H "Content-Type: application/json" \
+  -d '{
+    "oldPassword": "oldpass",
+    "newPassword": "newpass123"
+  }'
 ```
 
 ## Using Multiple Datasource Types in Reports
