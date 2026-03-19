@@ -10,6 +10,8 @@ let currentUserRole = 'READ_ONLY'; // Default role
 let currentUsername = 'User';
 let lastActionElement = null;
 
+const sidebarUi = window.ReportServerSidebar || {};
+
 // Pagination state
 let jrxmlPage = 0;
 let jrxmlTotalPages = 1;
@@ -122,21 +124,32 @@ function unwrapPagedContent(payload) {
     return [];
 }
 
+function normalizeRole(roleValue) {
+    if (typeof sidebarUi.normalizeRole === 'function') {
+        return sidebarUi.normalizeRole(roleValue);
+    }
+    const normalized = String(roleValue || '').replace(/^ROLE_/, '').toUpperCase();
+    if (normalized === 'ADMIN' || normalized === 'OPERATOR' || normalized === 'READ_ONLY') {
+        return normalized;
+    }
+    return 'READ_ONLY';
+}
+
 function formatRoleLabel(roleValue) {
-    if (!roleValue) return 'Unknown Role';
-    const normalized = String(roleValue).replace(/^ROLE_/, '');
-    const labels = {
-        ADMIN: 'Admin',
-        OPERATOR: 'Operator',
-        READ_ONLY: 'Read Only'
-    };
-    return labels[normalized] || normalized.replace(/_/g, ' ');
+    if (typeof sidebarUi.formatRoleLabel === 'function') {
+        return sidebarUi.formatRoleLabel(roleValue);
+    }
+    return normalizeRole(roleValue).replace(/_/g, ' ');
 }
 
 function applyCurrentUserDisplay() {
-    const sidebarUsername = document.getElementById('sidebarCurrentUsername');
-    if (sidebarUsername) {
-        sidebarUsername.textContent = currentUsername || 'User';
+    if (typeof sidebarUi.setSidebarCurrentUsername === 'function') {
+        sidebarUi.setSidebarCurrentUsername(currentUsername);
+    } else {
+        const sidebarUsername = document.getElementById('sidebarCurrentUsername');
+        if (sidebarUsername) {
+            sidebarUsername.textContent = currentUsername || 'User';
+        }
     }
 
     const userManagementUsername = document.getElementById('currentUserUsername');
@@ -153,9 +166,13 @@ function applyCurrentUserDisplay() {
 }
 
 function updateSidebarSettingsMenuVisibility() {
-    const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
-    if (userManagementItem) {
-        userManagementItem.style.display = currentUserRole === 'ADMIN' ? 'block' : 'none';
+    if (typeof sidebarUi.updateSidebarSettingsMenuVisibility === 'function') {
+        sidebarUi.updateSidebarSettingsMenuVisibility(currentUserRole);
+    } else {
+        const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
+        if (userManagementItem) {
+            userManagementItem.style.display = normalizeRole(currentUserRole) === 'ADMIN' ? 'block' : 'none';
+        }
     }
 }
 
@@ -165,7 +182,7 @@ function fetchCurrentUser() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                currentUserRole = data.role;
+                currentUserRole = normalizeRole(data.role);
                 currentUsername = data.username || currentUsername;
                 updateTabVisibility();
                 applyCurrentUserDisplay();
@@ -263,36 +280,16 @@ function updateSidebarTreeVisibility() {
 }
 
 function toggleSidebarUserMenu() {
-    const menu = document.getElementById('sidebarSettingsMenu');
-    const gear = document.getElementById('sidebarSettingsToggle');
-    const chip = document.getElementById('sidebarUserChip');
-    if (!menu) return;
-
-    const isOpen = menu.classList.toggle('open');
-    if (gear) {
-        gear.classList.toggle('active', isOpen);
-        gear.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    }
-    if (chip) {
-        chip.classList.toggle('active', isOpen);
-        chip.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (typeof sidebarUi.toggleSidebarUserMenu === 'function') {
+        sidebarUi.toggleSidebarUserMenu();
+        return;
     }
 }
 
 function closeSidebarUserMenu() {
-    const menu = document.getElementById('sidebarSettingsMenu');
-    const gear = document.getElementById('sidebarSettingsToggle');
-    const chip = document.getElementById('sidebarUserChip');
-    if (!menu) return;
-
-    menu.classList.remove('open');
-    if (gear) {
-        gear.classList.remove('active');
-        gear.setAttribute('aria-expanded', 'false');
-    }
-    if (chip) {
-        chip.classList.remove('active');
-        chip.setAttribute('aria-expanded', 'false');
+    if (typeof sidebarUi.closeSidebarUserMenu === 'function') {
+        sidebarUi.closeSidebarUserMenu();
+        return;
     }
 }
 
@@ -494,15 +491,21 @@ window.onload = function() {
             scheduleModal.style.display = 'none';
         }
 
-        const sidebarMenu = document.getElementById('sidebarSettingsMenu');
-        const sidebarToggle = document.getElementById('sidebarSettingsToggle');
-        const sidebarChip = document.getElementById('sidebarUserChip');
-        if (sidebarMenu) {
-            const clickedInsideMenu = sidebarMenu.contains(event.target);
-            const clickedToggle = sidebarToggle && (event.target === sidebarToggle || sidebarToggle.contains(event.target));
-            const clickedChip = sidebarChip && (event.target === sidebarChip || sidebarChip.contains(event.target));
-            if (!clickedInsideMenu && !clickedToggle && !clickedChip) {
+        if (typeof sidebarUi.isOutsideSidebarSettingsMenuClick === 'function') {
+            if (sidebarUi.isOutsideSidebarSettingsMenuClick(event)) {
                 closeSidebarUserMenu();
+            }
+        } else {
+            const sidebarMenu = document.getElementById('sidebarSettingsMenu');
+            const sidebarToggle = document.getElementById('sidebarSettingsToggle');
+            const sidebarChip = document.getElementById('sidebarUserChip');
+            if (sidebarMenu) {
+                const clickedInsideMenu = sidebarMenu.contains(event.target);
+                const clickedToggle = sidebarToggle && (event.target === sidebarToggle || sidebarToggle.contains(event.target));
+                const clickedChip = sidebarChip && (event.target === sidebarChip || sidebarChip.contains(event.target));
+                if (!clickedInsideMenu && !clickedToggle && !clickedChip) {
+                    closeSidebarUserMenu();
+                }
             }
         }
     };

@@ -287,58 +287,104 @@
         </div>
     </div>
 
+    <script src="/js/sidebar-common.js"></script>
     <script>
         const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
         const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+        const ROLE_ADMIN = 'ADMIN';
+        const ROLE_OPERATOR = 'OPERATOR';
+        const ROLE_READ_ONLY = 'READ_ONLY';
+
         let currentResetUserId = null;
+        const sidebarUi = window.ReportServerSidebar || {};
 
         document.addEventListener('DOMContentLoaded', () => {
+            initializePage();
+        });
+
+        function initializePage() {
             bindSidebarNavigation();
-            bindForms();
+            bindFormHandlers();
             updateSidebarSettingsMenuVisibility('READ_ONLY');
             fetchCurrentUserDisplay();
             clearSidebarActiveNav();
             loadUsers();
-        });
+        }
+
+        function getElement(id) {
+            return document.getElementById(id);
+        }
+
+        function toUsersList(payload) {
+            return Array.isArray(payload) ? payload : (payload?.content || []);
+        }
+
+        function fetchJson(url, options = {}) {
+            return fetch(url, options).then(response => response.json());
+        }
+
+        function normalizeRole(roleValue) {
+            if (typeof sidebarUi.normalizeRole === 'function') {
+                return sidebarUi.normalizeRole(roleValue);
+            }
+            const normalized = String(roleValue || '').replace(/^ROLE_/, '').toUpperCase();
+            if (normalized === ROLE_ADMIN || normalized === ROLE_OPERATOR || normalized === ROLE_READ_ONLY) {
+                return normalized;
+            }
+            return ROLE_READ_ONLY;
+        }
 
         function formatRoleLabel(roleValue) {
-            if (!roleValue) return 'Unknown Role';
-            const normalized = String(roleValue).replace(/^ROLE_/, '');
-            const labels = {
-                ADMIN: 'Admin',
-                OPERATOR: 'Operator',
-                READ_ONLY: 'Read Only'
-            };
-            return labels[normalized] || normalized.replace(/_/g, ' ');
+            if (typeof sidebarUi.formatRoleLabel === 'function') {
+                return sidebarUi.formatRoleLabel(roleValue);
+            }
+            return normalizeRole(roleValue).replace(/_/g, ' ');
+        }
+
+        function roleBadgeClass(roleValue) {
+            const normalizedRole = normalizeRole(roleValue);
+            if (normalizedRole === ROLE_ADMIN) return 'badge badge-admin';
+            if (normalizedRole === ROLE_OPERATOR) return 'badge badge-operator';
+            return 'badge badge-read-only';
+        }
+
+        function setSidebarUsername(username) {
+            if (typeof sidebarUi.setSidebarCurrentUsername === 'function') {
+                sidebarUi.setSidebarCurrentUsername(username);
+                return;
+            }
+
+            const sidebarUsername = getElement('sidebarCurrentUsername');
+            if (sidebarUsername) {
+                sidebarUsername.textContent = username;
+            }
+        }
+
+        function updateCurrentUserCard(username, role) {
+            const headerUsername = getElement('currentUserUsername');
+            if (headerUsername) {
+                headerUsername.textContent = username;
+            }
+
+            const headerRole = getElement('currentUserRole');
+            if (headerRole) {
+                headerRole.textContent = formatRoleLabel(role);
+            }
         }
 
         function fetchCurrentUserDisplay() {
-            fetch('/api/current-user')
-                .then(response => response.json())
+            fetchJson('/api/current-user')
                 .then(data => {
                     if (!data || data.status !== 'success') {
                         return;
                     }
 
                     const username = data.username || 'User';
-                    const role = data.role || 'READ_ONLY';
+                    const role = normalizeRole(data.role);
 
                     updateSidebarSettingsMenuVisibility(role);
-
-                    const sidebarUsername = document.getElementById('sidebarCurrentUsername');
-                    if (sidebarUsername) {
-                        sidebarUsername.textContent = username;
-                    }
-
-                    const headerUsername = document.getElementById('currentUserUsername');
-                    if (headerUsername) {
-                        headerUsername.textContent = username;
-                    }
-
-                    const headerRole = document.getElementById('currentUserRole');
-                    if (headerRole) {
-                        headerRole.textContent = formatRoleLabel(role);
-                    }
+                    setSidebarUsername(username);
+                    updateCurrentUserCard(username, role);
                 })
                 .catch(error => {
                     console.error('Error loading current user display:', error);
@@ -346,13 +392,17 @@
         }
 
         function updateSidebarSettingsMenuVisibility(roleValue) {
-            const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
-            if (!userManagementItem) {
-                return;
-            }
+            if (typeof sidebarUi.updateSidebarSettingsMenuVisibility === 'function') {
+                sidebarUi.updateSidebarSettingsMenuVisibility(roleValue);
+            } else {
+                const userManagementItem = getElement('sidebarUserManagementMenuItem');
+                if (!userManagementItem) {
+                    return;
+                }
 
-            const normalized = String(roleValue || '').replace(/^ROLE_/, '');
-            userManagementItem.style.display = normalized === 'ADMIN' ? 'block' : 'none';
+                const normalized = normalizeRole(roleValue);
+                userManagementItem.style.display = normalized === 'ADMIN' ? 'block' : 'none';
+            }
         }
 
         function getHeadersWithCsrf(additionalHeaders = {}) {
@@ -374,13 +424,13 @@
             });
         }
 
-        function bindForms() {
-            const userForm = document.getElementById('userForm');
+        function bindFormHandlers() {
+            const userForm = getElement('userForm');
             if (userForm) {
                 userForm.addEventListener('submit', handleUserFormSubmit);
             }
 
-            const resetPasswordForm = document.getElementById('resetPasswordForm');
+            const resetPasswordForm = getElement('resetPasswordForm');
             if (resetPasswordForm) {
                 resetPasswordForm.addEventListener('submit', handleResetPasswordFormSubmit);
             }
@@ -410,37 +460,14 @@
         }
 
         function toggleSidebarUserMenu() {
-            const menu = document.getElementById('sidebarSettingsMenu');
-            const toggle = document.getElementById('sidebarSettingsToggle');
-            const chip = document.getElementById('sidebarUserChip');
-            if (!menu) return;
-
-            const willOpen = !menu.classList.contains('open');
-            menu.classList.toggle('open', willOpen);
-            if (toggle) {
-                toggle.classList.toggle('active', willOpen);
-                toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-            }
-            if (chip) {
-                chip.classList.toggle('active', willOpen);
-                chip.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            if (typeof sidebarUi.toggleSidebarUserMenu === 'function') {
+                sidebarUi.toggleSidebarUserMenu();
             }
         }
 
         function closeSidebarUserMenu() {
-            const menu = document.getElementById('sidebarSettingsMenu');
-            const toggle = document.getElementById('sidebarSettingsToggle');
-            const chip = document.getElementById('sidebarUserChip');
-            if (!menu) return;
-
-            menu.classList.remove('open');
-            if (toggle) {
-                toggle.classList.remove('active');
-                toggle.setAttribute('aria-expanded', 'false');
-            }
-            if (chip) {
-                chip.classList.remove('active');
-                chip.setAttribute('aria-expanded', 'false');
+            if (typeof sidebarUi.closeSidebarUserMenu === 'function') {
+                sidebarUi.closeSidebarUserMenu();
             }
         }
 
@@ -452,11 +479,10 @@
         }
 
         function loadUsers() {
-            fetch('/api/users?page=0&size=100')
-                .then(response => response.json())
+            fetchJson('/api/users?page=0&size=100')
                 .then(payload => {
-                    const users = Array.isArray(payload) ? payload : (payload.content || []);
-                    const tableBody = document.getElementById('usersTableBody');
+                    const users = toUsersList(payload);
+                    const tableBody = getElement('usersTableBody');
                     if (!tableBody) return;
 
                     tableBody.innerHTML = '';
@@ -466,103 +492,108 @@
                         return;
                     }
 
-                    users.forEach(user => {
-                        const row = document.createElement('tr');
-
-                        const idCell = document.createElement('td');
-                        idCell.textContent = user.id;
-
-                        const usernameCell = document.createElement('td');
-                        usernameCell.textContent = user.username;
-
-                        const emailCell = document.createElement('td');
-                        emailCell.textContent = user.email;
-
-                        const roleCell = document.createElement('td');
-                        const roleBadge = document.createElement('span');
-                        if (user.role === 'ADMIN') {
-                            roleBadge.className = 'badge badge-admin';
-                        } else if (user.role === 'OPERATOR') {
-                            roleBadge.className = 'badge badge-operator';
-                        } else {
-                            roleBadge.className = 'badge badge-read-only';
-                        }
-                        roleBadge.textContent = user.role;
-                        roleCell.appendChild(roleBadge);
-
-                        const statusCell = document.createElement('td');
-                        const statusBadge = document.createElement('span');
-                        statusBadge.className = user.enabled ? 'badge badge-enabled' : 'badge badge-disabled';
-                        statusBadge.textContent = user.enabled ? 'Enabled' : 'Disabled';
-                        statusCell.appendChild(statusBadge);
-
-                        const createdCell = document.createElement('td');
-                        createdCell.textContent = new Date(user.createdAt).toLocaleDateString();
-
-                        const actionsCell = document.createElement('td');
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'btn-small';
-                        editBtn.textContent = 'Edit';
-                        editBtn.onclick = () => editUser(user.id);
-
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'btn-small btn-danger';
-                        deleteBtn.textContent = 'Delete';
-                        deleteBtn.onclick = () => deleteUser(user.id);
-
-                        actionsCell.appendChild(editBtn);
-                        actionsCell.appendChild(deleteBtn);
-
-                        row.appendChild(idCell);
-                        row.appendChild(usernameCell);
-                        row.appendChild(emailCell);
-                        row.appendChild(roleCell);
-                        row.appendChild(statusCell);
-                        row.appendChild(createdCell);
-                        row.appendChild(actionsCell);
-
-                        tableBody.appendChild(row);
-                    });
+                    const rows = users.map(createUserRow);
+                    rows.forEach(row => tableBody.appendChild(row));
                 })
                 .catch(error => {
                     console.error('Error loading users:', error);
                 });
         }
 
-        function openUserModal(userId = null) {
-            const modal = document.getElementById('userModal');
-            const form = document.getElementById('userForm');
-            const title = document.getElementById('modalTitle');
-            const passwordGroup = document.getElementById('passwordGroup');
-            const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+        function createUserRow(user) {
+            const row = document.createElement('tr');
+            const normalizedRole = normalizeRole(user.role);
 
-            if (!modal || !form || !title || !passwordGroup || !resetPasswordBtn) {
+            row.appendChild(createTextCell(user.id));
+            row.appendChild(createTextCell(user.username));
+            row.appendChild(createTextCell(user.email));
+
+            const roleBadge = document.createElement('span');
+            roleBadge.className = roleBadgeClass(normalizedRole);
+            roleBadge.textContent = formatRoleLabel(normalizedRole);
+            row.appendChild(createBadgeCell(roleBadge));
+
+            const statusBadge = document.createElement('span');
+            statusBadge.className = user.enabled ? 'badge badge-enabled' : 'badge badge-disabled';
+            statusBadge.textContent = user.enabled ? 'Enabled' : 'Disabled';
+            row.appendChild(createBadgeCell(statusBadge));
+
+            row.appendChild(createTextCell(new Date(user.createdAt).toLocaleDateString()));
+            row.appendChild(createActionsCell(user.id));
+
+            return row;
+        }
+
+        function createTextCell(value) {
+            const cell = document.createElement('td');
+            cell.textContent = value ?? '';
+            return cell;
+        }
+
+        function createBadgeCell(badgeElement) {
+            const cell = document.createElement('td');
+            cell.appendChild(badgeElement);
+            return cell;
+        }
+
+        function createActionsCell(userId) {
+            const actionsCell = document.createElement('td');
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn-small';
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = () => editUser(userId);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-small btn-danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = () => deleteUser(userId);
+
+            actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(deleteBtn);
+            return actionsCell;
+        }
+
+        function resetUserFormState() {
+            const userForm = getElement('userForm');
+            if (userForm) {
+                userForm.reset();
+            }
+
+            const message = getElement('userMessage');
+            if (message) {
+                message.innerHTML = '';
+            }
+
+            const enabledCheckbox = getElement('enabled');
+            if (enabledCheckbox) {
+                enabledCheckbox.checked = true;
+            }
+        }
+
+        function openUserModal(userId = null) {
+            const modal = getElement('userModal');
+            const title = getElement('modalTitle');
+            const passwordGroup = getElement('passwordGroup');
+            const resetPasswordBtn = getElement('resetPasswordBtn');
+            const userIdInput = getElement('userId');
+            const usernameInput = getElement('username');
+
+            if (!modal || !title || !passwordGroup || !resetPasswordBtn || !userIdInput || !usernameInput) {
                 return;
             }
 
-            form.reset();
-            document.getElementById('userMessage').innerHTML = '';
-            document.getElementById('enabled').checked = true;
+            resetUserFormState();
 
             if (userId) {
                 title.textContent = 'Edit User';
                 passwordGroup.style.display = 'none';
                 resetPasswordBtn.style.display = 'inline-block';
-
-                fetch('/api/users/' + userId)
-                    .then(response => response.json())
-                    .then(user => {
-                        document.getElementById('userId').value = user.id;
-                        document.getElementById('username').value = user.username;
-                        document.getElementById('username').readOnly = true;
-                        document.getElementById('email').value = user.email;
-                        document.getElementById('role').value = user.role;
-                        document.getElementById('enabled').checked = user.enabled;
-                    });
+                loadUserDetailsIntoForm(userId);
             } else {
                 title.textContent = 'Add User';
-                document.getElementById('userId').value = '';
-                document.getElementById('username').readOnly = false;
+                userIdInput.value = '';
+                usernameInput.readOnly = false;
                 passwordGroup.style.display = 'block';
                 resetPasswordBtn.style.display = 'none';
             }
@@ -570,16 +601,39 @@
             modal.style.display = 'block';
         }
 
+        function loadUserDetailsIntoForm(userId) {
+            fetchJson('/api/users/' + userId)
+                .then(user => {
+                    const userIdInput = getElement('userId');
+                    const usernameInput = getElement('username');
+                    const emailInput = getElement('email');
+                    const roleSelect = getElement('role');
+                    const enabledCheckbox = getElement('enabled');
+
+                    if (userIdInput) userIdInput.value = user.id;
+                    if (usernameInput) {
+                        usernameInput.value = user.username;
+                        usernameInput.readOnly = true;
+                    }
+                    if (emailInput) emailInput.value = user.email;
+                    if (roleSelect) roleSelect.value = normalizeRole(user.role);
+                    if (enabledCheckbox) enabledCheckbox.checked = !!user.enabled;
+                })
+                .catch(error => {
+                    showUserMessage('Failed to load user details: ' + error, 'error');
+                });
+        }
+
         function closeUserModal() {
-            const modal = document.getElementById('userModal');
+            const modal = getElement('userModal');
             if (modal) {
                 modal.style.display = 'none';
             }
         }
 
         function openResetPasswordModal() {
-            const userId = document.getElementById('userId').value;
-            const username = document.getElementById('username').value;
+            const userId = getElement('userId')?.value;
+            const username = getElement('username')?.value;
 
             if (!userId) {
                 alert('Please save the user first before resetting password');
@@ -587,14 +641,29 @@
             }
 
             currentResetUserId = userId;
-            document.getElementById('resetPasswordUsername').textContent = username;
-            document.getElementById('resetPasswordForm').reset();
-            document.getElementById('resetPasswordMessage').innerHTML = '';
-            document.getElementById('resetPasswordModal').style.display = 'block';
+            const usernameDisplay = getElement('resetPasswordUsername');
+            if (usernameDisplay) {
+                usernameDisplay.textContent = username;
+            }
+
+            const resetForm = getElement('resetPasswordForm');
+            if (resetForm) {
+                resetForm.reset();
+            }
+
+            const message = getElement('resetPasswordMessage');
+            if (message) {
+                message.innerHTML = '';
+            }
+
+            const modal = getElement('resetPasswordModal');
+            if (modal) {
+                modal.style.display = 'block';
+            }
         }
 
         function closeResetPasswordModal() {
-            const modal = document.getElementById('resetPasswordModal');
+            const modal = getElement('resetPasswordModal');
             if (modal) {
                 modal.style.display = 'none';
             }
@@ -608,11 +677,10 @@
         function deleteUser(id) {
             if (!confirm('Are you sure you want to delete this user?')) return;
 
-            fetch('/api/users/' + id, {
+            fetchJson('/api/users/' + id, {
                 method: 'DELETE',
                 headers: getHeadersWithCsrf()
             })
-                .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
                         alert(data.message);
@@ -629,29 +697,28 @@
         function handleUserFormSubmit(e) {
             e.preventDefault();
 
-            const id = document.getElementById('userId').value;
+            const id = getElement('userId')?.value;
             const formData = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
-                role: document.getElementById('role').value,
-                enabled: document.getElementById('enabled').checked
+                username: getElement('username')?.value,
+                email: getElement('email')?.value,
+                role: normalizeRole(getElement('role')?.value),
+                enabled: !!getElement('enabled')?.checked
             };
 
             if (!id) {
-                formData.password = document.getElementById('password').value;
+                formData.password = getElement('password')?.value;
             }
 
             const url = id ? '/api/users/' + id : '/api/users';
             const method = id ? 'PUT' : 'POST';
 
-            fetch(url, {
+            fetchJson(url, {
                 method: method,
                 headers: getHeadersWithCsrf({
                     'Content-Type': 'application/json'
                 }),
                 body: JSON.stringify(formData)
             })
-                .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
                         showUserMessage(data.message, 'success');
@@ -671,8 +738,8 @@
         function handleResetPasswordFormSubmit(e) {
             e.preventDefault();
 
-            const newPassword = document.getElementById('newPasswordField').value;
-            const confirmPassword = document.getElementById('confirmPasswordField').value;
+            const newPassword = getElement('newPasswordField')?.value || '';
+            const confirmPassword = getElement('confirmPasswordField')?.value || '';
 
             if (newPassword.length < 8) {
                 showResetPasswordMessage('Password must be at least 8 characters long', 'error');
@@ -689,14 +756,13 @@
                 return;
             }
 
-            fetch('/api/users/' + currentResetUserId + '/reset-password', {
+            fetchJson('/api/users/' + currentResetUserId + '/reset-password', {
                 method: 'POST',
                 headers: getHeadersWithCsrf({
                     'Content-Type': 'application/json'
                 }),
                 body: JSON.stringify({ newPassword: newPassword })
             })
-                .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
                         showResetPasswordMessage(data.message, 'success');
@@ -715,7 +781,7 @@
         }
 
         function showUserMessage(text, type) {
-            const msg = document.getElementById('userMessage');
+            const msg = getElement('userMessage');
             if (!msg) return;
             msg.textContent = text;
             msg.className = type;
@@ -723,36 +789,48 @@
         }
 
         function showResetPasswordMessage(text, type) {
-            const msg = document.getElementById('resetPasswordMessage');
+            const msg = getElement('resetPasswordMessage');
             if (!msg) return;
             msg.textContent = text;
             msg.className = type;
             msg.style.display = 'block';
         }
 
-        window.addEventListener('click', function(event) {
-            const modal = document.getElementById('userModal');
-            if (event.target === modal) {
+        function handleGlobalClick(event) {
+            const userModal = getElement('userModal');
+            if (event.target === userModal) {
                 closeUserModal();
             }
 
-            const resetPasswordModal = document.getElementById('resetPasswordModal');
+            const resetPasswordModal = getElement('resetPasswordModal');
             if (event.target === resetPasswordModal) {
                 closeResetPasswordModal();
             }
 
-            const sidebarMenu = document.getElementById('sidebarSettingsMenu');
-            const sidebarToggle = document.getElementById('sidebarSettingsToggle');
-            const sidebarChip = document.getElementById('sidebarUserChip');
-            if (sidebarMenu) {
-                const clickedInsideMenu = sidebarMenu.contains(event.target);
-                const clickedToggle = sidebarToggle && (event.target === sidebarToggle || sidebarToggle.contains(event.target));
-                const clickedChip = sidebarChip && (event.target === sidebarChip || sidebarChip.contains(event.target));
-                if (!clickedInsideMenu && !clickedToggle && !clickedChip) {
-                    closeSidebarUserMenu();
-                }
+            if (shouldCloseSidebarMenu(event)) {
+                closeSidebarUserMenu();
             }
-        });
+        }
+
+        function shouldCloseSidebarMenu(event) {
+            if (typeof sidebarUi.isOutsideSidebarSettingsMenuClick === 'function') {
+                return sidebarUi.isOutsideSidebarSettingsMenuClick(event);
+            }
+
+            const sidebarMenu = getElement('sidebarSettingsMenu');
+            const sidebarToggle = getElement('sidebarSettingsToggle');
+            const sidebarChip = getElement('sidebarUserChip');
+            if (!sidebarMenu) {
+                return false;
+            }
+
+            const clickedInsideMenu = sidebarMenu.contains(event.target);
+            const clickedToggle = sidebarToggle && (event.target === sidebarToggle || sidebarToggle.contains(event.target));
+            const clickedChip = sidebarChip && (event.target === sidebarChip || sidebarChip.contains(event.target));
+            return !clickedInsideMenu && !clickedToggle && !clickedChip;
+        }
+
+        window.addEventListener('click', handleGlobalClick);
     </script>
 </body>
 </html>
