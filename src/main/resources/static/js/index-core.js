@@ -148,6 +148,15 @@ function applyCurrentUserDisplay() {
     if (userManagementRole) {
         userManagementRole.textContent = formatRoleLabel(currentUserRole);
     }
+
+    updateSidebarSettingsMenuVisibility();
+}
+
+function updateSidebarSettingsMenuVisibility() {
+    const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
+    if (userManagementItem) {
+        userManagementItem.style.display = currentUserRole === 'ADMIN' ? 'block' : 'none';
+    }
 }
 
 // Fetch the current user's role
@@ -440,6 +449,9 @@ function getInitialTabFromQuery() {
 
 // Load data on page load
 window.onload = function() {
+    // Keep admin-only settings hidden until the authenticated role is resolved.
+    updateSidebarSettingsMenuVisibility();
+
     fetchCurrentUser().then(() => {
         // Remove loading state after user role is determined
         document.body.classList.remove('page-loading');

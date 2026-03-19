@@ -295,6 +295,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             bindSidebarNavigation();
             bindForms();
+            updateSidebarSettingsMenuVisibility('READ_ONLY');
             fetchCurrentUserDisplay();
             clearSidebarActiveNav();
             loadUsers();
@@ -322,6 +323,8 @@
                     const username = data.username || 'User';
                     const role = data.role || 'READ_ONLY';
 
+                    updateSidebarSettingsMenuVisibility(role);
+
                     const sidebarUsername = document.getElementById('sidebarCurrentUsername');
                     if (sidebarUsername) {
                         sidebarUsername.textContent = username;
@@ -340,6 +343,16 @@
                 .catch(error => {
                     console.error('Error loading current user display:', error);
                 });
+        }
+
+        function updateSidebarSettingsMenuVisibility(roleValue) {
+            const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
+            if (!userManagementItem) {
+                return;
+            }
+
+            const normalized = String(roleValue || '').replace(/^ROLE_/, '');
+            userManagementItem.style.display = normalized === 'ADMIN' ? 'block' : 'none';
         }
 
         function getHeadersWithCsrf(additionalHeaders = {}) {
