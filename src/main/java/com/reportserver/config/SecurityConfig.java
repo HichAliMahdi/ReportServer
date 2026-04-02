@@ -4,6 +4,11 @@ import com.reportserver.security.JwtAuthenticationFilter;
 import com.reportserver.security.AuditLoggingFilter;
 import com.reportserver.security.LoginRateLimitFilter;
 import com.reportserver.security.SessionTrackingFilter;
+import com.reportserver.security.TotpAuthenticationProvider;
+import com.reportserver.security.TotpWebAuthenticationDetailsSource;
+import com.reportserver.repository.UserRepository;
+import com.reportserver.service.TwoFactorAuthService;
+import com.reportserver.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +47,9 @@ public class SecurityConfig {
     @Autowired
     private SessionTrackingFilter sessionTrackingFilter;
 
+    @Autowired
+    private TotpWebAuthenticationDetailsSource totpWebAuthenticationDetailsSource;
+
     @Value("${reportserver.security.require-https:false}")
     private boolean requireHttps;
 
@@ -49,7 +57,8 @@ public class SecurityConfig {
     private String cspPolicy;
     
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   TotpAuthenticationProvider totpAuthenticationProvider) throws Exception {
         if (requireHttps) {
             http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
         }
@@ -61,6 +70,7 @@ public class SecurityConfig {
             )
             .formLogin(form -> form
                 .loginPage("/login")
+                .authenticationDetailsSource(totpWebAuthenticationDetailsSource)
                 .defaultSuccessUrl("/", true)
                 .permitAll()
             )
@@ -92,6 +102,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
+            .authenticationProvider(totpAuthenticationProvider)
             .addFilterBefore(auditLoggingFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -104,6 +115,17 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public TotpAuthenticationProvider totpAuthenticationProvider(UserRepository userRepository,
+                                                                 TwoFactorAuthService twoFactorAuthService,
+                                                                 UserService userService,
+                                                                 PasswordEncoder passwordEncoder) {
+        TotpAuthenticationProvider provider = new TotpAuthenticationProvider(userRepository, twoFactorAuthService);
+        provider.setUserDetailsService(userService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
     
     @Bean

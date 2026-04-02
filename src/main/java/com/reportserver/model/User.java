@@ -1,5 +1,6 @@
 package com.reportserver.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -31,6 +32,7 @@ public class User {
     @Column(nullable = false)
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters long")
+    @JsonIgnore
     private String password;
     
     @Column(nullable = false)
@@ -43,9 +45,11 @@ public class User {
     private LocalDateTime updatedAt;
     
     @Column(name = "reset_token")
+    @JsonIgnore
     private String resetToken;
     
     @Column(name = "reset_token_expiry")
+    @JsonIgnore
     private LocalDateTime resetTokenExpiry;
     
     @Column(nullable = false)
@@ -53,6 +57,16 @@ public class User {
     
     @Column(name = "first_login", nullable = false)
     private boolean firstLogin = true; // Force password change on first login
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    private boolean twoFactorEnabled = false;
+
+    @Column(name = "two_factor_confirmed", nullable = false)
+    private boolean twoFactorConfirmed = false;
+
+    @Column(name = "two_factor_secret", length = 128)
+    @JsonIgnore
+    private String twoFactorSecret;
     
     @PrePersist
     protected void onCreate() {

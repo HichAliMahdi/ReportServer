@@ -80,6 +80,18 @@
             background: #dc3545;
             color: white;
         }
+        .badge-2fa-on {
+            background: #17a2b8;
+            color: white;
+        }
+        .badge-2fa-pending {
+            background: #ffc107;
+            color: #333;
+        }
+        .badge-2fa-off {
+            background: #6c757d;
+            color: white;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -208,13 +220,14 @@
                         <th>Email</th>
                         <th>Role</th>
                         <th>Status</th>
+                        <th>2FA</th>
                         <th>Created At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="7" style="text-align: center; color: #999;">Loading users...</td>
+                        <td colspan="8" style="text-align: center; color: #999;">Loading users...</td>
                     </tr>
                 </tbody>
             </table>
@@ -284,6 +297,24 @@
                 <button type="button" class="btn" style="background: #6c757d; margin-left: 10px;" onclick="closeResetPasswordModal()">Cancel</button>
                 <div id="resetPasswordMessage" style="margin-top: 15px;"></div>
             </form>
+        </div>
+    </div>
+
+    <div id="twoFactorSetupModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeTwoFactorSetupModal()">&times;</span>
+                <h3>2FA Setup for <span id="twoFactorSetupUsername"></span></h3>
+            </div>
+            <p style="margin-bottom: 10px; color: #555;">Ask the user to scan this QR code with Google Authenticator, Microsoft Authenticator, or another TOTP app.</p>
+            <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+                <img id="twoFactorSetupQr" alt="2FA QR code" style="width: 260px; height: 260px; border: 1px solid #ddd; border-radius: 8px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label for="twoFactorSetupSecret">Manual key (if QR scan is unavailable):</label>
+                <input type="text" id="twoFactorSetupSecret" readonly>
+            </div>
+            <div style="font-size: 12px; color: #777;">After scanning, the user can verify 2FA from their Change Password page.</div>
         </div>
     </div>
 
@@ -488,7 +519,7 @@
                     tableBody.innerHTML = '';
 
                     if (users.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">No users found</td></tr>';
+                        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No users found</td></tr>';
                         return;
                     }
 
@@ -518,8 +549,21 @@
             statusBadge.textContent = user.enabled ? 'Enabled' : 'Disabled';
             row.appendChild(createBadgeCell(statusBadge));
 
+            const twoFaBadge = document.createElement('span');
+            if (user.twoFactorEnabled && user.twoFactorConfirmed) {
+                twoFaBadge.className = 'badge badge-2fa-on';
+                twoFaBadge.textContent = 'Enabled';
+            } else if (user.twoFactorEnabled) {
+                twoFaBadge.className = 'badge badge-2fa-pending';
+                twoFaBadge.textContent = 'Pending setup';
+            } else {
+                twoFaBadge.className = 'badge badge-2fa-off';
+                twoFaBadge.textContent = 'Disabled';
+            }
+            row.appendChild(createBadgeCell(twoFaBadge));
+
             row.appendChild(createTextCell(new Date(user.createdAt).toLocaleDateString()));
-            row.appendChild(createActionsCell(user.id));
+            row.appendChild(createActionsCell(user));
 
             return row;
         }
@@ -536,22 +580,105 @@
             return cell;
         }
 
-        function createActionsCell(userId) {
+        function createActionsCell(user) {
             const actionsCell = document.createElement('td');
 
             const editBtn = document.createElement('button');
             editBtn.className = 'btn-small';
             editBtn.textContent = 'Edit';
-            editBtn.onclick = () => editUser(userId);
+            editBtn.onclick = () => editUser(user.id);
+
+            const twoFaBtn = document.createElement('button');
+            twoFaBtn.className = 'btn-small';
+            if (user.twoFactorEnabled) {
+                twoFaBtn.classList.add('btn-danger');
+                twoFaBtn.textContent = 'Disable 2FA';
+                twoFaBtn.onclick = () => disableTwoFactor(user.id, user.username);
+            } else {
+                twoFaBtn.textContent = 'Enable 2FA';
+                twoFaBtn.onclick = () => enableTwoFactor(user.id);
+            }
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-small btn-danger';
             deleteBtn.textContent = 'Delete';
-            deleteBtn.onclick = () => deleteUser(userId);
+            deleteBtn.onclick = () => deleteUser(user.id);
 
             actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(twoFaBtn);
             actionsCell.appendChild(deleteBtn);
             return actionsCell;
+        }
+
+        function enableTwoFactor(userId) {
+            fetchJson('/api/users/' + userId + '/2fa/enable', {
+                method: 'POST',
+                headers: getHeadersWithCsrf()
+            })
+                .then(data => {
+                    if (data.status === 'success') {
+                        loadUsers();
+                        openTwoFactorSetupModal(data.setup || {});
+                    } else {
+                        alert(data.message || 'Failed to enable 2FA');
+                    }
+                })
+                .catch(error => {
+                    alert('Failed to enable 2FA: ' + error);
+                });
+        }
+
+        function disableTwoFactor(userId, username) {
+            if (!confirm('Disable 2FA for ' + username + '?')) {
+                return;
+            }
+
+            fetchJson('/api/users/' + userId + '/2fa/disable', {
+                method: 'POST',
+                headers: getHeadersWithCsrf()
+            })
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message || '2FA disabled');
+                        loadUsers();
+                    } else {
+                        alert(data.message || 'Failed to disable 2FA');
+                    }
+                })
+                .catch(error => {
+                    alert('Failed to disable 2FA: ' + error);
+                });
+        }
+
+        function openTwoFactorSetupModal(setup) {
+            const modal = getElement('twoFactorSetupModal');
+            if (!modal) {
+                return;
+            }
+
+            const username = getElement('twoFactorSetupUsername');
+            if (username) {
+                username.textContent = setup.username || '';
+            }
+
+            const qr = getElement('twoFactorSetupQr');
+            if (qr) {
+                qr.src = setup.qrCodeDataUri || '';
+            }
+
+            const secret = getElement('twoFactorSetupSecret');
+            if (secret) {
+                secret.value = setup.secret || '';
+            }
+
+            modal.style.display = 'block';
+        }
+
+        function closeTwoFactorSetupModal() {
+            const modal = getElement('twoFactorSetupModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         function resetUserFormState() {
@@ -805,6 +932,11 @@
             const resetPasswordModal = getElement('resetPasswordModal');
             if (event.target === resetPasswordModal) {
                 closeResetPasswordModal();
+            }
+
+            const twoFactorSetupModal = getElement('twoFactorSetupModal');
+            if (event.target === twoFactorSetupModal) {
+                closeTwoFactorSetupModal();
             }
 
             if (shouldCloseSidebarMenu(event)) {

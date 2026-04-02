@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +30,9 @@ public class UserService implements UserDetailsService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TwoFactorAuthService twoFactorAuthService;
     
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -263,6 +268,79 @@ public class UserService implements UserDetailsService {
         
         userRepository.save(user);
         logger.info("Password reset for user: {} by admin", user.getUsername());
+    }
+
+    public Map<String, Object> enableTwoFactor(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String secret = twoFactorAuthService.generateSecret();
+        String otpAuthUri = twoFactorAuthService.buildOtpAuthUri(user.getUsername(), secret);
+        String qrCodeDataUri = twoFactorAuthService.generateQrCodeDataUri(otpAuthUri);
+
+        user.setTwoFactorEnabled(true);
+        user.setTwoFactorConfirmed(false);
+        user.setTwoFactorSecret(secret);
+        userRepository.save(user);
+
+        logger.info("2FA enabled for user {}. Enrollment pending confirmation.", user.getUsername());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("userId", user.getId());
+        response.put("username", user.getUsername());
+        response.put("enabled", true);
+        response.put("confirmed", false);
+        response.put("secret", secret);
+        response.put("otpAuthUri", otpAuthUri);
+        response.put("qrCodeDataUri", qrCodeDataUri);
+        return response;
+    }
+
+    public void disableTwoFactor(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setTwoFactorEnabled(false);
+        user.setTwoFactorConfirmed(false);
+        user.setTwoFactorSecret(null);
+        userRepository.save(user);
+
+        logger.info("2FA disabled for user {}", user.getUsername());
+    }
+
+    public Map<String, Object> getTwoFactorSetupForUser(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("enabled", user.isTwoFactorEnabled());
+        response.put("confirmed", user.isTwoFactorConfirmed());
+
+        if (user.isTwoFactorEnabled() && user.getTwoFactorSecret() != null && !user.getTwoFactorSecret().isBlank()) {
+            String otpAuthUri = twoFactorAuthService.buildOtpAuthUri(user.getUsername(), user.getTwoFactorSecret());
+            response.put("secret", user.getTwoFactorSecret());
+            response.put("otpAuthUri", otpAuthUri);
+            response.put("qrCodeDataUri", twoFactorAuthService.generateQrCodeDataUri(otpAuthUri));
+        }
+
+        return response;
+    }
+
+    public boolean verifyTwoFactorForUser(String username, String code) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.isTwoFactorEnabled() || user.getTwoFactorSecret() == null || user.getTwoFactorSecret().isBlank()) {
+            throw new IllegalArgumentException("2FA is not enabled for this account");
+        }
+
+        boolean valid = twoFactorAuthService.verifyCode(user.getTwoFactorSecret(), code);
+        if (valid && !user.isTwoFactorConfirmed()) {
+            user.setTwoFactorConfirmed(true);
+            userRepository.save(user);
+            logger.info("2FA enrollment confirmed for user {}", username);
+        }
+        return valid;
     }
     
     // Helper method to validate email format

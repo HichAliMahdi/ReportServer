@@ -54,6 +54,7 @@ public class ApiAuthController {
         try {
             String username = request.get("username");
             String password = request.get("password");
+            String totpCode = request.get("totpCode");
             
             if (username == null || password == null) {
                 return ResponseEntity.badRequest()
@@ -61,9 +62,12 @@ public class ApiAuthController {
             }
             
             // Authenticate the user
-            Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username, password)
-            );
+            UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(username, password);
+            if (totpCode != null && !totpCode.isBlank()) {
+                authRequest.setDetails(Map.of("totpCode", totpCode));
+            }
+
+            Authentication authentication = authenticationManager.authenticate(authRequest);
             
             SecurityContextHolder.getContext().setAuthentication(authentication);
             

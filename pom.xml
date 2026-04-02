@@ -193,6 +193,25 @@
             <version>1.11.0</version>
         </dependency>
 
+        <!-- Base32 encoding/decoding for TOTP secrets -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.17.1</version>
+        </dependency>
+
+        <!-- QR code generation for authenticator app enrollment -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- HTTP client for webhooks -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

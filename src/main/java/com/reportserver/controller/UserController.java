@@ -242,6 +242,100 @@ public class UserController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    // API: Enable 2FA for a user (Admin only)
+    @PostMapping("/api/users/{id}/2fa/enable")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> enableUserTwoFactor(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Map<String, Object> setup = userService.enableTwoFactor(id);
+            response.put("status", "success");
+            response.put("message", "2FA enabled. User must scan the QR code and verify one code.");
+            response.put("setup", setup);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // API: Disable 2FA for a user (Admin only)
+    @PostMapping("/api/users/{id}/2fa/disable")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> disableUserTwoFactor(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            userService.disableTwoFactor(id);
+            response.put("status", "success");
+            response.put("message", "2FA disabled successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // API: Get current user 2FA setup
+    @GetMapping("/api/users/me/2fa/setup")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getCurrentUserTwoFactorSetup() {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+
+            Map<String, Object> setup = userService.getTwoFactorSetupForUser(username);
+            response.put("status", "success");
+            response.put("setup", setup);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // API: Verify current user's 2FA setup code
+    @PostMapping("/api/users/me/2fa/verify")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> verifyCurrentUserTwoFactor(@RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            String code = request.get("code");
+            if (code == null || code.isBlank()) {
+                response.put("status", "error");
+                response.put("message", "Verification code is required");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            boolean valid = userService.verifyTwoFactorForUser(username, code);
+
+            if (!valid) {
+                response.put("status", "error");
+                response.put("message", "Invalid verification code");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            response.put("status", "success");
+            response.put("message", "2FA verified successfully. Future logins will require authenticator code.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
     
     // API: Get current user info (All authenticated users)
     @GetMapping("/api/current-user")
@@ -265,6 +359,8 @@ public class UserController {
             response.put("role", user.getRole());
             response.put("email", user.getEmail());
             response.put("enabled", user.isEnabled());
+            response.put("twoFactorEnabled", user.isTwoFactorEnabled());
+            response.put("twoFactorConfirmed", user.isTwoFactorConfirmed());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status", "error");
