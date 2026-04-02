@@ -23,12 +23,9 @@ public class ReportDeliveryService {
     private static final Logger logger = LoggerFactory.getLogger(ReportDeliveryService.class);
 
     private final ReportDeliveryOptionRepository deliveryOptionRepository;
-    private final JavaMailSender mailSender;
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
-
-    @Value("${spring.mail.username:noreply@reportserver.local}")
-    private String fromEmail;
+    private final SmtpSettingsService smtpSettingsService;
 
     @Value("${report.delivery.webhook.timeout:30000}")
     private long webhookTimeout; // ms
@@ -38,13 +35,13 @@ public class ReportDeliveryService {
 
     public ReportDeliveryService(
             ReportDeliveryOptionRepository deliveryOptionRepository,
-            JavaMailSender mailSender,
             WebClient.Builder webClientBuilder,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            SmtpSettingsService smtpSettingsService) {
         this.deliveryOptionRepository = deliveryOptionRepository;
-        this.mailSender = mailSender;
         this.webClientBuilder = webClientBuilder;
         this.objectMapper = objectMapper;
+        this.smtpSettingsService = smtpSettingsService;
     }
 
     /**
@@ -78,7 +75,7 @@ public class ReportDeliveryService {
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
+        message.setFrom(smtpSettingsService.resolveFromEmail());
         message.setTo(recipients);
         message.setSubject("Report Server Delivery Test: " + reportName);
         message.setText(String.format(
@@ -92,7 +89,7 @@ public class ReportDeliveryService {
                 LocalDateTime.now()
         ));
 
-        mailSender.send(message);
+        smtpSettingsService.buildMailSender().send(message);
         logger.info("Sent test email delivery for report '{}' to {} recipients", reportName, recipients.length);
     }
 
@@ -155,10 +152,11 @@ public class ReportDeliveryService {
                 return;
             }
 
+            JavaMailSender mailSender = smtpSettingsService.buildMailSender();
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(smtpSettingsService.resolveFromEmail());
             helper.setTo(recipients);
             helper.setSubject("Report Generated: " + reportName);
 

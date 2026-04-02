@@ -52,6 +52,7 @@
 
                 <div id="sidebarSettingsMenu" class="sidebar-settings-menu" role="menu" aria-label="User settings menu">
                     <button type="button" id="sidebarUserManagementMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" onclick="closeSidebarUserMenu(); switchTab('users');" role="menuitem">👥 User Management</button>
+                    <a href="/settings/smtp" id="sidebarSmtpSettingsMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" role="menuitem" onclick="closeSidebarUserMenu()">📧 SMTP Settings</a>
                     <a href="/change-password" class="sidebar-settings-item" role="menuitem" onclick="closeSidebarUserMenu()">🔐 Change Password</a>
                     <button type="button" class="sidebar-settings-item danger" onclick="submitSidebarLogout()" role="menuitem">🚪 Logout</button>
                 </div>

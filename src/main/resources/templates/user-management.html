@@ -427,12 +427,16 @@
                 sidebarUi.updateSidebarSettingsMenuVisibility(roleValue);
             } else {
                 const userManagementItem = getElement('sidebarUserManagementMenuItem');
+                const smtpSettingsItem = getElement('sidebarSmtpSettingsMenuItem');
                 if (!userManagementItem) {
                     return;
                 }
 
                 const normalized = normalizeRole(roleValue);
                 userManagementItem.style.display = normalized === 'ADMIN' ? 'block' : 'none';
+                if (smtpSettingsItem) {
+                    smtpSettingsItem.style.display = normalized === 'ADMIN' ? 'block' : 'none';
+                }
             }
         }
 

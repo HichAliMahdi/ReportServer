@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>SMTP Settings - Reports Server</title>
+    <link rel="stylesheet" href="/css/index.css">
+    <style>
+        .container {
+            padding-top: 24px;
+            padding-bottom: 24px;
+        }
+        .smtp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .smtp-grid .full {
+            grid-column: 1 / -1;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .hint {
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        #smtpMessage {
+            margin-top: 14px;
+            display: none;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        #smtpMessage.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        #smtpMessage.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        @media (max-width: 900px) {
+            .smtp-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<th:block th:replace="~{fragments/index-sidebar :: sidebar}"></th:block>
+
+<div class="container">
+    <div class="card">
+        <h2>SMTP Configuration</h2>
+        <p style="color: #666; margin-bottom: 16px;">Configure outgoing email for password reset links and security notifications.</p>
+
+        <form id="smtpForm">
+            <div class="smtp-grid">
+                <div class="form-group">
+                    <label for="smtpHost">SMTP Host</label>
+                    <input type="text" id="smtpHost" required placeholder="smtp.gmail.com">
+                </div>
+                <div class="form-group">
+                    <label for="smtpPort">SMTP Port</label>
+                    <input type="number" id="smtpPort" required min="1" placeholder="587">
+                </div>
+                <div class="form-group">
+                    <label for="smtpUsername">Username</label>
+                    <input type="text" id="smtpUsername" placeholder="noreply@yourdomain.com">
+                </div>
+                <div class="form-group">
+                    <label for="smtpFromEmail">From Email</label>
+                    <input type="email" id="smtpFromEmail" placeholder="noreply@yourdomain.com">
+                </div>
+                <div class="form-group full">
+                    <label for="smtpPassword">Password</label>
+                    <input type="password" id="smtpPassword" placeholder="Leave empty to keep existing password">
+                    <div class="hint" id="smtpPasswordHint"></div>
+                </div>
+                <div class="form-group full">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="smtpEnabled">
+                        <label for="smtpEnabled">Enable custom SMTP settings</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="smtpAuthEnabled" checked>
+                        <label for="smtpAuthEnabled">Require SMTP authentication</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="smtpStarttlsEnabled" checked>
+                        <label for="smtpStarttlsEnabled">Enable STARTTLS</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="smtpStarttlsRequired" checked>
+                        <label for="smtpStarttlsRequired">Require STARTTLS</label>
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <label for="smtpTestRecipient">Test Recipient</label>
+                    <input type="email" id="smtpTestRecipient" placeholder="admin@example.com">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn">Save SMTP Settings</button>
+                <button type="button" class="btn" style="background:#6c757d;" onclick="sendSmtpTestEmail()">Send Test Email</button>
+                <button type="button" class="btn" style="background:#6c757d;" onclick="window.location.href='/'">Back to Dashboard</button>
+            </div>
+            <div id="smtpMessage"></div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/sidebar-common.js"></script>
+<script>
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+    const sidebarUi = window.ReportServerSidebar || {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        bindSidebarNavigation();
+        loadCurrentUser();
+        loadSmtpSettings();
+        document.getElementById('smtpForm')?.addEventListener('submit', saveSmtpSettings);
+    });
+
+    function getHeadersWithCsrf(additionalHeaders = {}) {
+        const headers = { ...additionalHeaders };
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
+        return headers;
+    }
+
+    function bindSidebarNavigation() {
+        document.querySelectorAll('.nav-item[data-tab]').forEach((navItem) => {
+            navItem.addEventListener('click', () => {
+                const tabName = navItem.getAttribute('data-tab');
+                if (!tabName) return;
+                window.location.href = '/?tab=' + encodeURIComponent(tabName);
+            });
+        });
+    }
+
+    function loadCurrentUser() {
+        fetch('/api/current-user')
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    return;
+                }
+                if (typeof sidebarUi.setSidebarCurrentUsername === 'function') {
+                    sidebarUi.setSidebarCurrentUsername(data.username || 'User');
+                }
+                if (typeof sidebarUi.updateSidebarSettingsMenuVisibility === 'function') {
+                    sidebarUi.updateSidebarSettingsMenuVisibility(data.role);
+                }
+            })
+            .catch(() => {});
+    }
+
+    function loadSmtpSettings() {
+        fetch('/api/settings/smtp', {
+            method: 'GET',
+            headers: getHeadersWithCsrf({ 'Accept': 'application/json' })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    throw new Error((data && data.message) || 'Failed to load SMTP settings');
+                }
+
+                const settings = data.settings || {};
+                document.getElementById('smtpHost').value = settings.host || '';
+                document.getElementById('smtpPort').value = settings.port || 587;
+                document.getElementById('smtpUsername').value = settings.username || '';
+                document.getElementById('smtpFromEmail').value = settings.fromEmail || '';
+                document.getElementById('smtpEnabled').checked = !!settings.enabled;
+                document.getElementById('smtpAuthEnabled').checked = settings.authEnabled !== false;
+                document.getElementById('smtpStarttlsEnabled').checked = settings.starttlsEnabled !== false;
+                document.getElementById('smtpStarttlsRequired').checked = settings.starttlsRequired !== false;
+
+                const hint = document.getElementById('smtpPasswordHint');
+                hint.textContent = settings.hasPassword
+                    ? 'A password is already saved. Leave blank to keep it.'
+                    : 'No password saved yet.';
+            })
+            .catch(error => showSmtpMessage(error.message, 'error'));
+    }
+
+    function saveSmtpSettings(event) {
+        event.preventDefault();
+
+        const payload = {
+            host: document.getElementById('smtpHost').value,
+            port: parseInt(document.getElementById('smtpPort').value, 10),
+            username: document.getElementById('smtpUsername').value,
+            fromEmail: document.getElementById('smtpFromEmail').value,
+            password: document.getElementById('smtpPassword').value,
+            enabled: document.getElementById('smtpEnabled').checked,
+            authEnabled: document.getElementById('smtpAuthEnabled').checked,
+            starttlsEnabled: document.getElementById('smtpStarttlsEnabled').checked,
+            starttlsRequired: document.getElementById('smtpStarttlsRequired').checked
+        };
+
+        fetch('/api/settings/smtp', {
+            method: 'POST',
+            headers: getHeadersWithCsrf({
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }),
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    throw new Error((data && data.message) || 'Failed to save SMTP settings');
+                }
+                document.getElementById('smtpPassword').value = '';
+                loadSmtpSettings();
+                showSmtpMessage(data.message || 'SMTP settings saved.', 'success');
+            })
+            .catch(error => showSmtpMessage(error.message, 'error'));
+    }
+
+    function sendSmtpTestEmail() {
+        const recipient = document.getElementById('smtpTestRecipient').value;
+        if (!recipient) {
+            showSmtpMessage('Please enter a test recipient email first.', 'error');
+            return;
+        }
+
+        fetch('/api/settings/smtp/test', {
+            method: 'POST',
+            headers: getHeadersWithCsrf({
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }),
+            body: JSON.stringify({ recipient: recipient })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    throw new Error((data && data.message) || 'Failed to send test email');
+                }
+                showSmtpMessage(data.message || 'Test email sent.', 'success');
+            })
+            .catch(error => showSmtpMessage(error.message, 'error'));
+    }
+
+    function showSmtpMessage(message, type) {
+        const box = document.getElementById('smtpMessage');
+        box.textContent = message;
+        box.className = type;
+        box.style.display = 'block';
+    }
+
+    function toggleSidebarUserMenu() {
+        if (typeof sidebarUi.toggleSidebarUserMenu === 'function') {
+            sidebarUi.toggleSidebarUserMenu();
+        }
+    }
+
+    function closeSidebarUserMenu() {
+        if (typeof sidebarUi.closeSidebarUserMenu === 'function') {
+            sidebarUi.closeSidebarUserMenu();
+        }
+    }
+
+    function submitSidebarLogout() {
+        document.getElementById('sidebarLogoutForm')?.submit();
+    }
+
+    function toggleSidebarTreeSection(sectionName) {
+        const group = document.querySelector('.sidebar-tree-group[data-sidebar-section="' + sectionName + '"]');
+        if (!group) return;
+        group.classList.toggle('expanded');
+        const toggle = group.querySelector('.sidebar-tree-group-toggle');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', group.classList.contains('expanded') ? 'true' : 'false');
+        }
+    }
+
+    function switchTab(tabName) {
+        closeSidebarUserMenu();
+        if (tabName === 'users') {
+            window.location.href = '/users';
+            return;
+        }
+        window.location.href = '/?tab=' + encodeURIComponent(tabName);
+    }
+
+    window.addEventListener('click', (event) => {
+        if (typeof sidebarUi.isOutsideSidebarSettingsMenuClick === 'function' && sidebarUi.isOutsideSidebarSettingsMenuClick(event)) {
+            closeSidebarUserMenu();
+        }
+    });
+</script>
+</body>
+</html>

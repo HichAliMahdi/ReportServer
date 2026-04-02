@@ -33,6 +33,9 @@ public class UserService implements UserDetailsService {
 
     @Autowired
     private TwoFactorAuthService twoFactorAuthService;
+
+    @Autowired
+    private EmailNotificationService emailNotificationService;
     
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -120,6 +123,12 @@ public class UserService implements UserDetailsService {
         
         userRepository.save(user);
         logger.info("Password reset successful for user: {}", user.getUsername());
+
+        try {
+            emailNotificationService.sendPasswordChangedNotice(user);
+        } catch (Exception ex) {
+            logger.warn("Password changed notification failed for user {}", user.getUsername(), ex);
+        }
     }
     
     public boolean validateResetToken(String token) {
@@ -249,6 +258,12 @@ public class UserService implements UserDetailsService {
         
         userRepository.save(user);
         logger.info("Password changed for user: {}", username);
+
+        try {
+            emailNotificationService.sendPasswordChangedNotice(user);
+        } catch (Exception ex) {
+            logger.warn("Password changed notification failed for user {}", username, ex);
+        }
     }
     
     // Method to reset password for a user (Admin only)
@@ -268,6 +283,12 @@ public class UserService implements UserDetailsService {
         
         userRepository.save(user);
         logger.info("Password reset for user: {} by admin", user.getUsername());
+
+        try {
+            emailNotificationService.sendPasswordChangedNotice(user);
+        } catch (Exception ex) {
+            logger.warn("Password reset notification failed for user {}", user.getUsername(), ex);
+        }
     }
 
     public Map<String, Object> enableTwoFactor(Long userId) {
@@ -284,6 +305,12 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
 
         logger.info("2FA enabled for user {}. Enrollment pending confirmation.", user.getUsername());
+
+        try {
+            emailNotificationService.sendTwoFactorActivationNotice(user);
+        } catch (Exception ex) {
+            logger.warn("2FA activation notification failed for user {}", user.getUsername(), ex);
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("userId", user.getId());
@@ -339,6 +366,12 @@ public class UserService implements UserDetailsService {
             user.setTwoFactorConfirmed(true);
             userRepository.save(user);
             logger.info("2FA enrollment confirmed for user {}", username);
+
+            try {
+                emailNotificationService.sendTwoFactorConfirmedNotice(user);
+            } catch (Exception ex) {
+                logger.warn("2FA confirmation notification failed for user {}", username, ex);
+            }
         }
         return valid;
     }

@@ -1,6 +1,7 @@
 package com.reportserver.controller;
 
 import com.reportserver.model.User;
+import com.reportserver.service.EmailNotificationService;
 import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -19,6 +20,9 @@ public class AuthController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private EmailNotificationService emailNotificationService;
     
     @GetMapping("/login")
     public String login(@RequestParam(value = "error", required = false) String error,
@@ -108,10 +112,14 @@ public class AuthController {
             }
             
             String token = userService.createPasswordResetToken(email.trim());
-            
-            // In a real application, you would send this token via email
-            // For development/testing, log it at DEBUG level
-            logger.debug("Password reset token generated for email: {}, token: {}", email, token);
+
+            userService.findByEmail(email.trim()).ifPresent(user -> {
+                try {
+                    emailNotificationService.sendPasswordResetLink(user, token);
+                } catch (Exception ex) {
+                    logger.error("Failed to send password reset email to {}", user.getEmail(), ex);
+                }
+            });
             
             redirectAttributes.addFlashAttribute("message", 
                 "If an account with that email exists, password reset instructions have been sent.");

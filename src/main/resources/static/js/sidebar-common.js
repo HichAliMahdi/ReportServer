@@ -72,8 +72,12 @@
     function updateSidebarSettingsMenuVisibility(roleValue) {
         const role = normalizeRole(roleValue);
         const userManagementItem = document.getElementById('sidebarUserManagementMenuItem');
+        const smtpSettingsItem = document.getElementById('sidebarSmtpSettingsMenuItem');
         if (userManagementItem) {
             userManagementItem.style.display = role === ROLE_ADMIN ? 'block' : 'none';
+        }
+        if (smtpSettingsItem) {
+            smtpSettingsItem.style.display = role === ROLE_ADMIN ? 'block' : 'none';
         }
     }
 
