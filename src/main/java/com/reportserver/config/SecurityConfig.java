@@ -4,6 +4,7 @@ import com.reportserver.security.JwtAuthenticationFilter;
 import com.reportserver.security.AuditLoggingFilter;
 import com.reportserver.security.LoginRateLimitFilter;
 import com.reportserver.security.SessionTrackingFilter;
+import com.reportserver.security.SetupEnforcementFilter;
 import com.reportserver.security.TotpAuthenticationProvider;
 import com.reportserver.security.TotpWebAuthenticationDetailsSource;
 import com.reportserver.repository.UserRepository;
@@ -48,6 +49,9 @@ public class SecurityConfig {
     private SessionTrackingFilter sessionTrackingFilter;
 
     @Autowired
+    private SetupEnforcementFilter setupEnforcementFilter;
+
+    @Autowired
     private TotpWebAuthenticationDetailsSource totpWebAuthenticationDetailsSource;
 
     @Value("${reportserver.security.require-https:false}")
@@ -65,7 +69,7 @@ public class SecurityConfig {
 
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login", "/register", "/forgot-password", "/reset-password", "/api/auth/**", "/css/**", "/js/**", "/images/**", "/error/**", "/s/**").permitAll()
+                .requestMatchers("/setup", "/setup/**", "/api/setup/**", "/login", "/register", "/forgot-password", "/reset-password", "/api/auth/**", "/css/**", "/js/**", "/images/**", "/error/**", "/s/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -103,6 +107,7 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
             .authenticationProvider(totpAuthenticationProvider)
+            .addFilterBefore(setupEnforcementFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(auditLoggingFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

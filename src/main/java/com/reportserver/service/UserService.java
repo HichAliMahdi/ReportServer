@@ -194,6 +194,16 @@ public class UserService implements UserDetailsService {
         logger.info("Creating new user: {} with role: {}", username, role);
         return userRepository.save(user);
     }
+
+    public User createInitialAdmin(String username, String email, String password) {
+        if (countUsers() > 0) {
+            throw new IllegalStateException("Initial admin can only be created when no users exist");
+        }
+
+        User admin = createUser(username, email, password, "ADMIN");
+        admin.setFirstLogin(false);
+        return userRepository.save(admin);
+    }
     
     public User updateUser(Long id, String email, String role, Boolean enabled) {
         User user = userRepository.findById(id)

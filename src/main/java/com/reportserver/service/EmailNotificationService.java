@@ -80,6 +80,19 @@ public class EmailNotificationService {
         sendSimpleMail(user.getEmail(), "Report Server - 2FA Enabled", body);
     }
 
+    public void sendWelcomeEmail(User user) {
+        if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            return;
+        }
+
+        String body = "Hello " + user.getUsername() + ",\n\n"
+                + "Your Reports Server account is ready.\n"
+                + "You can log in and start configuring reports, users, and security settings.\n\n"
+                + "Report Server";
+
+        sendSimpleMail(user.getEmail(), "Welcome to Reports Server", body);
+    }
+
     public void sendTestEmail(String recipient) {
         if (recipient == null || recipient.isBlank()) {
             throw new IllegalArgumentException("Recipient email is required");

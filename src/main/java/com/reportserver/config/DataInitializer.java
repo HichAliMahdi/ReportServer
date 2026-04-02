@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -17,9 +18,17 @@ public class DataInitializer implements ApplicationRunner {
     
     @Autowired
     private UserService userService;
+
+    @Value("${reportserver.installation.enabled:true}")
+    private boolean installationEnabled;
     
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        if (installationEnabled) {
+            logger.info("Installation mode enabled: waiting for setup wizard to create the first admin user.");
+            return;
+        }
+
         // Check if there are any users in the database
         if (userService.countUsers() == 0) {
             // Generate a random password for the admin user

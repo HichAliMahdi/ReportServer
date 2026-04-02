@@ -40,6 +40,28 @@
             color: #6c757d;
             font-size: 12px;
         }
+        .help-card {
+            margin-top: 18px;
+            padding: 14px;
+            border: 1px solid #e2e6ea;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .help-card h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            color: #2f3b52;
+        }
+        .help-card p {
+            margin: 0 0 8px;
+            color: #5f6c80;
+            font-size: 13px;
+        }
+        .help-card ul {
+            margin: 8px 0 0 18px;
+            color: #46546a;
+            font-size: 13px;
+        }
         #smtpMessage {
             margin-top: 14px;
             display: none;
@@ -73,6 +95,18 @@
 
         <form id="smtpForm">
             <div class="smtp-grid">
+                <div class="form-group full">
+                    <label for="smtpProviderPreset">SMTP Provider Preset</label>
+                    <select id="smtpProviderPreset">
+                        <option value="">Custom</option>
+                        <option value="gmail">Gmail</option>
+                        <option value="outlook">Outlook / Hotmail</option>
+                        <option value="office365">Microsoft 365 (Office365)</option>
+                        <option value="sendgrid">SendGrid</option>
+                        <option value="ses">Amazon SES</option>
+                    </select>
+                    <div class="hint">Selecting a preset will auto-fill host, port, and TLS options.</div>
+                </div>
                 <div class="form-group">
                     <label for="smtpHost">SMTP Host</label>
                     <input type="text" id="smtpHost" required placeholder="smtp.gmail.com">
@@ -125,6 +159,18 @@
             </div>
             <div id="smtpMessage"></div>
         </form>
+
+        <div class="help-card">
+            <h3>How To Configure SMTP</h3>
+            <p>1. Choose a preset (or keep Custom), then fill username and from email.</p>
+            <p>2. Paste your SMTP/app password and click Save SMTP Settings.</p>
+            <p>3. Send a test email before relying on forgot-password notifications.</p>
+            <ul>
+                <li>Gmail and Microsoft accounts usually require an app password (not your account password).</li>
+                <li>Use port 587 with STARTTLS in most cases.</li>
+                <li>Set APP_BASE_URL so password reset links point to the correct server URL.</li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -133,13 +179,35 @@
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
     const sidebarUi = window.ReportServerSidebar || {};
+    const SMTP_PRESETS = {
+        gmail: { host: 'smtp.gmail.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
+        outlook: { host: 'smtp-mail.outlook.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
+        office365: { host: 'smtp.office365.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
+        sendgrid: { host: 'smtp.sendgrid.net', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
+        ses: { host: 'email-smtp.us-east-1.amazonaws.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true }
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         bindSidebarNavigation();
         loadCurrentUser();
         loadSmtpSettings();
         document.getElementById('smtpForm')?.addEventListener('submit', saveSmtpSettings);
+        document.getElementById('smtpProviderPreset')?.addEventListener('change', applyPreset);
     });
+
+    function applyPreset() {
+        const presetName = document.getElementById('smtpProviderPreset').value;
+        if (!presetName || !SMTP_PRESETS[presetName]) {
+            return;
+        }
+
+        const preset = SMTP_PRESETS[presetName];
+        document.getElementById('smtpHost').value = preset.host;
+        document.getElementById('smtpPort').value = preset.port;
+        document.getElementById('smtpAuthEnabled').checked = !!preset.authEnabled;
+        document.getElementById('smtpStarttlsEnabled').checked = !!preset.starttlsEnabled;
+        document.getElementById('smtpStarttlsRequired').checked = !!preset.starttlsRequired;
+    }
 
     function getHeadersWithCsrf(additionalHeaders = {}) {
         const headers = { ...additionalHeaders };
