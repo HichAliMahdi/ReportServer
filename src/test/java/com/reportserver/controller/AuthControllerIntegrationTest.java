@@ -3,6 +3,7 @@ package com.reportserver.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reportserver.model.User;
 import com.reportserver.repository.UserRepository;
+import com.reportserver.service.EmailNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,12 +11,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -43,6 +49,9 @@ class AuthControllerIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @MockBean
+    private EmailNotificationService emailNotificationService;
+
     private User testUser;
 
     @BeforeEach
@@ -55,6 +64,19 @@ class AuthControllerIntegrationTest {
         testUser.setFirstLogin(false);
         testUser.setRole("READ_ONLY");
         userRepository.save(testUser);
+    }
+
+    @Test
+    void testForgotPassword_UsesRequestHostForResetLink() throws Exception {
+        mockMvc.perform(post("/forgot-password")
+                        .with(csrf())
+                        .header("Host", "reports.example.com:8443")
+                        .header("X-Forwarded-Proto", "https")
+                        .param("email", "testuser@example.com"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        verify(emailNotificationService).sendPasswordResetLink(any(User.class), anyString(), org.mockito.ArgumentMatchers.eq("https://reports.example.com:8443"));
     }
 
     @Test

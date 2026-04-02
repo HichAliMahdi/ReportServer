@@ -3,6 +3,7 @@ package com.reportserver.controller;
 import com.reportserver.model.User;
 import com.reportserver.service.EmailNotificationService;
 import com.reportserver.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,6 +107,7 @@ public class AuthController {
     
     @PostMapping("/forgot-password")
     public String processForgotPassword(@RequestParam("email") String email,
+                                       HttpServletRequest request,
                                        RedirectAttributes redirectAttributes) {
         try {
             if (email == null || email.trim().isEmpty()) {
@@ -114,10 +116,11 @@ public class AuthController {
             }
             
             String token = userService.createPasswordResetToken(email.trim());
+            String baseUrl = resolvePublicBaseUrl(request);
 
             userService.findByEmail(email.trim()).ifPresent(user -> {
                 try {
-                    emailNotificationService.sendPasswordResetLink(user, token);
+                    emailNotificationService.sendPasswordResetLink(user, token, baseUrl);
                 } catch (Exception ex) {
                     logger.error("Failed to send password reset email to {}", user.getEmail(), ex);
                 }
@@ -138,6 +141,57 @@ public class AuthController {
             redirectAttributes.addFlashAttribute("error", "Failed to process password reset. Please try again.");
             return "redirect:/forgot-password";
         }
+    }
+
+    private String resolvePublicBaseUrl(HttpServletRequest request) {
+        String forwardedProto = firstNonBlank(request.getHeader("X-Forwarded-Proto"), request.getHeader("X-Forwarded-Scheme"));
+        String forwardedHost = firstNonBlank(request.getHeader("X-Forwarded-Host"), request.getHeader("Host"));
+
+        String scheme = forwardedProto != null ? forwardedProto.trim() : request.getScheme();
+        String host = forwardedHost != null ? forwardedHost.trim() : request.getServerName();
+        String contextPath = request.getContextPath() == null ? "" : request.getContextPath();
+
+        if (host.contains(",")) {
+            host = host.split(",")[0].trim();
+        }
+
+        if (host.contains(":")) {
+            String hostOnly = host.substring(0, host.lastIndexOf(':'));
+            String portPart = host.substring(host.lastIndexOf(':') + 1);
+            if (isDefaultPort(scheme, portPart)) {
+                return scheme + "://" + hostOnly + contextPath;
+            }
+            return scheme + "://" + host + contextPath;
+        }
+
+        int port = request.getServerPort();
+        if (isDefaultPort(scheme, String.valueOf(port))) {
+            return scheme + "://" + host + contextPath;
+        }
+        return scheme + "://" + host + ":" + port + contextPath;
+    }
+
+    private boolean isDefaultPort(String scheme, String portValue) {
+        if (scheme == null || portValue == null) {
+            return false;
+        }
+        if ("http".equalsIgnoreCase(scheme)) {
+            return "80".equals(portValue);
+        }
+        if ("https".equalsIgnoreCase(scheme)) {
+            return "443".equals(portValue);
+        }
+        return false;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
     }
     
     @GetMapping("/reset-password")

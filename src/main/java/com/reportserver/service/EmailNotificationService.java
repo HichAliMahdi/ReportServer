@@ -18,7 +18,7 @@ public class EmailNotificationService {
 
     private final SmtpSettingsService smtpSettingsService;
 
-    @Value("${reportserver.app.base-url:http://localhost:8080}")
+    @Value("${reportserver.app.base-url:}")
     private String appBaseUrl;
 
     public EmailNotificationService(SmtpSettingsService smtpSettingsService) {
@@ -26,11 +26,16 @@ public class EmailNotificationService {
     }
 
     public void sendPasswordResetLink(User user, String token) {
+        sendPasswordResetLink(user, token, appBaseUrl);
+    }
+
+    public void sendPasswordResetLink(User user, String token, String baseUrl) {
         if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
             return;
         }
 
-        String resetLink = appBaseUrl + "/reset-password?token=" + urlEncode(token);
+        String effectiveBaseUrl = normalizeBaseUrl(baseUrl);
+        String resetLink = effectiveBaseUrl + "/reset-password?token=" + urlEncode(token);
         String body = "Hello " + user.getUsername() + ",\n\n"
                 + "A password reset was requested for your account.\n"
                 + "Use the link below to set a new password:\n\n"
@@ -121,5 +126,19 @@ public class EmailNotificationService {
 
     private String urlEncode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String normalizeBaseUrl(String candidate) {
+        String value = candidate == null ? "" : candidate.trim();
+        if (value.isEmpty()) {
+            value = appBaseUrl == null ? "" : appBaseUrl.trim();
+        }
+        if (value.isEmpty()) {
+            throw new IllegalStateException("Application base URL is not configured");
+        }
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value;
     }
 }
