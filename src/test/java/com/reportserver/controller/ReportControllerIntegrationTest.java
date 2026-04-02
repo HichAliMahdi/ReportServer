@@ -83,6 +83,32 @@ class ReportControllerIntegrationTest {
     }
 
     @Test
+    void generateReport_PathTraversal_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/generate")
+                        .with(user("apioperator").roles("OPERATOR"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("reportName", "../../etc/passwd")
+                        .param("format", "pdf")
+                        .param("useDatabase", "false"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is("error")))
+                .andExpect(jsonPath("$.message", containsString("Path traversal detected")));
+    }
+
+    @Test
+    void downloadReport_PathTraversal_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/download-report")
+                        .with(user("apiadmin").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("reportName", "../../etc/passwd")
+                        .param("format", "pdf"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("Path traversal detected")));
+    }
+
+    @Test
     void deleteReport_NotFound_ReturnsBadRequest() throws Exception {
         mockMvc.perform(delete("/reports/does_not_exist.jrxml")
                         .with(user("apioperator").roles("OPERATOR"))

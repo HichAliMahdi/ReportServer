@@ -39,6 +39,8 @@ nbdist/
 
 # Logs
 *.log
+error.txt
+**/error.txt
 
 # Temporary files
 *.tmp

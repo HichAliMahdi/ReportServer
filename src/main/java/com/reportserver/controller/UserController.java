@@ -6,7 +6,6 @@ import com.reportserver.security.UserSessionRegistry;
 import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,10 +27,8 @@ import java.util.stream.Collectors;
 @Controller
 public class UserController {
     
-    @Autowired
     private UserService userService;
 
-    @Autowired
     private UserSessionRegistry userSessionRegistry;
 
     @Value("${reportserver.pagination.default-page-size:20}")
@@ -39,6 +36,11 @@ public class UserController {
 
     @Value("${reportserver.pagination.max-page-size:200}")
     private int maxPageSize;
+
+    public UserController(UserService userService, UserSessionRegistry userSessionRegistry) {
+        this.userService = userService;
+        this.userSessionRegistry = userSessionRegistry;
+    }
     
     // Page for user management (Admin only)
     @GetMapping("/users")

@@ -6,7 +6,6 @@ import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -18,11 +17,14 @@ public class AuthController {
     
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
-    @Autowired
     private UserService userService;
 
-    @Autowired
     private EmailNotificationService emailNotificationService;
+
+    public AuthController(UserService userService, EmailNotificationService emailNotificationService) {
+        this.userService = userService;
+        this.emailNotificationService = emailNotificationService;
+    }
     
     @GetMapping("/login")
     public String login(@RequestParam(value = "error", required = false) String error,

@@ -14,7 +14,6 @@ import com.reportserver.service.ReportExecutionLogService;
 import com.reportserver.service.ReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -55,42 +54,30 @@ public class ReportController {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
 
-    @Autowired
     private ReportService reportService;
-
-    @Autowired
+    
     private DataSourceService dataSourceService;
-    
-    @Autowired
+
     private PdfUtilityService pdfUtilityService;
-    
-    @Autowired
+
     private com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService;
-    
-    @Autowired
+
     private SharedReportRepository sharedReportRepository;
-    
-    @Autowired
+
     private com.reportserver.service.JrxmlValidator jrxmlValidator;
 
-    @Autowired
     private ReportTemplateRepository reportTemplateRepository;
 
-    @Autowired
     private ReportExecutionLogService reportExecutionLogService;
 
-    @Autowired
     private JrxmlParameterService jrxmlParameterService;
 
     @Value("${reportserver.pagination.default-page-size:20}")
     private int defaultPageSize;
-    @Autowired
     private com.reportserver.service.ThumbnailGenerationService thumbnailGenerationService;
 
-    @Autowired
     private com.reportserver.repository.ReportThumbnailRepository reportThumbnailRepository;
 
-    @Autowired
     private ReportShareTokenRepository shareTokenRepository;
 
 
@@ -101,6 +88,32 @@ public class ReportController {
     private String uploadDir;
     
     private static final String GENERATED_REPORTS_DIR = "data/generated-reports/";
+
+    public ReportController(ReportService reportService,
+                            DataSourceService dataSourceService,
+                            PdfUtilityService pdfUtilityService,
+                            com.reportserver.service.JRDataSourceProviderService jrDataSourceProviderService,
+                            SharedReportRepository sharedReportRepository,
+                            com.reportserver.service.JrxmlValidator jrxmlValidator,
+                            ReportTemplateRepository reportTemplateRepository,
+                            ReportExecutionLogService reportExecutionLogService,
+                            JrxmlParameterService jrxmlParameterService,
+                            com.reportserver.service.ThumbnailGenerationService thumbnailGenerationService,
+                            com.reportserver.repository.ReportThumbnailRepository reportThumbnailRepository,
+                            ReportShareTokenRepository shareTokenRepository) {
+        this.reportService = reportService;
+        this.dataSourceService = dataSourceService;
+        this.pdfUtilityService = pdfUtilityService;
+        this.jrDataSourceProviderService = jrDataSourceProviderService;
+        this.sharedReportRepository = sharedReportRepository;
+        this.jrxmlValidator = jrxmlValidator;
+        this.reportTemplateRepository = reportTemplateRepository;
+        this.reportExecutionLogService = reportExecutionLogService;
+        this.jrxmlParameterService = jrxmlParameterService;
+        this.thumbnailGenerationService = thumbnailGenerationService;
+        this.reportThumbnailRepository = reportThumbnailRepository;
+        this.shareTokenRepository = shareTokenRepository;
+    }
     
     @PostConstruct
     public void init() {
@@ -167,7 +180,7 @@ public class ReportController {
             }
 
             // Save the file
-            Path path = Paths.get(this.uploadDir + filename);
+            Path path = resolveReportPath(filename);
             Files.write(path, file.getBytes());
 
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -186,7 +199,7 @@ public class ReportController {
             logger.info("File uploaded successfully: " + filename);
             // Generate thumbnail for the uploaded report
             try {
-                String jasperPath = this.uploadDir + filename.replace(".jrxml", ".jasper");
+                String jasperPath = resolveReportPath(filename.replace(".jrxml", ".jasper")).toString();
                 String thumbnailPath = thumbnailGenerationService.generateThumbnail(
                     jasperPath,
                     filename,
@@ -245,10 +258,10 @@ public class ReportController {
             logger.info("Generating report: {} in format: {}, useDatabase: {}, datasourceId: {}", 
                        reportName, format, useDatabase, datasourceId);
             
-            String jrxmlPath = this.uploadDir + reportName;
+            Path jrxmlPath = resolveReportPath(reportName);
             
             // Check if file exists
-            File reportFile = new File(jrxmlPath);
+            File reportFile = jrxmlPath.toFile();
             if (!reportFile.exists()) {
                 logger.error("Report file not found: {}", jrxmlPath);
                 response.put("status", "error");
@@ -260,7 +273,7 @@ public class ReportController {
             String username = auth != null ? auth.getName() : "unknown";
 
             // Validate and coerce user parameters to expected JRXML types.
-            Map<String, Object> reportParams = jrxmlParameterService.validateAndConvertReportParameters(jrxmlPath, parameters);
+            Map<String, Object> reportParams = jrxmlParameterService.validateAndConvertReportParameters(jrxmlPath.toString(), parameters);
             ReportExecutionLog log = reportExecutionLogService.startLog(
                     reportName,
                     format,
@@ -292,18 +305,18 @@ public class ReportController {
             logger.info("Compiling and filling report...");
             byte[] reportBytes;
             if (dataSource instanceof Connection) {
-                reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, (Connection) dataSource);
+                reportBytes = reportService.generateReport(jrxmlPath.toString(), reportParams, format, (Connection) dataSource);
             } else if (dataSource != null) {
-                reportBytes = reportService.generateReportWithDataSource(jrxmlPath, reportParams, format, dataSource);
+                reportBytes = reportService.generateReportWithDataSource(jrxmlPath.toString(), reportParams, format, dataSource);
             } else {
-                reportBytes = reportService.generateReport(jrxmlPath, reportParams, format, null);
+                reportBytes = reportService.generateReport(jrxmlPath.toString(), reportParams, format, null);
             }
             logger.info("Report generated successfully, size: {} bytes", reportBytes.length);
 
             // Save report to file system and database
             String extension = getFileExtension(format);
             String fileName = reportName.replace(".jrxml", "") + "_" + System.currentTimeMillis() + "." + extension;
-            String generatedFilePath = GENERATED_REPORTS_DIR + fileName;
+            Path generatedFilePath = resolveGeneratedReportPath(fileName);
             
             // Create directory if it doesn't exist
             File generatedDir = new File(GENERATED_REPORTS_DIR);
@@ -312,7 +325,7 @@ public class ReportController {
             }
             
             // Write file to filesystem
-            Files.write(Paths.get(generatedFilePath), reportBytes);
+            Files.write(generatedFilePath, reportBytes);
             logger.info("Report saved to: {}", generatedFilePath);
             
             // Save to database
@@ -368,10 +381,10 @@ public class ReportController {
         try {
             logger.info("Downloading report: {} in format: {}", reportName, format);
             
-            String jrxmlPath = this.uploadDir + reportName;
+            Path jrxmlPath = resolveReportPath(reportName);
             
             // Check if file exists
-            File reportFile = new File(jrxmlPath);
+            File reportFile = jrxmlPath.toFile();
             if (!reportFile.exists()) {
                 logger.error("Report file not found: {}", jrxmlPath);
                 return ResponseEntity.badRequest()
@@ -393,7 +406,7 @@ public class ReportController {
             
             // Generate report without parameters
             logger.info("Compiling and filling report...");
-            byte[] reportBytes = reportService.generateReport(jrxmlPath, new HashMap<>(), format, null);
+            byte[] reportBytes = reportService.generateReport(jrxmlPath.toString(), new HashMap<>(), format, null);
             logger.info("Report downloaded successfully, size: {} bytes", reportBytes.length);
 
             // Set content type and extension based on format
@@ -516,7 +529,7 @@ public class ReportController {
                 return ResponseEntity.badRequest().body("Only .jrxml files can be deleted");
             }
             
-            Path reportPath = Paths.get(this.uploadDir + reportName);
+            Path reportPath = resolveReportPath(reportName);
             File reportFile = reportPath.toFile();
             
             if (!reportFile.exists()) {
@@ -600,6 +613,27 @@ public class ReportController {
             default:
                 return "pdf";
         }
+    }
+
+    private Path resolveReportPath(String fileName) {
+        return resolveWithinBaseDirectory(this.uploadDir, fileName);
+    }
+
+    private Path resolveGeneratedReportPath(String fileName) {
+        return resolveWithinBaseDirectory(GENERATED_REPORTS_DIR, fileName);
+    }
+
+    private Path resolveWithinBaseDirectory(String baseDirectory, String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            throw new IllegalArgumentException("File name is required");
+        }
+
+        Path basePath = Paths.get(baseDirectory).toAbsolutePath().normalize();
+        Path resolved = basePath.resolve(fileName).normalize();
+        if (!resolved.startsWith(basePath)) {
+            throw new SecurityException("Path traversal detected");
+        }
+        return resolved;
     }
     
     // API: Get all generated reports (with share status)
@@ -724,7 +758,7 @@ public class ReportController {
             }
             
             SharedReport report = optionalReport.get();
-            File reportFile = new File(GENERATED_REPORTS_DIR + report.getReportFileName());
+            File reportFile = resolveGeneratedReportPath(report.getReportFileName()).toFile();
             
             if (reportFile.exists()) {
                 reportFile.delete();
@@ -747,13 +781,7 @@ public class ReportController {
     // API: Download a generated report
     @GetMapping("/api/download-generated-report/{fileName}")
     public ResponseEntity<byte[]> downloadGeneratedReport(@PathVariable String fileName) {        try {
-            // Validate file name (security check to prevent path traversal)
-            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
-                logger.warn("Invalid file name in download request: " + fileName);
-                return ResponseEntity.badRequest().build();
-            }
-            
-            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            Path filePath = resolveGeneratedReportPath(fileName);
             File file = filePath.toFile();
             
             if (!file.exists()) {
@@ -786,12 +814,7 @@ public class ReportController {
     @GetMapping("/api/preview-generated-report/{fileName}")
     public ResponseEntity<byte[]> previewGeneratedReport(@PathVariable String fileName) {
         try {
-            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
-                logger.warn("Invalid file name in preview request: {}", fileName);
-                return ResponseEntity.badRequest().build();
-            }
-
-            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            Path filePath = resolveGeneratedReportPath(fileName);
             File file = filePath.toFile();
             if (!file.exists()) {
                 return ResponseEntity.notFound().build();
@@ -819,20 +842,13 @@ public class ReportController {
     public ResponseEntity<Map<String, Object>> getGeneratedReportPdfPageCount(@PathVariable String fileName) {
         Map<String, Object> response = new HashMap<>();
         try {
-            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
-                logger.warn("Invalid file name in page count request: {}", fileName);
-                response.put("status", "error");
-                response.put("message", "Invalid file name");
-                return ResponseEntity.badRequest().body(response);
-            }
-
             if (!fileName.toLowerCase().endsWith(".pdf")) {
                 response.put("status", "error");
                 response.put("message", "Page count is available only for PDF files");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            Path filePath = Paths.get(GENERATED_REPORTS_DIR + fileName);
+            Path filePath = resolveGeneratedReportPath(fileName);
             File file = filePath.toFile();
             if (!file.exists()) {
                 response.put("status", "error");
@@ -925,7 +941,7 @@ public class ReportController {
                 return ResponseEntity.status(HttpStatus.GONE).build();
             }
 
-            Path filePath = Paths.get(GENERATED_REPORTS_DIR + shareToken.getReportFileName());
+            Path filePath = resolveGeneratedReportPath(shareToken.getReportFileName());
             File file = filePath.toFile();
             if (!file.exists()) {
                 return ResponseEntity.notFound().build();
