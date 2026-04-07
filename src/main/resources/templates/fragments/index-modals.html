@@ -771,6 +771,44 @@
         </div>
     </div>
 
+    <!-- Report Share Modal -->
+    <div id="reportShareModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 620px;">
+            <div class="modal-header">
+                <span class="close" onclick="closeReportShareModal()">&times;</span>
+                <h3>👥 Share Report</h3>
+            </div>
+            <input type="hidden" id="reportShareReportId">
+            <div class="form-group">
+                <label style="font-weight: 600;">Share scope</label>
+                <label class="check" style="margin-top: 8px;">
+                    <input type="radio" name="reportShareScope" value="NONE" checked onchange="onReportShareScopeChanged()">
+                    <span>Do not share with READ_ONLY users</span>
+                </label>
+                <label class="check">
+                    <input type="radio" name="reportShareScope" value="ALL" onchange="onReportShareScopeChanged()">
+                    <span>Share with all READ_ONLY users</span>
+                </label>
+                <label class="check">
+                    <input type="radio" name="reportShareScope" value="SPECIFIC" onchange="onReportShareScopeChanged()">
+                    <span>Share with specific READ_ONLY users</span>
+                </label>
+            </div>
+
+            <div id="reportShareUsersSection" class="form-group" style="display:none;">
+                <label style="font-weight: 600;">Select users</label>
+                <div id="reportShareUsersList" style="max-height: 220px; overflow-y: auto; border: 1px solid #d7dce6; border-radius: 8px; padding: 8px; background: #f8faff;"></div>
+                <small style="color: #6c757d;">Only enabled READ_ONLY users are listed.</small>
+            </div>
+
+            <div id="reportShareMessage" style="margin-top: 10px;"></div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button type="button" class="btn" onclick="closeReportShareModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
+                <button type="button" class="btn" id="saveReportShareBtn" onclick="saveReportShareConfig()">Save Sharing</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Share Link Modal -->
     <div id="shareLinkModal" class="modal" style="display:none;">
         <div class="modal-content" style="max-width: 550px;">

@@ -3,10 +3,14 @@ package com.reportserver.controller;
 import com.reportserver.dto.ReportDownloadRequestDTO;
 import com.reportserver.dto.ReportGenerateRequestDTO;
 import com.reportserver.model.ReportExecutionLog;
+import com.reportserver.model.ReportShareRecipient;
 import com.reportserver.model.ReportTemplate;
 import com.reportserver.model.SharedReport;
+import com.reportserver.model.User;
 import com.reportserver.repository.ReportTemplateRepository;
+import com.reportserver.repository.ReportShareRecipientRepository;
 import com.reportserver.repository.SharedReportRepository;
+import com.reportserver.repository.UserRepository;
 import com.reportserver.service.DataSourceService;
 import com.reportserver.service.JrxmlParameterService;
 import com.reportserver.service.PdfUtilityService;
@@ -40,6 +44,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -80,6 +86,10 @@ public class ReportController {
 
     private ReportShareTokenRepository shareTokenRepository;
 
+    private ReportShareRecipientRepository reportShareRecipientRepository;
+
+    private UserRepository userRepository;
+
 
     @Value("${reportserver.pagination.max-page-size:200}")
     private int maxPageSize;
@@ -100,7 +110,9 @@ public class ReportController {
                             JrxmlParameterService jrxmlParameterService,
                             com.reportserver.service.ThumbnailGenerationService thumbnailGenerationService,
                             com.reportserver.repository.ReportThumbnailRepository reportThumbnailRepository,
-                            ReportShareTokenRepository shareTokenRepository) {
+                            ReportShareTokenRepository shareTokenRepository,
+                            ReportShareRecipientRepository reportShareRecipientRepository,
+                            UserRepository userRepository) {
         this.reportService = reportService;
         this.dataSourceService = dataSourceService;
         this.pdfUtilityService = pdfUtilityService;
@@ -113,6 +125,8 @@ public class ReportController {
         this.thumbnailGenerationService = thumbnailGenerationService;
         this.reportThumbnailRepository = reportThumbnailRepository;
         this.shareTokenRepository = shareTokenRepository;
+        this.reportShareRecipientRepository = reportShareRecipientRepository;
+        this.userRepository = userRepository;
     }
     
     @PostConstruct
@@ -650,21 +664,51 @@ public class ReportController {
             boolean isReadOnly = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_READ_ONLY".equals(a.getAuthority()));
             boolean effectiveSharedOnly = sharedOnly || isReadOnly;
+            Long currentUserId = null;
+            if (isReadOnly && authentication != null) {
+                currentUserId = userRepository.findByUsername(authentication.getName())
+                    .map(User::getId)
+                    .orElse(null);
+            }
+
+            if (isReadOnly && currentUserId == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("content", List.of());
+                response.put("page", 0);
+                response.put("size", 0);
+                response.put("totalElements", 0);
+                response.put("totalPages", 0);
+                response.put("first", true);
+                response.put("last", true);
+                return ResponseEntity.ok(response);
+            }
 
             int resolvedSize = size == null ? defaultPageSize : Math.min(size, maxPageSize);
             Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(resolvedSize, 1));
 
             Page<SharedReport> reports;
-            if (category != null && !category.isBlank() && tag != null && !tag.isBlank()) {
-                reports = sharedReportRepository.findByCategoryContainingIgnoreCaseAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(category, tag, pageable);
-            } else if (category != null && !category.isBlank()) {
-                reports = sharedReportRepository.findByCategoryContainingIgnoreCaseOrderByCreatedAtDesc(category, pageable);
-            } else if (tag != null && !tag.isBlank()) {
-                reports = sharedReportRepository.findByTagsContainingIgnoreCaseOrderByCreatedAtDesc(tag, pageable);
-            } else if (effectiveSharedOnly) {
-                reports = sharedReportRepository.findBySharedWithReadOnlyTrueOrderByCreatedAtDesc(pageable);
+            if (isReadOnly && currentUserId != null) {
+                if (category != null && !category.isBlank() && tag != null && !tag.isBlank()) {
+                    reports = sharedReportRepository.findAccessibleForReadOnlyByCategoryAndTag(currentUserId, category, tag, pageable);
+                } else if (category != null && !category.isBlank()) {
+                    reports = sharedReportRepository.findAccessibleForReadOnlyByCategory(currentUserId, category, pageable);
+                } else if (tag != null && !tag.isBlank()) {
+                    reports = sharedReportRepository.findAccessibleForReadOnlyByTag(currentUserId, tag, pageable);
+                } else {
+                    reports = sharedReportRepository.findAccessibleForReadOnly(currentUserId, pageable);
+                }
             } else {
-                reports = sharedReportRepository.findAllByOrderByCreatedAtDesc(pageable);
+                if (category != null && !category.isBlank() && tag != null && !tag.isBlank()) {
+                    reports = sharedReportRepository.findByCategoryContainingIgnoreCaseAndTagsContainingIgnoreCaseOrderByCreatedAtDesc(category, tag, pageable);
+                } else if (category != null && !category.isBlank()) {
+                    reports = sharedReportRepository.findByCategoryContainingIgnoreCaseOrderByCreatedAtDesc(category, pageable);
+                } else if (tag != null && !tag.isBlank()) {
+                    reports = sharedReportRepository.findByTagsContainingIgnoreCaseOrderByCreatedAtDesc(tag, pageable);
+                } else if (effectiveSharedOnly) {
+                    reports = sharedReportRepository.findBySharedWithReadOnlyTrueOrderByCreatedAtDesc(pageable);
+                } else {
+                    reports = sharedReportRepository.findAllByOrderByCreatedAtDesc(pageable);
+                }
             }
 
             List<Map<String, Object>> content = reports.getContent().stream().map(report -> {
@@ -676,6 +720,9 @@ public class ReportController {
                 item.put("category", report.getCategory());
                 item.put("tags", report.getTags());
                 item.put("sharedWithReadOnly", report.isSharedWithReadOnly());
+                long specificShareCount = reportShareRecipientRepository.countByReport_Id(report.getId());
+                item.put("sharedScope", report.isSharedWithReadOnly() ? "ALL" : (specificShareCount > 0 ? "SPECIFIC" : "NONE"));
+                item.put("sharedUserCount", specificShareCount);
                 item.put("createdAt", report.getCreatedAt());
                 item.put("createdBy", report.getCreatedBy());
                 item.put("sharedAt", report.getSharedAt());
@@ -718,6 +765,9 @@ public class ReportController {
             
             if (shouldShare != null) {
                 report.setSharedWithReadOnly(shouldShare);
+                if (!shouldShare) {
+                    reportShareRecipientRepository.deleteByReport_Id(reportId);
+                }
                 if (shouldShare) {
                     report.setSharedAt(LocalDateTime.now());
                     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -736,6 +786,153 @@ public class ReportController {
             }
         } catch (Exception e) {
             logger.error("Error toggling share status", e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @GetMapping("/api/generated-reports/{reportId}/share-config")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getShareConfig(@PathVariable Long reportId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Optional<SharedReport> optionalReport = sharedReportRepository.findById(reportId);
+            if (optionalReport.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Report not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            SharedReport report = optionalReport.get();
+            List<ReportShareRecipient> recipients = reportShareRecipientRepository.findByReport_Id(reportId);
+            List<Long> selectedUserIds = recipients.stream().map(r -> r.getUser().getId()).distinct().collect(Collectors.toList());
+
+            String scope = report.isSharedWithReadOnly() ? "ALL" : (selectedUserIds.isEmpty() ? "NONE" : "SPECIFIC");
+
+            List<Map<String, Object>> availableUsers = userRepository.findByRoleAndEnabledTrueOrderByUsernameAsc("READ_ONLY")
+                .stream()
+                .map(user -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", user.getId());
+                    item.put("username", user.getUsername());
+                    item.put("email", user.getEmail());
+                    return item;
+                })
+                .collect(Collectors.toList());
+
+            response.put("status", "success");
+            response.put("scope", scope);
+            response.put("selectedUserIds", selectedUserIds);
+            response.put("availableUsers", availableUsers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error loading share config", e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @PostMapping("/api/generated-reports/{reportId}/share-config")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> saveShareConfig(@PathVariable Long reportId, @RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Optional<SharedReport> optionalReport = sharedReportRepository.findById(reportId);
+            if (optionalReport.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Report not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            SharedReport report = optionalReport.get();
+            String scope = String.valueOf(request.getOrDefault("scope", "NONE")).trim().toUpperCase();
+
+            Set<Long> requestedUserIds = new LinkedHashSet<>();
+            Object usersValue = request.get("userIds");
+            if (usersValue instanceof List<?> rawIds) {
+                rawIds.stream()
+                    .filter(item -> item instanceof Number || item instanceof String)
+                    .forEach(item -> {
+                        try {
+                            requestedUserIds.add(Long.parseLong(String.valueOf(item)));
+                        } catch (NumberFormatException ignore) {
+                            // Ignore invalid values.
+                        }
+                    });
+            }
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String actor = auth != null ? auth.getName() : "system";
+
+            if (!"ALL".equals(scope) && !"SPECIFIC".equals(scope) && !"NONE".equals(scope)) {
+                response.put("status", "error");
+                response.put("message", "Invalid share scope");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            reportShareRecipientRepository.deleteByReport_Id(reportId);
+
+            if ("ALL".equals(scope)) {
+                report.setSharedWithReadOnly(true);
+                report.setSharedAt(LocalDateTime.now());
+                report.setSharedBy(actor);
+                sharedReportRepository.save(report);
+                response.put("status", "success");
+                response.put("message", "Report shared with all READ_ONLY users");
+                return ResponseEntity.ok(response);
+            }
+
+            if ("SPECIFIC".equals(scope)) {
+                if (requestedUserIds.isEmpty()) {
+                    response.put("status", "error");
+                    response.put("message", "Select at least one READ_ONLY user");
+                    return ResponseEntity.badRequest().body(response);
+                }
+
+                List<User> selectedUsers = userRepository.findAllById(requestedUserIds).stream()
+                    .filter(User::isEnabled)
+                    .filter(user -> "READ_ONLY".equalsIgnoreCase(user.getRole()))
+                    .collect(Collectors.toList());
+
+                if (selectedUsers.isEmpty()) {
+                    response.put("status", "error");
+                    response.put("message", "No valid READ_ONLY users selected");
+                    return ResponseEntity.badRequest().body(response);
+                }
+
+                report.setSharedWithReadOnly(false);
+                report.setSharedAt(LocalDateTime.now());
+                report.setSharedBy(actor);
+                sharedReportRepository.save(report);
+
+                List<ReportShareRecipient> recipients = selectedUsers.stream().map(user -> {
+                    ReportShareRecipient recipient = new ReportShareRecipient();
+                    recipient.setReport(report);
+                    recipient.setUser(user);
+                    recipient.setSharedBy(actor);
+                    recipient.setSharedAt(LocalDateTime.now());
+                    return recipient;
+                }).collect(Collectors.toList());
+
+                reportShareRecipientRepository.saveAll(recipients);
+                response.put("status", "success");
+                response.put("message", "Report shared with selected READ_ONLY users");
+                return ResponseEntity.ok(response);
+            }
+
+            report.setSharedWithReadOnly(false);
+            sharedReportRepository.save(report);
+            response.put("status", "success");
+            response.put("message", "Report is no longer shared with READ_ONLY users");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error saving share config", e);
             response.put("status", "error");
             response.put("message", e.getMessage());
             return ResponseEntity.status(500).body(response);

@@ -19,6 +19,7 @@ let genPage = 0;
 let genTotalPages = 1;
 let historyPage = 0;
 let historyTotalPages = 1;
+let reportShareUsersCache = [];
 
 // Suppress known third-party autofill extension errors that are outside app code.
 window.addEventListener('unhandledrejection', (event) => {
@@ -1002,9 +1003,19 @@ function loadGeneratedReports(page = 0) {
             if (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') {
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'report-action-btn report-action-edit';
-                shareBtn.textContent = report.sharedWithReadOnly ? '🔓 Unshare' : '🔒 Share';
-                shareBtn.title = report.sharedWithReadOnly ? 'Remove from READ_ONLY users' : 'Share with READ_ONLY users';
-                shareBtn.onclick = () => toggleShareReport(report.id, !report.sharedWithReadOnly, shareBtn);
+                const shareScope = report.sharedScope || (report.sharedWithReadOnly ? 'ALL' : 'NONE');
+                if (shareScope === 'ALL') {
+                    shareBtn.textContent = '👥 Shared: All';
+                    shareBtn.title = 'Shared with all READ_ONLY users';
+                } else if (shareScope === 'SPECIFIC') {
+                    const sharedUserCount = Number(report.sharedUserCount || 0);
+                    shareBtn.textContent = sharedUserCount > 0 ? `👥 Shared: ${sharedUserCount}` : '👥 Shared: Selected';
+                    shareBtn.title = 'Shared with selected READ_ONLY users';
+                } else {
+                    shareBtn.textContent = '👥 Share';
+                    shareBtn.title = 'Share with READ_ONLY users';
+                }
+                shareBtn.onclick = () => openReportShareModal(report.id, shareBtn);
                 actionsDiv.appendChild(shareBtn);
 
                 // Share Link button
@@ -1074,30 +1085,178 @@ function downloadGeneratedReport(fileName) {
     document.body.removeChild(a);
 }
 
+function getSelectedReportShareScope() {
+    const selected = document.querySelector('input[name="reportShareScope"]:checked');
+    return selected ? selected.value : 'NONE';
+}
+
+function onReportShareScopeChanged() {
+    const usersSection = document.getElementById('reportShareUsersSection');
+    if (!usersSection) return;
+    const scope = getSelectedReportShareScope();
+    usersSection.style.display = scope === 'SPECIFIC' ? 'block' : 'none';
+}
+
+function renderReportShareUsersList(selectedUserIds) {
+    const container = document.getElementById('reportShareUsersList');
+    if (!container) return;
+
+    const selected = new Set((selectedUserIds || []).map((id) => Number(id)));
+    container.replaceChildren();
+
+    if (!reportShareUsersCache || reportShareUsersCache.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.color = '#6c757d';
+        empty.style.padding = '8px 4px';
+        empty.textContent = 'No READ_ONLY users found.';
+        container.appendChild(empty);
+        return;
+    }
+
+    reportShareUsersCache.forEach((user) => {
+        const row = document.createElement('label');
+        row.className = 'check';
+        row.style.marginBottom = '6px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'report-share-user';
+        checkbox.value = String(user.id);
+        checkbox.checked = selected.has(Number(user.id));
+
+        const text = document.createElement('span');
+        text.textContent = `${user.username} (${user.email})`;
+
+        row.append(checkbox, text);
+        container.appendChild(row);
+    });
+}
+
+function openReportShareModal(reportId, actionButton = null) {
+    const modal = document.getElementById('reportShareModal');
+    const reportIdInput = document.getElementById('reportShareReportId');
+    const message = document.getElementById('reportShareMessage');
+
+    if (!modal || !reportIdInput) return;
+
+    reportIdInput.value = String(reportId);
+    message.replaceChildren();
+    lastActionElement = actionButton || lastActionElement;
+
+    fetch(`/api/generated-reports/${reportId}/share-config`, {
+        headers: getHeadersWithCSRF()
+    })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.status !== 'success') {
+                throw new Error(data.message || 'Failed to load sharing settings');
+            }
+
+            const scope = data.scope || 'NONE';
+            const selectedUserIds = data.selectedUserIds || [];
+            reportShareUsersCache = data.availableUsers || [];
+
+            const scopeInput = document.querySelector(`input[name="reportShareScope"][value="${scope}"]`)
+                || document.querySelector('input[name="reportShareScope"][value="NONE"]');
+            if (scopeInput) {
+                scopeInput.checked = true;
+            }
+
+            renderReportShareUsersList(selectedUserIds);
+            onReportShareScopeChanged();
+            modal.style.display = 'block';
+        })
+        .catch((error) => {
+            showMessage(error.message || 'Unable to load sharing settings', 'error', actionButton);
+        });
+}
+
+function closeReportShareModal() {
+    const modal = document.getElementById('reportShareModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function saveReportShareConfig() {
+    const reportId = document.getElementById('reportShareReportId')?.value;
+    const message = document.getElementById('reportShareMessage');
+    const scope = getSelectedReportShareScope();
+
+    if (!reportId || !message) return;
+
+    const userIds = [];
+    if (scope === 'SPECIFIC') {
+        const selected = document.querySelectorAll('.report-share-user:checked');
+        selected.forEach((checkbox) => {
+            userIds.push(Number(checkbox.value));
+        });
+
+        if (userIds.length === 0) {
+            const warning = document.createElement('div');
+            warning.className = 'error';
+            warning.textContent = 'Select at least one READ_ONLY user.';
+            message.replaceChildren(warning);
+            return;
+        }
+    }
+
+    message.replaceChildren();
+
+    fetch(`/api/generated-reports/${reportId}/share-config`, {
+        method: 'POST',
+        headers: getHeadersWithCSRF({
+            'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+            scope,
+            userIds
+        })
+    })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.status !== 'success') {
+                throw new Error(data.message || 'Failed to save sharing settings');
+            }
+            closeReportShareModal();
+            showMessage(data.message || 'Sharing settings saved', 'success', lastActionElement);
+            loadGeneratedReports(genPage);
+        })
+        .catch((error) => {
+            const errorBox = document.createElement('div');
+            errorBox.className = 'error';
+            errorBox.textContent = error.message || 'Failed to save sharing settings';
+            message.replaceChildren(errorBox);
+        });
+}
+
+// Backward compatible wrapper for older calls.
 function toggleShareReport(reportId, shouldShare, actionButton) {
-    const action = shouldShare ? 'share' : 'unshare';
-    const message = shouldShare ? 'Share this report with READ_ONLY users?' : 'Unshare this report from READ_ONLY users?';
-    
-    showConfirmationModal(message, () => {
-        fetch(`/api/generated-reports/${reportId}/toggle-share`, {
+    if (shouldShare) {
+        openReportShareModal(reportId, actionButton);
+        return;
+    }
+
+    showConfirmationModal('Unshare this report from READ_ONLY users?', () => {
+        fetch(`/api/generated-reports/${reportId}/share-config`, {
             method: 'POST',
             headers: getHeadersWithCSRF({
                 'Content-Type': 'application/json'
             }),
-            body: JSON.stringify({ share: shouldShare })
+            body: JSON.stringify({ scope: 'NONE', userIds: [] })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showMessage(data.message, 'success', actionButton);
-                loadGeneratedReports(genPage);
-            } else {
-                showMessage(data.message, 'error', actionButton);
-            }
-        })
-        .catch(error => {
-            showMessage('Error: ' + error.message, 'error', actionButton);
-        });
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.status === 'success') {
+                    showMessage(data.message, 'success', actionButton);
+                    loadGeneratedReports(genPage);
+                } else {
+                    showMessage(data.message, 'error', actionButton);
+                }
+            })
+            .catch((error) => {
+                showMessage('Error: ' + error.message, 'error', actionButton);
+            });
     });
 }
 
