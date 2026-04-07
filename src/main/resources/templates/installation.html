@@ -1,11 +1,38 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}" data-bwignore="true" data-1p-ignore="true" data-lpignore="true">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}">
     <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title th:text="#{setup.title}">Installation Wizard - Reports Server</title>
+    <script>
+        (function () {
+            function shouldIgnore(text, source) {
+                return text.indexOf('No Listener: tabs:outgoing.message.ready') !== -1 ||
+                    source.indexOf('bootstrap-autofill-overlay.js') !== -1 ||
+                    text.indexOf("Cannot read properties of null (reading 'includes')") !== -1;
+            }
+
+            window.addEventListener('unhandledrejection', function (event) {
+                var reason = event && event.reason;
+                var text = String((reason && (reason.message || reason.stack)) || reason || '');
+                if (shouldIgnore(text, text)) {
+                    event.preventDefault();
+                }
+            }, true);
+
+            window.addEventListener('error', function (event) {
+                var text = String((event && event.message) || '');
+                var source = String((event && event.filename) || '');
+                if (shouldIgnore(text, source)) {
+                    event.preventDefault();
+                    return true;
+                }
+                return false;
+            }, true);
+        })();
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -24,28 +51,6 @@
             border-radius: 14px;
             box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
             overflow: hidden;
-        }
-        .language-picker {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-            font-size: 13px;
-        }
-        .language-picker select {
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            background: rgba(255, 255, 255, 0.18);
-            color: white;
-            padding: 6px 8px;
-            backdrop-filter: blur(4px);
-        }
-        .language-picker option {
-            color: #1f2937;
         }
         .wizard-header {
             padding: 20px 24px;
@@ -80,6 +85,73 @@
         }
         .wizard-content {
             padding: 24px;
+        }
+        .wizard-step-panel {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 18px;
+            padding: 18px;
+            border: 1px solid #e6ebf5;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fbfcff 0%, #f5f8ff 100%);
+            margin-bottom: 20px;
+        }
+        .wizard-panel-card {
+            border-radius: 12px;
+            padding: 16px;
+            background: white;
+            border: 1px solid #e4e8f0;
+        }
+        .wizard-panel-card h3 {
+            color: #425579;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .wizard-panel-card p {
+            color: #6b7890;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .wizard-panel-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eef3ff;
+            color: #4057a8;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .wizard-panel-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .wizard-panel-item {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f8faff;
+            border: 1px solid #e4e8f0;
+            color: #55627e;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .wizard-language-select {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .wizard-language-select select {
+            border-radius: 10px;
+            border: 1px solid #cfd6e4;
+            padding: 11px 12px;
+            font-size: 14px;
+            background: white;
         }
         .step {
             display: none;
@@ -176,20 +248,12 @@
             font-size: 12px;
         }
         @media (max-width: 760px) {
+            .wizard-step-panel { grid-template-columns: 1fr; }
             .grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
-<body>
-<div class="language-picker">
-    <label for="setupLanguage" th:text="#{lang.label}">Language</label>
-    <select id="setupLanguage" onchange="changeSetupLanguage()">
-        <option value="en" th:text="#{lang.en}">English</option>
-        <option value="fr" th:text="#{lang.fr}">French</option>
-        <option value="de" th:text="#{lang.de}">German</option>
-    </select>
-</div>
-
+<body data-bwignore="true" data-1p-ignore="true" data-lpignore="true">
 <div class="wizard">
     <div class="wizard-header">
         <h1 th:text="#{setup.header.title}">Install Reports Server</h1>
@@ -197,12 +261,44 @@
         <div class="progress">
             <div id="progress1" class="progress-step active"></div>
             <div id="progress2" class="progress-step"></div>
+            <div id="progress3" class="progress-step"></div>
         </div>
     </div>
     <div class="wizard-content">
         <div id="step1" class="step active">
-            <h2 th:text="#{setup.step1.title}">Step 1: SMTP Configuration</h2>
-            <p th:text="#{setup.step1.subtitle}">Configure SMTP first so the installer can send the welcome email and future account notifications.</p>
+            <div class="wizard-step-panel" aria-labelledby="setupLanguageTitle">
+                <div class="wizard-panel-card">
+                    <div class="wizard-panel-badge" th:text="#{setup.language.badge}">Language Selection</div>
+                    <h3 id="setupLanguageTitle" th:text="#{setup.language.title}">Choose your language first</h3>
+                    <div class="wizard-language-select">
+                        <label for="setupLanguage" th:text="#{lang.label}">Language</label>
+                        <select id="setupLanguage" onchange="saveLanguageAndRefresh()">
+                            <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
+                            <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
+                            <option value="de" th:selected="${#locale.language == 'de'}" th:text="#{lang.de}">German</option>
+                        </select>
+                    </div>
+                    <div class="help" th:text="#{setup.language.subtitle}">Select the interface language before continuing the installer. The rest of the wizard will refresh in the chosen language.</div>
+                </div>
+                <div class="wizard-panel-card">
+                    <div class="wizard-panel-badge" th:text="#{setup.language.aboutBadge}">What changes</div>
+                    <h3 th:text="#{setup.language.aboutTitle}">The installer will continue in that language</h3>
+                    <div class="wizard-panel-list">
+                        <div class="wizard-panel-item" th:text="#{setup.language.about.one}">Wizard labels, buttons, and helper text refresh immediately after you choose a language.</div>
+                        <div class="wizard-panel-item" th:text="#{setup.language.about.two}">SMTP, admin setup, and all confirmation screens will follow the same selection.</div>
+                        <div class="wizard-panel-item" th:text="#{setup.language.about.three}">Your selection is saved as the installation default so future visits use the same language.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="actions" style="justify-content: flex-end;">
+                <button class="btn" type="button" onclick="goToStep(2)" th:text="#{setup.action.languageContinue}">Continue</button>
+            </div>
+            <div id="step1Msg" class="msg"></div>
+        </div>
+
+        <div id="step2" class="step">
+            <h2 th:text="#{setup.step2.title}">Step 2: SMTP Configuration</h2>
+            <p th:text="#{setup.step2.subtitle}">Configure SMTP first so the installer can send the welcome email and future account notifications.</p>
             <div class="grid">
                 <div class="form-group full">
                     <label for="smtpProviderPreset" th:text="#{setup.smtp.preset}">SMTP Provider Preset</label>
@@ -258,15 +354,16 @@
                 For Gmail/Microsoft accounts, use an app password. Usually port 587 + STARTTLS is recommended.
             </div>
             <div class="actions">
+                <button class="btn secondary" type="button" onclick="goToStep(1)" th:text="#{setup.action.back}">Back</button>
                 <button class="btn" type="button" style="background: #6c757d;" onclick="sendTestSmtpEmail()">Send Test Email</button>
                 <button class="btn" type="button" onclick="saveSmtpAndContinue()" th:text="#{setup.action.saveContinue}">Save & Continue</button>
             </div>
-            <div id="step1Msg" class="msg"></div>
+            <div id="step2Msg" class="msg"></div>
         </div>
 
-        <div id="step2" class="step">
-            <h2 th:text="#{setup.step2.title}">Step 2: Admin User Configuration</h2>
-            <p th:text="#{setup.step2.subtitle}">Create the first account. This user will have ADMIN role.</p>
+        <div id="step3" class="step">
+            <h2 th:text="#{setup.step3.title}">Step 3: Admin User Configuration</h2>
+            <p th:text="#{setup.step3.subtitle}">Create the first account. This user will have ADMIN role.</p>
             <div class="grid">
                 <div class="form-group">
                     <label for="adminUsername" th:text="#{setup.admin.username}">Username</label>
@@ -311,19 +408,31 @@
                 </div>
             </div>
             <div class="actions">
-                <button class="btn secondary" type="button" onclick="goToStep(1)" th:text="#{setup.action.back}">Back</button>
+                <button class="btn secondary" type="button" onclick="goToStep(2)" th:text="#{setup.action.back}">Back</button>
                 <button class="btn" type="button" onclick="saveAdminAndFinish()" th:text="#{setup.action.saveFinish}">Save Admin & Finish</button>
                 <button id="confirm2faButton" class="btn success" type="button" style="display: none;" onclick="confirmAdminTwoFactorAndFinish()" th:text="#{setup.action.confirm2faFinish}">Confirm 2FA & Finish</button>
             </div>
-            <div id="step2Msg" class="msg"></div>
+            <div id="step3Msg" class="msg"></div>
         </div>
     </div>
 </div>
 
 <script th:inline="javascript">
+    window.addEventListener('unhandledrejection', function (event) {
+        const reason = event && event.reason;
+        const text = String((reason && (reason.message || reason.stack)) || reason || '');
+        if (text.includes('tabs:outgoing.message.ready') ||
+            text.includes('bootstrap-autofill-overlay.js') ||
+            text.includes("Cannot read properties of null (reading 'includes')")) {
+            event.preventDefault();
+        }
+    });
+
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
     const I18N = {
+        languageSaveFailed: /*[[#{setup.msg.language.saveFailed}]]*/ 'Failed to save language selection',
+        languageSaveSuccess: /*[[#{setup.msg.language.saved}]]*/ 'Language saved successfully.',
         saveSmtpFailed: /*[[#{setup.msg.smtp.saveFailed}]]*/ 'Failed to save SMTP',
         saveSmtpSuccess: /*[[#{setup.msg.smtp.saved}]]*/ 'SMTP configured successfully.',
         saveAdminFailed: /*[[#{setup.msg.admin.saveFailed}]]*/ 'Failed to save admin user',
@@ -356,6 +465,8 @@
                 if (setupLanguage) {
                     setupLanguage.value = setup.defaultLanguage || document.documentElement.lang || 'en';
                 }
+
+                const currentStep = getRequestedWizardStep();
                 if (setup.setupCompleted) {
                     window.location.href = '/login';
                     return;
@@ -363,21 +474,36 @@
                 if (setup.pendingTwoFactorSetup) {
                     pendingAdminUsername = setup.pendingAdminUsername || pendingAdminUsername;
                     renderPendingTwoFactorSetup(setup.pendingTwoFactorSetup);
-                    goToStep(2);
+                    goToStep(3);
                     return;
                 }
                 if (setup.smtpConfigured && !setup.adminConfigured) {
-                    goToStep(2);
+                    goToStep(3);
                     return;
                 }
                 if (setup.smtpConfigured && setup.adminConfigured) {
                     window.location.href = '/login';
+                    return;
                 }
+
+                goToStep(currentStep);
             })
             .catch(() => {});
     }
 
-    function changeSetupLanguage() {
+    function getRequestedWizardStep() {
+        const url = new URL(window.location.href);
+        const rawStep = parseInt(url.searchParams.get('step') || '1', 10);
+        if (Number.isNaN(rawStep) || rawStep < 1) {
+            return 1;
+        }
+        if (rawStep > 3) {
+            return 3;
+        }
+        return rawStep;
+    }
+
+    function saveLanguageAndRefresh() {
         const selectedLanguage = document.getElementById('setupLanguage').value;
 
         fetch('/api/setup/language', {
@@ -388,12 +514,11 @@
             .then(() => {
                 const url = new URL(window.location.href);
                 url.searchParams.set('lang', selectedLanguage);
+                url.searchParams.set('step', '1');
                 window.location.href = url.toString();
             })
             .catch(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('lang', selectedLanguage);
-                window.location.href = url.toString();
+                showMsg('step1', I18N.languageSaveFailed, 'error');
             });
     }
 
@@ -408,11 +533,14 @@
     function goToStep(step) {
         document.getElementById('step1').classList.toggle('active', step === 1);
         document.getElementById('step2').classList.toggle('active', step === 2);
+        document.getElementById('step3').classList.toggle('active', step === 3);
 
         const p1 = document.getElementById('progress1');
         const p2 = document.getElementById('progress2');
+        const p3 = document.getElementById('progress3');
         p1.className = step === 1 ? 'progress-step active' : 'progress-step done';
-        p2.className = step === 2 ? 'progress-step active' : 'progress-step';
+        p2.className = step === 2 ? 'progress-step active' : (step > 2 ? 'progress-step done' : 'progress-step');
+        p3.className = step === 3 ? 'progress-step active' : 'progress-step';
     }
 
     function showMsg(stepId, text, type) {
@@ -424,7 +552,7 @@
     function sendTestSmtpEmail() {
         const fromEmail = document.getElementById('smtpFromEmail').value;
         if (!fromEmail) {
-            showMsg('step1', 'Please enter a from email address first.', 'error');
+            showMsg('step2', 'Please enter a from email address first.', 'error');
             return;
         }
 
@@ -451,9 +579,9 @@
                 if (!data || data.status !== 'success') {
                     throw new Error((data && data.message) || I18N.testSmtpFailed);
                 }
-                showMsg('step1', data.message || I18N.testSmtpSuccess, 'success');
+                showMsg('step2', data.message || I18N.testSmtpSuccess, 'success');
             })
-            .catch(error => showMsg('step1', error.message, 'error'));
+            .catch(error => showMsg('step2', error.message, 'error'));
     }
 
     function saveSmtpAndContinue() {
@@ -479,10 +607,10 @@
                 if (!data || data.status !== 'success') {
                     throw new Error((data && data.message) || I18N.saveSmtpFailed);
                 }
-                showMsg('step1', data.message || I18N.saveSmtpSuccess, 'success');
-                goToStep(2);
+                showMsg('step2', data.message || I18N.saveSmtpSuccess, 'success');
+                goToStep(3);
             })
-            .catch(error => showMsg('step1', error.message, 'error'));
+            .catch(error => showMsg('step2', error.message, 'error'));
     }
 
     function saveAdminAndFinish() {
@@ -505,10 +633,10 @@
                     throw new Error((data && data.message) || I18N.saveAdminFailed);
                 }
                 pendingAdminUsername = data.username || payload.username;
-                showMsg('step2', data.message || I18N.saveAdminSuccess, 'success');
+                showMsg('step3', data.message || I18N.saveAdminSuccess, 'success');
                 if (data.twoFactorSetup && data.twoFactorSetup.qrCodeDataUri) {
                     renderPendingTwoFactorSetup(data.twoFactorSetup);
-                    showMsg('step2', I18N.scanQrThenFinish, 'success');
+                    showMsg('step3', I18N.scanQrThenFinish, 'success');
                 } else {
                     document.getElementById('admin2faSetup').style.display = 'none';
                     document.getElementById('admin2faConfirm').style.display = 'none';
@@ -516,7 +644,7 @@
                     finalizeSetup();
                 }
             })
-            .catch(error => showMsg('step2', error.message, 'error'));
+            .catch(error => showMsg('step3', error.message, 'error'));
     }
 
     function renderPendingTwoFactorSetup(twoFactorSetup) {
@@ -543,12 +671,12 @@
                 if (!data || data.status !== 'success') {
                     throw new Error((data && data.message) || I18N.confirm2faFailed);
                 }
-                showMsg('step2', data.message || I18N.confirm2faSuccess, 'success');
+                showMsg('step3', data.message || I18N.confirm2faSuccess, 'success');
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 1200);
             })
-            .catch(error => showMsg('step2', error.message, 'error'));
+            .catch(error => showMsg('step3', error.message, 'error'));
     }
 
     function applyPreset() {

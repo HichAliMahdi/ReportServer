@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" data-bwignore="true" data-1p-ignore="true" data-lpignore="true">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -52,6 +52,10 @@
 
             if (filename.indexOf('bootstrap-autofill-overlay.js') !== -1
                 && message.indexOf("Cannot read properties of null (reading 'includes')") !== -1) {
+                event.preventDefault();
+                return true;
+            }
+            if (message.indexOf('No Listener: tabs:outgoing.message.ready') !== -1) {
                 event.preventDefault();
                 return true;
             }
