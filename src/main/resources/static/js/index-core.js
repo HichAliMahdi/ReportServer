@@ -26,6 +26,11 @@ window.addEventListener('unhandledrejection', (event) => {
     const message = String(reason?.message || reason || '');
     const stack = String(reason?.stack || '');
 
+    if (message.includes('No Listener: tabs:outgoing.message.ready')) {
+        event.preventDefault();
+        return;
+    }
+
     if (message.includes('Cannot read properties of null (reading \'includes\')')
         && stack.includes('bootstrap-autofill-overlay.js')) {
         event.preventDefault();
@@ -1741,49 +1746,26 @@ async function parseApiJsonResponse(response, fallbackMessage) {
     const contentType = (response.headers.get('content-type') || '').toLowerCase();
     const trimmed = responseText.trim();
 
-    let payload = null;
-    const looksLikeJson = contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+    let payload = {};
+    if (trimmed) {
+        const looksLikeJson = contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
 
-    if (trimmed && looksLikeJson) {
-        try {
-            payload = JSON.parse(trimmed);
-            tableBody.replaceChildren();
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 4;
-            const emptyState = document.createElement('div');
-            emptyState.className = 'empty-state';
-            emptyState.style.padding = '30px 20px';
-
-            const icon = document.createElement('div');
-            icon.className = 'empty-state-icon';
-            icon.textContent = '⚠️';
-
-            const heading = document.createElement('h3');
-            heading.textContent = 'Error Loading Datasources';
-
-            const paragraph = document.createElement('p');
-            paragraph.textContent = error.message || 'Unable to load datasources. Please try again.';
-
-            const button = document.createElement('button');
-            button.className = 'btn';
-            button.type = 'button';
-            button.style.marginTop = '15px';
-            button.textContent = '🔄 Retry';
-            button.addEventListener('click', () => loadDatasources());
-
-            emptyState.appendChild(icon);
-            emptyState.appendChild(heading);
-            emptyState.appendChild(paragraph);
-            emptyState.appendChild(button);
-            cell.appendChild(emptyState);
-            row.appendChild(cell);
-            tableBody.appendChild(row);
-        if (!trimmed) {
-            return {};
+        if (looksLikeJson) {
+            try {
+                payload = JSON.parse(trimmed);
+            } catch (error) {
+                const messageFromHtml = extractReadableTextFromHtml(trimmed);
+                throw new Error(messageFromHtml || fallbackMessage || 'Unexpected response from server.');
+            }
+        } else {
+            const messageFromHtml = extractReadableTextFromHtml(trimmed);
+            throw new Error(messageFromHtml || fallbackMessage || 'Unexpected non-JSON response from server.');
         }
-        const messageFromHtml = extractReadableTextFromHtml(trimmed);
-        throw new Error(messageFromHtml || 'Unexpected non-JSON response from server.');
+    }
+
+    if (!response.ok) {
+        const message = payload.message || payload.error || fallbackMessage || `Request failed with status ${response.status}`;
+        throw new Error(message);
     }
 
     return payload;
