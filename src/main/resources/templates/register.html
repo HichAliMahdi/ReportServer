@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Reports Server</title>
+    <title th:text="#{auth.register.title}">Register - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -103,45 +103,77 @@
             color: #666;
             margin-top: 5px;
         }
+        .language-picker {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-size: 13px;
+        }
+        .language-picker select {
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            padding: 6px 8px;
+            backdrop-filter: blur(4px);
+        }
+        .language-picker option {
+            color: #1f2937;
+        }
     </style>
 </head>
 <body>
+    <form class="language-picker" th:action="@{/register}" method="get">
+        <label for="langSelectRegister" th:text="#{lang.label}">Language</label>
+        <select id="langSelectRegister" name="lang" onchange="this.form.submit()">
+            <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
+            <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
+            <option value="de" th:selected="${#locale.language == 'de'}" th:text="#{lang.de}">German</option>
+        </select>
+    </form>
+
     <div class="register-container">
-        <h1>📝 Create Account</h1>
-        <p class="subtitle">Join Reports Server</p>
+        <h1>📝 <span th:text="#{auth.register.heading}">Create Account</span></h1>
+        <p class="subtitle" th:text="#{auth.register.subtitle}">Join Reports Server</p>
         
         <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
         <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
         
         <form th:action="@{/register}" method="post">
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username" th:text="#{auth.login.username}">Username</label>
                 <input type="text" id="username" name="username" required autofocus>
             </div>
             
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email" th:text="#{auth.register.email}">Email</label>
                 <input type="email" id="email" name="email" required>
             </div>
             
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password" th:text="#{auth.register.password}">Password</label>
                 <input type="password" id="password" name="password" required minlength="6">
-                <p class="password-hint">At least 6 characters</p>
+                <p class="password-hint" th:text="#{auth.register.hint}">At least 6 characters</p>
             </div>
             
             <div class="form-group">
-                <label for="confirmPassword">Confirm Password</label>
+                <label for="confirmPassword" th:text="#{auth.register.confirmPassword}">Confirm Password</label>
                 <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6">
             </div>
             
-            <button type="submit" class="btn">Create Account</button>
+            <button type="submit" class="btn" th:text="#{auth.register.submit}">Create Account</button>
         </form>
         
         <div class="links">
-            <span>Already have an account? </span>
-            <a href="/login">Login here</a>
+            <span th:text="#{auth.register.haveAccount}">Already have an account?</span>
+            <a th:href="@{/login(lang=${#locale.language})}" href="/login" th:text="#{auth.register.loginHere}">Login here</a>
         </div>
+
     </div>
 </body>
 </html>

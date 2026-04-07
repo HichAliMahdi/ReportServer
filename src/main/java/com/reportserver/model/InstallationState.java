@@ -27,6 +27,9 @@ public class InstallationState {
     @Column(name = "setup_completed", nullable = false)
     private boolean setupCompleted = false;
 
+    @Column(name = "default_language", nullable = false, length = 10)
+    private String defaultLanguage = "en";
+
     @Column(name = "setup_completed_at")
     private LocalDateTime setupCompletedAt;
 
@@ -36,6 +39,9 @@ public class InstallationState {
     @PrePersist
     @PreUpdate
     public void touch() {
+        if (defaultLanguage == null || defaultLanguage.isBlank()) {
+            defaultLanguage = "en";
+        }
         updatedAt = LocalDateTime.now();
     }
 }

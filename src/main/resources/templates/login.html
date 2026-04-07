@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Reports Server</title>
+    <title th:text="#{auth.login.title}">Login - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -103,42 +103,74 @@
             text-align: center;
             color: #999;
         }
+        .language-picker {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-size: 13px;
+        }
+        .language-picker select {
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            padding: 6px 8px;
+            backdrop-filter: blur(4px);
+        }
+        .language-picker option {
+            color: #1f2937;
+        }
     </style>
 </head>
 <body>
+    <form class="language-picker" th:action="@{/login}" method="get">
+        <label for="langSelectLogin" th:text="#{lang.label}">Language</label>
+        <select id="langSelectLogin" name="lang" onchange="this.form.submit()">
+            <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
+            <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
+            <option value="de" th:selected="${#locale.language == 'de'}" th:text="#{lang.de}">German</option>
+        </select>
+    </form>
+
     <div class="login-container">
-        <h1>📊 Welcome Back</h1>
-        <p class="subtitle">Reports Server</p>
+        <h1>📊 <span th:text="#{auth.login.heading}">Welcome Back</span></h1>
+        <p class="subtitle" th:text="#{auth.login.subtitle}">Reports Server</p>
         
         <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
         <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
         
         <form th:action="@{/login}" method="post">
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username" th:text="#{auth.login.username}">Username</label>
                 <input type="text" id="username" name="username" required autofocus>
             </div>
             
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password" th:text="#{auth.login.password}">Password</label>
                 <input type="password" id="password" name="password" required>
             </div>
 
             <div class="form-group">
-                <label for="totpCode">Authenticator Code (if 2FA enabled)</label>
-                <input type="text" id="totpCode" name="totpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code">
+                <label for="totpCode" th:text="#{auth.login.totp}">Authenticator Code (if 2FA enabled)</label>
+                <input type="text" id="totpCode" name="totpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" th:placeholder="#{auth.login.totp.placeholder}" placeholder="6-digit code">
             </div>
             
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn" th:text="#{auth.login.submit}">Login</button>
         </form>
         
-        <div class="divider">or</div>
+        <div class="divider" th:text="#{auth.login.or}">or</div>
         
         <div class="links">
-            <a href="/register">Create Account</a>
+            <a th:href="@{/register(lang=${#locale.language})}" href="/register" th:text="#{auth.login.createAccount}">Create Account</a>
             <span style="color: #ccc;">|</span>
-            <a href="/forgot-password">Forgot Password?</a>
+            <a th:href="@{/forgot-password(lang=${#locale.language})}" href="/forgot-password" th:text="#{auth.login.forgotPassword}">Forgot Password?</a>
         </div>
+
     </div>
 </body>
 </html>

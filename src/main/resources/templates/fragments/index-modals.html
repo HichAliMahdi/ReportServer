@@ -6,14 +6,14 @@
     <div id="vbResultModal" class="modal">
         <div class="modal-content vb-result-modal">
             <div class="modal-header vb-result-modal-header">
-                <h3 id="vbResultModalTitle">Template Saved</h3>
+                <h3 id="vbResultModalTitle" th:text="#{dashboard.modal.templateSaved}">Template Saved</h3>
                 <span class="close" onclick="vbCloseResultModal()">&times;</span>
             </div>
             <div class="vb-result-modal-body">
                 <p id="vbResultModalMessage"></p>
             </div>
             <div class="vb-result-modal-footer">
-                <button type="button" class="btn" onclick="vbCloseResultModal()">OK</button>
+                <button type="button" class="btn" onclick="vbCloseResultModal()" th:text="#{dashboard.action.ok}">OK</button>
             </div>
         </div>
     </div>
@@ -22,14 +22,14 @@
     <div id="confirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
-                <h3 style="margin: 0;">Confirm Action</h3>
+                <h3 style="margin: 0;" th:text="#{dashboard.modal.confirmAction}">Confirm Action</h3>
             </div>
             <div style="padding: 20px 0; text-align: center;">
                 <p id="confirmationMessage" style="margin: 0 0 25px 0; color: #333; font-size: 16px;"></p>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #f0f0f0;">
-                <button id="confirmationCancelBtn" class="btn" style="background: #ccc; color: #333;">Cancel</button>
-                <button id="confirmationOkBtn" class="btn" style="background: #667eea;">OK</button>
+                <button id="confirmationCancelBtn" class="btn" style="background: #ccc; color: #333;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                <button id="confirmationOkBtn" class="btn" style="background: #667eea;" th:text="#{dashboard.action.ok}">OK</button>
             </div>
         </div>
     </div>
@@ -40,8 +40,8 @@
             <div class="modal-header scheduler-header">
                 <span class="close" onclick="closeScheduleModal()">&times;</span>
                 <div>
-                    <h3 id="scheduleModalTitle">Create Scheduled Report</h3>
-                    <p class="scheduler-subtitle">Configure trigger rules, recurrence pattern, and output delivery.</p>
+                    <h3 id="scheduleModalTitle" th:text="#{dashboard.schedules.modal.title}">Create Scheduled Report</h3>
+                    <p class="scheduler-subtitle" th:text="#{dashboard.schedules.modal.subtitle}">Configure trigger rules, recurrence pattern, and output delivery.</p>
                 </div>
             </div>
 
@@ -49,158 +49,158 @@
                 <input type="hidden" id="scheduleId">
 
                 <div class="scheduler-section">
-                    <div class="scheduler-section-title">General</div>
+                    <div class="scheduler-section-title" th:text="#{dashboard.schedules.section.general}">General</div>
                     <div class="scheduler-grid scheduler-grid-two">
                         <div class="form-group">
-                            <label for="scheduleName">Schedule Name: *</label>
-                            <input type="text" id="scheduleName" required placeholder="e.g. Weekly Sales Snapshot">
+                            <label for="scheduleName" th:text="#{dashboard.schedules.name}">Schedule Name: *</label>
+                            <input type="text" id="scheduleName" required th:placeholder="#{dashboard.schedules.name.placeholder}" placeholder="e.g. Weekly Sales Snapshot">
                         </div>
                         <div class="form-group">
-                            <label for="scheduleStartDateTime">Start Date and Time:</label>
+                            <label for="scheduleStartDateTime" th:text="#{dashboard.schedules.start}">Start Date and Time:</label>
                             <input type="datetime-local" id="scheduleStartDateTime" onchange="syncScheduleFieldsFromStartDate()">
-                            <small class="scheduler-note">Used to prefill recurrence fields and first expected run.</small>
+                            <small class="scheduler-note" th:text="#{dashboard.schedules.start.help}">Used to prefill recurrence fields and first expected run.</small>
                         </div>
                     </div>
                     <div class="scheduler-grid scheduler-grid-two">
                         <div class="form-group">
-                            <label for="scheduleReportName">Report Template: *</label>
+                            <label for="scheduleReportName" th:text="#{dashboard.schedules.report}">Report Template: *</label>
                             <select id="scheduleReportName" required>
-                                <option value="">-- Select a report --</option>
+                                <option value="" th:text="#{dashboard.generate.selectReport.placeholder}">-- Select a report --</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="scheduleDatasource">Datasource (optional):</label>
+                            <label for="scheduleDatasource" th:text="#{dashboard.schedules.datasource}">Datasource (optional):</label>
                             <select id="scheduleDatasource">
-                                <option value="">-- No datasource --</option>
+                                <option value="" th:text="#{dashboard.schedules.datasource.none}">-- No datasource --</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div class="scheduler-section">
-                    <div class="scheduler-section-title">Recurrence Pattern</div>
+                    <div class="scheduler-section-title" th:text="#{dashboard.schedules.section.recurrence}">Recurrence Pattern</div>
                     <div class="scheduler-grid scheduler-grid-three">
                         <div class="form-group">
-                            <label for="scheduleType">Frequency: *</label>
+                            <label for="scheduleType" th:text="#{dashboard.schedules.frequency}">Frequency: *</label>
                             <select id="scheduleType" required onchange="updateScheduleFields()">
-                                <option value="HOURLY">Hourly</option>
-                                <option value="DAILY">Daily</option>
-                                <option value="WEEKLY" selected>Weekly</option>
-                                <option value="MONTHLY">Monthly</option>
-                                <option value="YEARLY">Yearly</option>
+                                <option value="HOURLY" th:text="#{dashboard.schedules.frequency.hourly}">Hourly</option>
+                                <option value="DAILY" th:text="#{dashboard.schedules.frequency.daily}">Daily</option>
+                                <option value="WEEKLY" selected th:text="#{dashboard.schedules.frequency.weekly}">Weekly</option>
+                                <option value="MONTHLY" th:text="#{dashboard.schedules.frequency.monthly}">Monthly</option>
+                                <option value="YEARLY" th:text="#{dashboard.schedules.frequency.yearly}">Yearly</option>
                             </select>
                         </div>
                         <div id="scheduleFieldDayOfWeek" class="form-group" style="display: none;">
-                            <label for="scheduleDayOfWeek">Day of Week:</label>
+                            <label for="scheduleDayOfWeek" th:text="#{dashboard.schedules.dayOfWeek}">Day of Week:</label>
                             <select id="scheduleDayOfWeek">
-                                <option value="1">Monday</option>
-                                <option value="2">Tuesday</option>
-                                <option value="3">Wednesday</option>
-                                <option value="4">Thursday</option>
-                                <option value="5">Friday</option>
-                                <option value="6">Saturday</option>
-                                <option value="7">Sunday</option>
+                                <option value="1" th:text="#{dashboard.day.monday}">Monday</option>
+                                <option value="2" th:text="#{dashboard.day.tuesday}">Tuesday</option>
+                                <option value="3" th:text="#{dashboard.day.wednesday}">Wednesday</option>
+                                <option value="4" th:text="#{dashboard.day.thursday}">Thursday</option>
+                                <option value="5" th:text="#{dashboard.day.friday}">Friday</option>
+                                <option value="6" th:text="#{dashboard.day.saturday}">Saturday</option>
+                                <option value="7" th:text="#{dashboard.day.sunday}">Sunday</option>
                             </select>
                         </div>
                         <div id="scheduleFieldDayOfMonth" class="form-group" style="display: none;">
-                            <label for="scheduleDayOfMonth">Day of Month:</label>
+                            <label for="scheduleDayOfMonth" th:text="#{dashboard.schedules.dayOfMonth}">Day of Month:</label>
                             <select id="scheduleDayOfMonth"></select>
                         </div>
                     </div>
 
                     <div id="scheduleFieldsContainer" class="scheduler-grid scheduler-grid-three">
                         <div id="scheduleFieldMonth" class="form-group" style="display: none;">
-                            <label for="scheduleMonth">Month:</label>
+                            <label for="scheduleMonth" th:text="#{dashboard.schedules.month}">Month:</label>
                             <select id="scheduleMonth">
-                                <option value="1">January</option>
-                                <option value="2">February</option>
-                                <option value="3">March</option>
-                                <option value="4">April</option>
-                                <option value="5">May</option>
-                                <option value="6">June</option>
-                                <option value="7">July</option>
-                                <option value="8">August</option>
-                                <option value="9">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
+                                <option value="1" th:text="#{dashboard.month.january}">January</option>
+                                <option value="2" th:text="#{dashboard.month.february}">February</option>
+                                <option value="3" th:text="#{dashboard.month.march}">March</option>
+                                <option value="4" th:text="#{dashboard.month.april}">April</option>
+                                <option value="5" th:text="#{dashboard.month.may}">May</option>
+                                <option value="6" th:text="#{dashboard.month.june}">June</option>
+                                <option value="7" th:text="#{dashboard.month.july}">July</option>
+                                <option value="8" th:text="#{dashboard.month.august}">August</option>
+                                <option value="9" th:text="#{dashboard.month.september}">September</option>
+                                <option value="10" th:text="#{dashboard.month.october}">October</option>
+                                <option value="11" th:text="#{dashboard.month.november}">November</option>
+                                <option value="12" th:text="#{dashboard.month.december}">December</option>
                             </select>
                         </div>
                         <div id="scheduleFieldHour" class="form-group" style="display: none;">
-                            <label for="scheduleHour">Hour (0-23):</label>
+                            <label for="scheduleHour" th:text="#{dashboard.schedules.hour}">Hour (0-23):</label>
                             <select id="scheduleHour"></select>
                         </div>
                         <div class="form-group">
-                            <label for="scheduleMinute">Minute (0-59):</label>
+                            <label for="scheduleMinute" th:text="#{dashboard.schedules.minute}">Minute (0-59):</label>
                             <select id="scheduleMinute"></select>
                         </div>
                     </div>
 
-                    <div id="scheduleRecurrenceSummary" class="scheduler-summary">Weekly on Monday at 08:00</div>
+                    <div id="scheduleRecurrenceSummary" class="scheduler-summary" th:text="#{dashboard.schedules.summary.weeklyMonday}">Weekly on Monday at 08:00</div>
                 </div>
 
                 <div class="scheduler-section">
-                    <div class="scheduler-section-title">Output and Delivery</div>
+                    <div class="scheduler-section-title" th:text="#{dashboard.schedules.section.output}">Output and Delivery</div>
                     <div class="scheduler-grid scheduler-grid-three">
                         <div class="form-group">
-                            <label for="scheduleFormat">Output Format: *</label>
+                            <label for="scheduleFormat" th:text="#{dashboard.generate.outputFormat}">Output Format: *</label>
                             <select id="scheduleFormat" required>
-                                <option value="pdf">PDF</option>
-                                <option value="html">HTML</option>
-                                <option value="xlsx">Excel (XLSX)</option>
-                                <option value="xls">Excel (XLS)</option>
-                                <option value="docx">Word (DOCX)</option>
-                                <option value="csv">CSV</option>
-                                <option value="xml">XML</option>
-                                <option value="txt">Plain Text</option>
+                                <option value="pdf" th:text="#{dashboard.format.pdf}">PDF</option>
+                                <option value="html" th:text="#{dashboard.format.html}">HTML</option>
+                                <option value="xlsx" th:text="#{dashboard.schedules.format.xlsx}">Excel (XLSX)</option>
+                                <option value="xls" th:text="#{dashboard.schedules.format.xls}">Excel (XLS)</option>
+                                <option value="docx" th:text="#{dashboard.schedules.format.docx}">Word (DOCX)</option>
+                                <option value="csv" th:text="#{dashboard.format.csv}">CSV</option>
+                                <option value="xml" th:text="#{dashboard.format.xml}">XML</option>
+                                <option value="txt" th:text="#{dashboard.schedules.format.txt}">Plain Text</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="scheduleDeliveryMethod">Delivery Method:</label>
+                            <label for="scheduleDeliveryMethod" th:text="#{dashboard.schedules.deliveryMethod}">Delivery Method:</label>
                             <select id="scheduleDeliveryMethod" onchange="updateScheduleDeliveryOptions()">
-                                <option value="FILE_SYSTEM">Save to output directory</option>
-                                <option value="EMAIL">Email recipients</option>
-                                <option value="WEBHOOK">Webhook endpoint</option>
+                                <option value="FILE_SYSTEM" th:text="#{dashboard.schedules.delivery.file}">Save to output directory</option>
+                                <option value="EMAIL" th:text="#{dashboard.schedules.delivery.email}">Email recipients</option>
+                                <option value="WEBHOOK" th:text="#{dashboard.schedules.delivery.webhook}">Webhook endpoint</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="scheduleOutputPath">Output Directory (optional):</label>
-                            <input type="text" id="scheduleOutputPath" placeholder="data/scheduled_output/">
-                            <small class="scheduler-note">Leave empty to use default output directory.</small>
+                            <label for="scheduleOutputPath" th:text="#{dashboard.schedules.outputPath}">Output Directory (optional):</label>
+                            <input type="text" id="scheduleOutputPath" th:placeholder="#{dashboard.schedules.outputPath.placeholder}" placeholder="data/scheduled_output/">
+                            <small class="scheduler-note" th:text="#{dashboard.schedules.outputPath.help}">Leave empty to use default output directory.</small>
                         </div>
                     </div>
 
                     <div class="scheduler-grid scheduler-grid-two">
                         <div id="scheduleEmailRecipientsGroup" class="form-group" style="display: none;">
-                            <label for="scheduleEmailRecipients">Email Recipients:</label>
-                            <textarea id="scheduleEmailRecipients" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="ops@example.com, finance@example.com"></textarea>
-                            <small class="scheduler-note">Provide one or more email addresses, separated by commas.</small>
+                            <label for="scheduleEmailRecipients" th:text="#{dashboard.schedules.emailRecipients}">Email Recipients:</label>
+                            <textarea id="scheduleEmailRecipients" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" th:placeholder="#{dashboard.schedules.emailRecipients.placeholder}" placeholder="ops@example.com, finance@example.com"></textarea>
+                            <small class="scheduler-note" th:text="#{dashboard.schedules.emailRecipients.help}">Provide one or more email addresses, separated by commas.</small>
                         </div>
                         <div id="scheduleWebhookUrlGroup" class="form-group" style="display: none;">
-                            <label for="scheduleWebhookUrl">Webhook URL:</label>
-                            <input type="url" id="scheduleWebhookUrl" placeholder="https://example.com/report-hook">
-                            <small class="scheduler-note">The server will POST delivery metadata after each run.</small>
+                            <label for="scheduleWebhookUrl" th:text="#{dashboard.schedules.webhookUrl}">Webhook URL:</label>
+                            <input type="url" id="scheduleWebhookUrl" th:placeholder="#{dashboard.schedules.webhookUrl.placeholder}" placeholder="https://example.com/report-hook">
+                            <small class="scheduler-note" th:text="#{dashboard.schedules.webhookUrl.help}">The server will POST delivery metadata after each run.</small>
                         </div>
                     </div>
 
                     <div id="scheduleDeliveryUnsupportedNotice" class="scheduler-warning" style="display: none;">
-                        Configure a valid recipient list or webhook URL to enable this delivery method.
+                        <span th:text="#{dashboard.schedules.delivery.invalid}">Configure a valid recipient list or webhook URL to enable this delivery method.</span>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label for="scheduleDescription">Description (optional):</label>
-                        <textarea id="scheduleDescription" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" placeholder="Brief description of this scheduled report"></textarea>
+                        <label for="scheduleDescription" th:text="#{dashboard.schedules.description}">Description (optional):</label>
+                        <textarea id="scheduleDescription" rows="2" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;" th:placeholder="#{dashboard.schedules.description.placeholder}" placeholder="Brief description of this scheduled report"></textarea>
                     </div>
                 </div>
 
                 <div class="scheduler-actions">
                     <div class="scheduler-test-tools">
-                        <button type="button" class="btn scheduler-test-btn" id="scheduleSendTestDeliveryBtn" onclick="sendTestScheduleDelivery()">Send Test Delivery</button>
+                        <button type="button" class="btn scheduler-test-btn" id="scheduleSendTestDeliveryBtn" onclick="sendTestScheduleDelivery()" th:text="#{dashboard.schedules.sendTest}">Send Test Delivery</button>
                         <span id="scheduleDeliveryTestMessage" class="scheduler-test-message" aria-live="polite"></span>
                     </div>
                     <div class="scheduler-primary-actions">
-                        <button type="button" class="btn" onclick="closeScheduleModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                        <button type="submit" id="scheduleSaveBtn" class="btn">Save Schedule</button>
+                        <button type="button" class="btn" onclick="closeScheduleModal()" style="background: #6c757d; margin-right: 10px;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                        <button type="submit" id="scheduleSaveBtn" class="btn" th:text="#{dashboard.schedules.save}">Save Schedule</button>
                     </div>
                 </div>
             </form>
@@ -212,52 +212,52 @@
         <div class="modal-content">
             <div class="modal-header">
                 <span class="close" onclick="closeDatasourceModal()">&times;</span>
-                <h3 id="modalTitle">Add Datasource</h3>
+                <h3 id="modalTitle" th:text="#{dashboard.datasource.modal.title}">Add Datasource</h3>
             </div>
             <form id="datasourceForm" enctype="multipart/form-data">
                 <input type="hidden" id="datasourceId">
                 <div class="form-group">
-                    <label for="dsType">Datasource Type:</label>
+                    <label for="dsType" th:text="#{dashboard.datasource.type}">Datasource Type:</label>
                     <select id="dsType" name="type" required onchange="toggleDatasourceFields()">
-                        <option value="JDBC">JDBC (Relational Database)</option>
-                        <option value="CSV">CSV File</option>
-                        <option value="XML">XML File</option>
-                        <option value="JSON">JSON File</option>
-                        <option value="MONGODB">MongoDB (NoSQL Database)</option>
-                        <option value="REST_API">REST API (JSON/XML)</option>
-                        <option value="HIBERNATE">Hibernate ORM</option>
-                        <option value="EMPTY">Empty Datasource</option>
-                        <option value="COLLECTION">Java Collection (JavaBeans/POJOs)</option>
+                        <option value="JDBC" th:text="#{dashboard.datasource.jdbc}">JDBC (Relational Database)</option>
+                        <option value="CSV" th:text="#{dashboard.datasource.csv}">CSV File</option>
+                        <option value="XML" th:text="#{dashboard.datasource.xml}">XML File</option>
+                        <option value="JSON" th:text="#{dashboard.datasource.json}">JSON File</option>
+                        <option value="MONGODB" th:text="#{dashboard.datasource.mongodb}">MongoDB (NoSQL Database)</option>
+                        <option value="REST_API" th:text="#{dashboard.datasource.rest}">REST API (JSON/XML)</option>
+                        <option value="HIBERNATE" th:text="#{dashboard.datasource.hibernate}">Hibernate ORM</option>
+                        <option value="EMPTY" th:text="#{dashboard.datasource.empty}">Empty Datasource</option>
+                        <option value="COLLECTION" th:text="#{dashboard.datasource.collection}">Java Collection (JavaBeans/POJOs)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="dsName">Name:</label>
-                    <input type="text" id="dsName" name="name" required placeholder="My Database">
+                    <label for="dsName" th:text="#{dashboard.datasource.name}">Name:</label>
+                    <input type="text" id="dsName" name="name" required th:placeholder="#{dashboard.datasource.name.placeholder}" placeholder="My Database">
                 </div>
                 
                 <!-- JDBC Fields -->
                 <div id="jdbcFields">
                     <div class="form-group">
-                        <label for="dsUrl">JDBC URL:</label>
+                        <label for="dsUrl" th:text="#{dashboard.datasource.jdbcUrl}">JDBC URL:</label>
                         <input type="text" id="dsUrl" name="url" 
-                               placeholder="jdbc:mysql://localhost:3306/mydb">
+                               th:placeholder="#{dashboard.datasource.jdbcUrl.placeholder}" placeholder="jdbc:mysql://localhost:3306/mydb">
                     </div>
                     <div class="form-group">
-                        <label for="dsUsername">Username:</label>
+                        <label for="dsUsername" th:text="#{dashboard.datasource.username}">Username:</label>
                         <input type="text" id="dsUsername" name="username">
                     </div>
                     <div class="form-group">
-                        <label for="dsPassword">Password:</label>
+                        <label for="dsPassword" th:text="#{dashboard.datasource.password}">Password:</label>
                         <input type="password" id="dsPassword" name="password" style="width: 100%;">
                     </div>
                     <div class="form-group">
-                        <label for="dsDriver">Driver Class:</label>
+                        <label for="dsDriver" th:text="#{dashboard.datasource.driver}">Driver Class:</label>
                         <select id="dsDriver" name="driverClassName">
-                            <option value="com.mysql.cj.jdbc.Driver">MySQL (com.mysql.cj.jdbc.Driver)</option>
-                            <option value="org.postgresql.Driver">PostgreSQL (org.postgresql.Driver)</option>
-                            <option value="org.h2.Driver">H2 (org.h2.Driver)</option>
-                            <option value="oracle.jdbc.OracleDriver">Oracle (oracle.jdbc.OracleDriver)</option>
-                            <option value="com.microsoft.sqlserver.jdbc.SQLServerDriver">SQL Server (com.microsoft.sqlserver.jdbc.SQLServerDriver)</option>
+                            <option value="com.mysql.cj.jdbc.Driver" th:text="#{dashboard.datasource.driver.mysql}">MySQL (com.mysql.cj.jdbc.Driver)</option>
+                            <option value="org.postgresql.Driver" th:text="#{dashboard.datasource.driver.postgresql}">PostgreSQL (org.postgresql.Driver)</option>
+                            <option value="org.h2.Driver" th:text="#{dashboard.datasource.driver.h2}">H2 (org.h2.Driver)</option>
+                            <option value="oracle.jdbc.OracleDriver" th:text="#{dashboard.datasource.driver.oracle}">Oracle (oracle.jdbc.OracleDriver)</option>
+                            <option value="com.microsoft.sqlserver.jdbc.SQLServerDriver" th:text="#{dashboard.datasource.driver.sqlserver}">SQL Server (com.microsoft.sqlserver.jdbc.SQLServerDriver)</option>
                         </select>
                     </div>
                 </div>
@@ -265,32 +265,32 @@
                 <!-- File Fields for CSV/XML/JSON -->
                 <div id="fileFields" style="display: none;">
                     <div class="form-group">
-                        <label for="dsFile">Upload File:</label>
+                        <label for="dsFile" th:text="#{dashboard.datasource.uploadFile}">Upload File:</label>
                         <input type="file" id="dsFile" name="file" accept=".csv,.xml,.json">
                         <small style="color: #666; display: block; margin-top: 5px;" id="fileHelpText">
-                            Upload a CSV, XML, or JSON file for this datasource
+                            <span th:text="#{dashboard.datasource.uploadFile.help}">Upload a CSV, XML, or JSON file for this datasource</span>
                         </small>
                     </div>
                     <div class="form-group" id="configurationGroup" style="display: none;">
-                        <label for="dsConfiguration">Configuration:</label>
+                        <label for="dsConfiguration" th:text="#{dashboard.datasource.configuration}">Configuration:</label>
                         <input type="text" id="dsConfiguration" name="configuration" 
-                               placeholder="XPath or JSONPath expression">
+                               th:placeholder="#{dashboard.datasource.configuration.placeholder}" placeholder="XPath or JSONPath expression">
                         <small style="color: #666; display: block; margin-top: 5px;" id="configHelpText">
-                            For XML: XPath expression (e.g., /root/items/item)<br>
-                            For JSON: JSONPath expression (e.g., $.data.items[*])
+                            <span th:text="#{dashboard.datasource.configuration.help}">For XML: XPath expression (e.g., /root/items/item)</span><br>
+                            <span th:text="#{dashboard.datasource.configuration.help.json}">For JSON: JSONPath expression (e.g., $.data.items[*])</span>
                         </small>
                     </div>
                 </div>
                 
                 <!-- Empty/Collection Fields -->
                 <div id="emptyCollectionInfo" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 6px; margin: 15px 0;">
-                    <p style="margin: 0; color: #666; font-size: 14px;" id="emptyCollectionText">
+                        <p style="margin: 0; color: #666; font-size: 14px;" id="emptyCollectionText" th:text="#{dashboard.datasource.emptyInfo}">
                         This datasource type is used for reports that don't require external data.
                     </p>
                 </div>
                 
-                <button type="button" class="btn" onclick="testDatasourceConnection()" id="testBtn">Test Connection</button>
-                <button type="submit" class="btn">Save</button>
+                <button type="button" class="btn" onclick="testDatasourceConnection()" id="testBtn" th:text="#{dashboard.datasource.test}">Test Connection</button>
+                <button type="submit" class="btn" th:text="#{dashboard.action.save}">Save</button>
                 <div id="datasourceMessage" style="margin-top: 15px;"></div>
             </form>
         </div>
@@ -301,14 +301,14 @@
         <div class="modal-content" style="max-width: 90%; width: 1200px;">
             <div class="modal-header">
                 <span class="close" onclick="closeJrxmlEditor()">&times;</span>
-                <h3 id="jrxmlEditorTitle">Edit JRXML File</h3>
+                <h3 id="jrxmlEditorTitle" th:text="#{dashboard.jrxmlEditor.title}">Edit JRXML File</h3>
             </div>
             <div id="editorContainer"></div>
             <div id="jrxmlValidationPanel" style="min-height: 22px; padding: 6px 10px; font-size: 12px; background: #1e1e1e; color: #a0a0a0; border-top: 1px solid #333;"></div>
             <div class="editor-actions">
-                <button type="button" class="btn" onclick="closeJrxmlEditor()" style="background: #6c757d;">Cancel</button>
-                <button type="button" class="btn" onclick="downloadEditedJrxml()" style="background: #17a2b8;">💾 Download</button>
-                <button type="button" class="btn" onclick="saveJrxmlFile()">✅ Save</button>
+                <button type="button" class="btn" onclick="closeJrxmlEditor()" style="background: #6c757d;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                <button type="button" class="btn" onclick="downloadEditedJrxml()" style="background: #17a2b8;" th:text="#{dashboard.action.download}">💾 Download</button>
+                <button type="button" class="btn" onclick="saveJrxmlFile()" th:text="#{dashboard.action.save}">✅ Save</button>
             </div>
             <div id="editorMessage" style="margin-top: 15px;"></div>
         </div>
@@ -319,48 +319,48 @@
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <span class="close" onclick="closeParameterModal()">&times;</span>
-                <h3 id="parameterModalTitle">Add Parameter</h3>
+                <h3 id="parameterModalTitle" th:text="#{dashboard.parameter.modal.title}">Add Parameter</h3>
             </div>
             <form id="parameterForm" onsubmit="saveParameter(event)">
                 <input type="hidden" id="parameterEditIndex">
                 
                 <div class="form-group">
-                    <label for="paramName">Parameter Name: *</label>
-                    <input type="text" id="paramName" required placeholder="startDate" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
-                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
-                    <small style="color: #666;">Use in SQL as $P{parameterName} or in expressions as $P{parameterName}</small>
+                    <label for="paramName" th:text="#{dashboard.parameter.name}">Parameter Name: *</label>
+                    <input type="text" id="paramName" required th:placeholder="#{dashboard.parameter.name.placeholder}" placeholder="startDate" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           th:title="#{dashboard.parameter.name.title}" title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                    <small style="color: #666;" th:text="#{dashboard.parameter.name.help}">Use in SQL as $P{parameterName} or in expressions as $P{parameterName}</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="paramClass">Java Class: *</label>
+                    <label for="paramClass" th:text="#{dashboard.parameter.class}">Java Class: *</label>
                     <select id="paramClass" required onchange="updateParameterExamples()">
-                        <option value="java.lang.String">String</option>
-                        <option value="java.lang.Integer">Integer</option>
-                        <option value="java.lang.Long">Long</option>
-                        <option value="java.lang.Double">Double</option>
-                        <option value="java.math.BigDecimal">BigDecimal</option>
-                        <option value="java.lang.Boolean">Boolean</option>
-                        <option value="java.util.Date">Date</option>
-                        <option value="java.sql.Timestamp">Timestamp</option>
+                        <option value="java.lang.String" th:text="#{dashboard.parameter.class.string}">String</option>
+                        <option value="java.lang.Integer" th:text="#{dashboard.parameter.class.integer}">Integer</option>
+                        <option value="java.lang.Long" th:text="#{dashboard.parameter.class.long}">Long</option>
+                        <option value="java.lang.Double" th:text="#{dashboard.parameter.class.double}">Double</option>
+                        <option value="java.math.BigDecimal" th:text="#{dashboard.parameter.class.bigDecimal}">BigDecimal</option>
+                        <option value="java.lang.Boolean" th:text="#{dashboard.parameter.class.boolean}">Boolean</option>
+                        <option value="java.util.Date" th:text="#{dashboard.parameter.class.date}">Date</option>
+                        <option value="java.sql.Timestamp" th:text="#{dashboard.parameter.class.timestamp}">Timestamp</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="paramDefaultValue">Default Value Expression:</label>
-                    <input type="text" id="paramDefaultValue" placeholder='null or "Default Text"'>
+                    <label for="paramDefaultValue" th:text="#{dashboard.parameter.defaultValue}">Default Value Expression:</label>
+                    <input type="text" id="paramDefaultValue" th:placeholder='#{dashboard.parameter.defaultValue.placeholder}' placeholder='null or "Default Text"'>
                     <small id="paramExamples" style="color: #666; display: block; margin-top: 5px;">
-                        <strong>Examples:</strong> null | "My Text" | "" (empty string)
+                        <strong th:text="#{dashboard.examples}">Examples:</strong> <span th:text="#{dashboard.parameter.defaultValue.examples}">null | "My Text" | "" (empty string)</span>
                     </small>
                 </div>
 
                 <div class="form-group">
-                    <label for="paramDescription">Description (Optional):</label>
-                    <textarea id="paramDescription" rows="2" placeholder="Brief description of this parameter"></textarea>
+                    <label for="paramDescription" th:text="#{dashboard.description.optional}">Description (Optional):</label>
+                    <textarea id="paramDescription" rows="2" th:placeholder="#{dashboard.parameter.description.placeholder}" placeholder="Brief description of this parameter"></textarea>
                 </div>
 
                 <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn" onclick="closeParameterModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                    <button type="submit" class="btn">Save Parameter</button>
+                    <button type="button" class="btn" onclick="closeParameterModal()" style="background: #6c757d; margin-right: 10px;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                    <button type="submit" class="btn" th:text="#{dashboard.parameter.save}">Save Parameter</button>
                 </div>
             </form>
         </div>
@@ -371,102 +371,102 @@
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <span class="close" onclick="closeVariableModal()">&times;</span>
-                <h3 id="variableModalTitle">Add Variable</h3>
+                <h3 id="variableModalTitle" th:text="#{dashboard.variable.modal.title}">Add Variable</h3>
             </div>
             <form id="variableForm" onsubmit="saveVariable(event)">
                 <input type="hidden" id="variableEditIndex">
                 
                 <div class="form-group">
-                    <label for="varName">Variable Name: *</label>
-                    <input type="text" id="varName" required placeholder="myVariable" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
-                           title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
-                    <small style="color: #666;">Use in expressions as $V{variableName}</small>
+                          <label for="varName" th:text="#{dashboard.variable.name}">Variable Name: *</label>
+                          <input type="text" id="varName" required th:placeholder="#{dashboard.variable.name.placeholder}" placeholder="myVariable" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                              th:title="#{dashboard.variable.name.title}" title="Must start with a letter or underscore, followed by letters, numbers, or underscores">
+                          <small style="color: #666;" th:text="#{dashboard.variable.name.help}">Use in expressions as $V{variableName}</small>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="varClass">Java Class: *</label>
+                        <label for="varClass" th:text="#{dashboard.parameter.class}">Java Class: *</label>
                         <select id="varClass" required>
-                            <option value="java.lang.String">String</option>
-                            <option value="java.lang.Integer">Integer</option>
-                            <option value="java.lang.Long">Long</option>
-                            <option value="java.lang.Double">Double</option>
-                            <option value="java.math.BigDecimal">BigDecimal</option>
-                            <option value="java.lang.Boolean">Boolean</option>
-                            <option value="java.util.Date">Date</option>
-                            <option value="java.sql.Timestamp">Timestamp</option>
+                            <option value="java.lang.String" th:text="#{dashboard.parameter.class.string}">String</option>
+                            <option value="java.lang.Integer" th:text="#{dashboard.parameter.class.integer}">Integer</option>
+                            <option value="java.lang.Long" th:text="#{dashboard.parameter.class.long}">Long</option>
+                            <option value="java.lang.Double" th:text="#{dashboard.parameter.class.double}">Double</option>
+                            <option value="java.math.BigDecimal" th:text="#{dashboard.parameter.class.bigDecimal}">BigDecimal</option>
+                            <option value="java.lang.Boolean" th:text="#{dashboard.parameter.class.boolean}">Boolean</option>
+                            <option value="java.util.Date" th:text="#{dashboard.parameter.class.date}">Date</option>
+                            <option value="java.sql.Timestamp" th:text="#{dashboard.parameter.class.timestamp}">Timestamp</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
-                        <label for="varCalculation">Calculation Type: *</label>
+                        <label for="varCalculation" th:text="#{dashboard.variable.calculation}">Calculation Type: *</label>
                         <select id="varCalculation" required onchange="updateVariableFormFields()">
-                            <option value="Nothing">Nothing</option>
-                            <option value="Count">Count</option>
-                            <option value="DistinctCount">Distinct Count</option>
-                            <option value="Sum">Sum</option>
-                            <option value="Average">Average</option>
-                            <option value="Lowest">Lowest</option>
-                            <option value="Highest">Highest</option>
-                            <option value="StandardDeviation">Standard Deviation</option>
-                            <option value="Variance">Variance</option>
-                            <option value="First">First</option>
-                            <option value="System">System</option>
+                            <option value="Nothing" th:text="#{dashboard.variable.calc.nothing}">Nothing</option>
+                            <option value="Count" th:text="#{dashboard.variable.calc.count}">Count</option>
+                            <option value="DistinctCount" th:text="#{dashboard.variable.calc.distinctCount}">Distinct Count</option>
+                            <option value="Sum" th:text="#{dashboard.variable.calc.sum}">Sum</option>
+                            <option value="Average" th:text="#{dashboard.variable.calc.average}">Average</option>
+                            <option value="Lowest" th:text="#{dashboard.variable.calc.lowest}">Lowest</option>
+                            <option value="Highest" th:text="#{dashboard.variable.calc.highest}">Highest</option>
+                            <option value="StandardDeviation" th:text="#{dashboard.variable.calc.standardDeviation}">Standard Deviation</option>
+                            <option value="Variance" th:text="#{dashboard.variable.calc.variance}">Variance</option>
+                            <option value="First" th:text="#{dashboard.variable.calc.first}">First</option>
+                            <option value="System" th:text="#{dashboard.variable.calc.system}">System</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="varExpression">Variable Expression: *</label>
-                    <input type="text" id="varExpression" required placeholder="$F{fieldName} or custom expression">
-                    <small style="color: #666;">Use $F{fieldName} for fields, $P{paramName} for parameters, $V{varName} for other variables</small>
+                    <label for="varExpression" th:text="#{dashboard.variable.expression}">Variable Expression: *</label>
+                    <input type="text" id="varExpression" required th:placeholder="#{dashboard.variable.expression.placeholder}" placeholder="$F{fieldName} or custom expression">
+                    <small style="color: #666;" th:text="#{dashboard.variable.expression.help}">Use $F{fieldName} for fields, $P{paramName} for parameters, $V{varName} for other variables</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="varInitialValue">Initial Value Expression:</label>
-                    <input type="text" id="varInitialValue" placeholder="0 or null or &quot;Initial&quot;">
-                    <small style="color: #666;">Starting value before the expression is first computed</small>
+                    <label for="varInitialValue" th:text="#{dashboard.variable.initialValue}">Initial Value Expression:</label>
+                    <input type="text" id="varInitialValue" th:placeholder="#{dashboard.variable.initialValue.placeholder}" placeholder="0 or null or &quot;Initial&quot;">
+                    <small style="color: #666;" th:text="#{dashboard.variable.initialValue.help}">Starting value before the expression is first computed</small>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="varResetType">Reset Type: *</label>
+                        <label for="varResetType" th:text="#{dashboard.variable.resetType}">Reset Type: *</label>
                         <select id="varResetType" required onchange="updateVariableFormFields()">
-                            <option value="Report">Report</option>
-                            <option value="Page">Page</option>
-                            <option value="Column">Column</option>
-                            <option value="Group">Group</option>
-                            <option value="None">None</option>
+                            <option value="Report" th:text="#{dashboard.variable.reset.report}">Report</option>
+                            <option value="Page" th:text="#{dashboard.variable.reset.page}">Page</option>
+                            <option value="Column" th:text="#{dashboard.variable.reset.column}">Column</option>
+                            <option value="Group" th:text="#{dashboard.variable.reset.group}">Group</option>
+                            <option value="None" th:text="#{dashboard.variable.reset.none}">None</option>
                         </select>
                     </div>
                     
                     <div class="form-group" id="varResetGroupDiv" style="display: none;">
-                        <label for="varResetGroup">Reset Group:</label>
-                        <input type="text" id="varResetGroup" placeholder="GroupName">
+                        <label for="varResetGroup" th:text="#{dashboard.variable.resetGroup}">Reset Group:</label>
+                        <input type="text" id="varResetGroup" th:placeholder="#{dashboard.variable.resetGroup.placeholder}" placeholder="GroupName">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="varIncrementType">Increment Type: *</label>
+                        <label for="varIncrementType" th:text="#{dashboard.variable.incrementType}">Increment Type: *</label>
                         <select id="varIncrementType" required onchange="updateVariableFormFields()">
-                            <option value="None">None</option>
-                            <option value="Report">Report</option>
-                            <option value="Page">Page</option>
-                            <option value="Column">Column</option>
-                            <option value="Group">Group</option>
+                            <option value="None" th:text="#{dashboard.variable.increment.none}">None</option>
+                            <option value="Report" th:text="#{dashboard.variable.increment.report}">Report</option>
+                            <option value="Page" th:text="#{dashboard.variable.increment.page}">Page</option>
+                            <option value="Column" th:text="#{dashboard.variable.increment.column}">Column</option>
+                            <option value="Group" th:text="#{dashboard.variable.increment.group}">Group</option>
                         </select>
                     </div>
                     
                     <div class="form-group" id="varIncrementGroupDiv" style="display: none;">
-                        <label for="varIncrementGroup">Increment Group:</label>
-                        <input type="text" id="varIncrementGroup" placeholder="GroupName">
+                        <label for="varIncrementGroup" th:text="#{dashboard.variable.incrementGroup}">Increment Group:</label>
+                        <input type="text" id="varIncrementGroup" th:placeholder="#{dashboard.variable.incrementGroup.placeholder}" placeholder="GroupName">
                     </div>
                 </div>
 
                 <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn" onclick="closeVariableModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                    <button type="submit" class="btn">Save Variable</button>
+                    <button type="button" class="btn" onclick="closeVariableModal()" style="background: #6c757d; margin-right: 10px;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                    <button type="submit" class="btn" th:text="#{dashboard.variable.save}">Save Variable</button>
                 </div>
             </form>
         </div>
@@ -477,34 +477,34 @@
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <span class="close" onclick="closeDatasetModal()">&times;</span>
-                <h3 id="datasetModalTitle">Add Dataset</h3>
+                <h3 id="datasetModalTitle" th:text="#{dashboard.dataset.modal.title}">Add Dataset</h3>
             </div>
             <form id="datasetForm" onsubmit="saveDataset(event)">
                 <input type="hidden" id="datasetEditIndex">
                 
                 <div class="form-group">
-                    <label for="datasetName">Dataset Name: *</label>
-                    <input type="text" id="datasetName" required placeholder="MyDataset" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
-                           title="Must start with a letter or underscore">
-                    <small style="color: #666;">Unique name to identify this dataset (e.g., SalesDataset, CategoryData)</small>
+                    <label for="datasetName" th:text="#{dashboard.dataset.name}">Dataset Name: *</label>
+                    <input type="text" id="datasetName" required th:placeholder="#{dashboard.dataset.name.placeholder}" placeholder="MyDataset" pattern="[a-zA-Z_][a-zA-Z0-9_]*" 
+                           th:title="#{dashboard.dataset.name.title}" title="Must start with a letter or underscore">
+                    <small style="color: #666;" th:text="#{dashboard.dataset.name.help}">Unique name to identify this dataset (e.g., SalesDataset, CategoryData)</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="datasetQuery">SQL Query: *</label>
-                    <textarea id="datasetQuery" required placeholder="SELECT * FROM table WHERE condition" 
+                    <label for="datasetQuery" th:text="#{dashboard.dataset.query}">SQL Query: *</label>
+                    <textarea id="datasetQuery" required th:placeholder="#{dashboard.dataset.query.placeholder}" placeholder="SELECT * FROM table WHERE condition" 
                               style="width: 100%; min-height: 120px; font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
-                    <small style="color: #666;">SQL query for this dataset. Can use parameters: WHERE date >= $P{startDate}</small>
+                    <small style="color: #666;" th:text="#{dashboard.dataset.query.help}">SQL query for this dataset. Can use parameters: WHERE date >= $P{startDate}</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="datasetFields">Fields (comma-separated): *</label>
-                    <input type="text" id="datasetFields" required placeholder="field1, field2, field3">
-                    <small style="color: #666;">Field names returned by the query (e.g., product_name, quantity, price)</small>
+                    <label for="datasetFields" th:text="#{dashboard.dataset.fields}">Fields (comma-separated): *</label>
+                    <input type="text" id="datasetFields" required th:placeholder="#{dashboard.dataset.fields.placeholder}" placeholder="field1, field2, field3">
+                    <small style="color: #666;" th:text="#{dashboard.dataset.fields.help}">Field names returned by the query (e.g., product_name, quantity, price)</small>
                 </div>
 
                 <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn" onclick="closeDatasetModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                    <button type="submit" class="btn">Save Dataset</button>
+                    <button type="button" class="btn" onclick="closeDatasetModal()" style="background: #6c757d; margin-right: 10px;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                    <button type="submit" class="btn" th:text="#{dashboard.dataset.save}">Save Dataset</button>
                 </div>
             </form>
         </div>
@@ -515,62 +515,62 @@
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <span class="close" onclick="closeSubreportModal()">&times;</span>
-                <h3 id="subreportModalTitle">Add Subreport</h3>
+                <h3 id="subreportModalTitle" th:text="#{dashboard.subreport.modal.title}">Add Subreport</h3>
             </div>
             <form id="subreportForm" onsubmit="saveSubreport(event)">
                 <input type="hidden" id="subreportEditIndex">
                 
                 <div class="form-group">
-                    <label for="subreportName">Subreport Name: *</label>
-                    <input type="text" id="subreportName" required placeholder="OrderDetails" pattern="[a-zA-Z_][a-zA-Z0-9_]*">
-                    <small style="color: #666;">Descriptive name for this subreport</small>
+                    <label for="subreportName" th:text="#{dashboard.subreport.name}">Subreport Name: *</label>
+                    <input type="text" id="subreportName" required th:placeholder="#{dashboard.subreport.name.placeholder}" placeholder="OrderDetails" pattern="[a-zA-Z_][a-zA-Z0-9_]*">
+                    <small style="color: #666;" th:text="#{dashboard.subreport.name.help}">Descriptive name for this subreport</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="subreportFile">Subreport JRXML File: *</label>
-                    <input type="text" id="subreportFile" required placeholder="subreport.jrxml">
-                    <small style="color: #666;">Filename of the subreport (must be uploaded to data/reports/ first)</small>
+                    <label for="subreportFile" th:text="#{dashboard.subreport.file}">Subreport JRXML File: *</label>
+                    <input type="text" id="subreportFile" required th:placeholder="#{dashboard.subreport.file.placeholder}" placeholder="subreport.jrxml">
+                    <small style="color: #666;" th:text="#{dashboard.subreport.file.help}">Filename of the subreport (must be uploaded to data/reports/ first)</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="subreportDatasource">Datasource (Optional):</label>
+                    <label for="subreportDatasource" th:text="#{dashboard.subreport.datasource}">Datasource (Optional):</label>
                     <select id="subreportDatasource">
-                        <option value="">-- Use same as main report --</option>
+                        <option value="" th:text="#{dashboard.subreport.datasource.same}">-- Use same as main report --</option>
                     </select>
-                    <small style="color: #666;">Choose a different datasource for this subreport, or leave blank to use same</small>
+                    <small style="color: #666;" th:text="#{dashboard.subreport.datasource.help}">Choose a different datasource for this subreport, or leave blank to use same</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="subreportParameters">Parameters to Pass (comma-separated):</label>
-                    <input type="text" id="subreportParameters" placeholder="customerId, orderDate">
-                    <small style="color: #666;">Main report fields/parameters to pass to subreport (e.g., $F{customer_id}, $P{dateParam})</small>
+                    <label for="subreportParameters" th:text="#{dashboard.subreport.parameters}">Parameters to Pass (comma-separated):</label>
+                    <input type="text" id="subreportParameters" th:placeholder="#{dashboard.subreport.parameters.placeholder}" placeholder="customerId, orderDate">
+                    <small style="color: #666;" th:text="#{dashboard.subreport.parameters.help}">Main report fields/parameters to pass to subreport (e.g., $F{customer_id}, $P{dateParam})</small>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="subreportX">Position X (pixels):</label>
+                        <label for="subreportX" th:text="#{dashboard.subreport.positionX}">Position X (pixels):</label>
                         <input type="number" id="subreportX" value="0" min="0" step="10">
                     </div>
                     <div class="form-group">
-                        <label for="subreportY">Position Y (pixels):</label>
+                        <label for="subreportY" th:text="#{dashboard.subreport.positionY}">Position Y (pixels):</label>
                         <input type="number" id="subreportY" value="0" min="0" step="10">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="subreportWidth">Width (pixels): *</label>
+                        <label for="subreportWidth" th:text="#{dashboard.subreport.width}">Width (pixels): *</label>
                         <input type="number" id="subreportWidth" required value="500" min="50" step="10">
                     </div>
                     <div class="form-group">
-                        <label for="subreportHeight">Height (pixels): *</label>
+                        <label for="subreportHeight" th:text="#{dashboard.subreport.height}">Height (pixels): *</label>
                         <input type="number" id="subreportHeight" required value="200" min="50" step="10">
                     </div>
                 </div>
 
                 <div style="margin-top: 20px; text-align: right;">
-                    <button type="button" class="btn" onclick="closeSubreportModal()" style="background: #6c757d; margin-right: 10px;">Cancel</button>
-                    <button type="submit" class="btn">Save Subreport</button>
+                    <button type="button" class="btn" onclick="closeSubreportModal()" style="background: #6c757d; margin-right: 10px;" th:text="#{dashboard.action.cancel}">Cancel</button>
+                    <button type="submit" class="btn" th:text="#{dashboard.subreport.save}">Save Subreport</button>
                 </div>
             </form>
         </div>
@@ -581,43 +581,43 @@
         <div class="modal-content" style="max-width: 1200px; width: 90%;">
             <div class="modal-header">
                 <span class="close" onclick="closeQueryTesterModal()">&times;</span>
-                <h3 id="queryTesterTitle">Test Query</h3>
+                <h3 id="queryTesterTitle" th:text="#{dashboard.queryTester.title}">Test Query</h3>
             </div>
             <div style="padding: 20px;">
                 <input type="hidden" id="queryTesterDatasourceId">
                 <input type="hidden" id="queryTesterDatasourceName">
                 
                 <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-                    <strong>Datasource:</strong> <span id="queryTesterDatasourceDisplay"></span>
+                    <strong th:text="#{dashboard.datasource.label}">Datasource:</strong> <span id="queryTesterDatasourceDisplay"></span>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label for="modalAvailableTables">Available Tables:</label>
+                    <label for="modalAvailableTables" th:text="#{dashboard.queryTester.tables}">Available Tables:</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="modalAvailableTables" style="flex: 1;">
-                            <option value="">Select a datasource to load tables</option>
+                            <option value="" th:text="#{dashboard.visual.tables.empty}">Select a datasource to load tables</option>
                         </select>
-                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="loadQueryTesterTables()">Refresh</button>
-                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="insertSelectedTableIntoQuery()">Insert</button>
+                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="loadQueryTesterTables()" th:text="#{dashboard.action.refresh}">Refresh</button>
+                        <button type="button" class="btn" style="padding: 8px 12px;" onclick="insertSelectedTableIntoQuery()" th:text="#{dashboard.action.insert}">Insert</button>
                     </div>
-                    <p id="modalAvailableTablesHint" style="margin-top: 6px; margin-bottom: 0; font-size: 12px; color: #666;">Select a table and click Insert to add it into your SQL.</p>
+                    <p id="modalAvailableTablesHint" style="margin-top: 6px; margin-bottom: 0; font-size: 12px; color: #666;" th:text="#{dashboard.queryTester.tables.help}">Select a table and click Insert to add it into your SQL.</p>
                 </div>
                 
                 <div class="form-group">
-                    <label for="modalSqlQuery">SQL Query:</label>
-                    <textarea id="modalSqlQuery" rows="10" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT * FROM users WHERE active = 1 LIMIT 10;" style="font-family: 'Courier New', monospace; padding: 12px; width: 100%; box-sizing: border-box;"></textarea>
+                    <label for="modalSqlQuery" th:text="#{dashboard.queryTester.query}">SQL Query:</label>
+                    <textarea id="modalSqlQuery" rows="10" th:placeholder="#{dashboard.queryTester.query.placeholder}" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT * FROM users WHERE active = 1 LIMIT 10;" style="font-family: 'Courier New', monospace; padding: 12px; width: 100%; box-sizing: border-box;"></textarea>
                 </div>
                 
                 <div class="form-group" style="max-width: 300px;">
-                    <label for="modalMaxRows">Max Rows: <span style="color: #999; font-weight: normal;">(Limit: 1-10,000)</span></label>
-                    <input type="number" id="modalMaxRows" value="1000" min="1" max="10000" placeholder="1000" style="width: 100%;">
-                    <p style="color: #666; font-size: 12px; margin-top: 5px; margin-bottom: 0;">⚠️ Limiting results prevents crashes on large tables</p>
+                    <label for="modalMaxRows" th:text="#{dashboard.queryTester.maxRows}">Max Rows: <span style="color: #999; font-weight: normal;">(Limit: 1-10,000)</span></label>
+                    <input type="number" id="modalMaxRows" value="1000" min="1" max="10000" th:placeholder="#{dashboard.queryTester.maxRows.placeholder}" placeholder="1000" style="width: 100%;">
+                    <p style="color: #666; font-size: 12px; margin-top: 5px; margin-bottom: 0;" th:text="#{dashboard.queryTester.maxRows.help}">⚠️ Limiting results prevents crashes on large tables</p>
                 </div>
                 
-                <button class="btn" onclick="executeQueryFromModal()">▶️ Execute Query</button>
+                <button class="btn" onclick="executeQueryFromModal()" th:text="#{dashboard.queryTester.execute}">▶️ Execute Query</button>
                 
                 <div id="modalQueryTruncatedWarning" style="display: none; margin-top: 15px; padding: 12px; background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 6px;">
-                    ⚠️ <strong>Results truncated:</strong> Only the first <span id="modalTruncatedMaxRows"></span> rows are shown. The table may contain more data.
+                    ⚠️ <strong th:text="#{dashboard.queryTester.truncated}">Results truncated:</strong> <span th:text="#{dashboard.queryTester.truncated.help}">Only the first</span> <span id="modalTruncatedMaxRows"></span> <span th:text="#{dashboard.queryTester.truncated.rows}">rows are shown. The table may contain more data.</span>
                 </div>
                 
                 <div id="modalQueryResults" style="margin-top: 20px; display: none;">

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error - Reports Server</title>
+    <title th:text="#{error500.title}">Server Error - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -84,17 +84,17 @@
 <body>
     <div class="error-container">
         <div class="error-icon">⚠️</div>
-        <h1>Server Error</h1>
-        <div class="error-code">Error 500 - Internal Server Error</div>
+        <h1 th:text="#{error500.heading}">Server Error</h1>
+        <div class="error-code" th:text="#{error500.code}">Error 500 - Internal Server Error</div>
         <div class="error-message">
-            We're sorry, something went wrong on our end. Our team has been notified and is working to fix the issue.
+            <span th:text="#{error500.message}">We're sorry, something went wrong on our end. Our team has been notified and is working to fix the issue.</span>
         </div>
         <div class="btn-container">
-            <a href="/" class="btn">Go to Dashboard</a>
-            <a href="javascript:location.reload()" class="btn btn-secondary">Reload Page</a>
+            <a href="/" class="btn" th:text="#{error.action.dashboard}">Go to Dashboard</a>
+            <a href="javascript:location.reload()" class="btn btn-secondary" th:text="#{error.action.reload}">Reload Page</a>
         </div>
         <div class="help-text">
-            If the problem persists, please contact your system administrator.
+            <span th:text="#{error500.help}">If the problem persists, please contact your system administrator.</span>
         </div>
     </div>
 </body>

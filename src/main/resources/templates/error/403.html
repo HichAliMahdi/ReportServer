@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access Denied - Reports Server</title>
+    <title th:text="#{error403.title}">Access Denied - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -84,17 +84,17 @@
 <body>
     <div class="error-container">
         <div class="error-icon">🔒</div>
-        <h1>Access Denied</h1>
-        <div class="error-code">Error 403 - Forbidden</div>
+        <h1 th:text="#{error403.heading}">Access Denied</h1>
+        <div class="error-code" th:text="#{error403.code}">Error 403 - Forbidden</div>
         <div class="error-message">
-            You don't have permission to access this page. This area is restricted to users with specific roles or privileges.
+            <span th:text="#{error403.message}">You don't have permission to access this page. This area is restricted to users with specific roles or privileges.</span>
         </div>
         <div class="btn-container">
-            <a href="/" class="btn">Go to Dashboard</a>
-            <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+            <a href="/" class="btn" th:text="#{error.action.dashboard}">Go to Dashboard</a>
+            <a href="javascript:history.back()" class="btn btn-secondary" th:text="#{error.action.back}">Go Back</a>
         </div>
         <div class="help-text">
-            If you believe you should have access to this page, please contact your administrator.
+            <span th:text="#{error403.help}">If you believe you should have access to this page, please contact your administrator.</span>
         </div>
     </div>
 </body>

@@ -11,16 +11,16 @@
             <div class="sidebar-tree-group expanded" data-sidebar-section="workspace">
                 <button type="button" class="sidebar-tree-group-toggle" onclick="toggleSidebarTreeSection('workspace')" aria-expanded="true">
                     <span class="sidebar-tree-caret">▾</span>
-                    <span>Workspace</span>
+                    <span th:text="#{sidebar.workspace}">Workspace</span>
                 </button>
                 <div class="sidebar-tree-children">
                     <button type="button" class="nav-item sidebar-tree-item active" data-tab="reports" aria-label="Reports section" title="View and generate reports">
                         <span class="nav-item-icon" aria-hidden="true">📄</span>
-                        <span>Reports</span>
+                        <span th:text="#{sidebar.reports}">Reports</span>
                     </button>
                     <button type="button" class="nav-item sidebar-tree-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="builder" aria-label="Report Builder section" title="Build custom reports">
                         <span class="nav-item-icon" aria-hidden="true">🔨</span>
-                        <span>Report Builder</span>
+                        <span th:text="#{sidebar.builder}">Report Builder</span>
                     </button>
                 </div>
             </div>
@@ -28,16 +28,16 @@
             <div class="sidebar-tree-group expanded" data-sidebar-section="operations">
                 <button type="button" class="sidebar-tree-group-toggle" onclick="toggleSidebarTreeSection('operations')" aria-expanded="true">
                     <span class="sidebar-tree-caret">▾</span>
-                    <span>Operations</span>
+                    <span th:text="#{sidebar.operations}">Operations</span>
                 </button>
                 <div class="sidebar-tree-children">
                     <button type="button" class="nav-item sidebar-tree-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="datasources" aria-label="Datasources section" title="Manage data connections">
                         <span class="nav-item-icon" aria-hidden="true">🗄️</span>
-                        <span>Datasources</span>
+                        <span th:text="#{sidebar.datasources}">Datasources</span>
                     </button>
                     <button type="button" class="nav-item sidebar-tree-item" sec:authorize="hasAnyRole('ADMIN','OPERATOR')" data-tab="schedules" aria-label="Schedules section" title="Manage scheduled reports">
                         <span class="nav-item-icon" aria-hidden="true">⏰</span>
-                        <span>Schedules</span>
+                        <span th:text="#{sidebar.schedules}">Schedules</span>
                     </button>
                 </div>
             </div>
@@ -51,10 +51,10 @@
                 <button type="button" class="sidebar-settings-toggle" id="sidebarSettingsToggle" onclick="toggleSidebarUserMenu()" aria-label="Open settings menu" aria-haspopup="true" aria-expanded="false">⚙️</button>
 
                 <div id="sidebarSettingsMenu" class="sidebar-settings-menu" role="menu" aria-label="User settings menu">
-                    <button type="button" id="sidebarUserManagementMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" onclick="closeSidebarUserMenu(); switchTab('users');" role="menuitem">👥 User Management</button>
-                    <a href="/settings/smtp" id="sidebarSmtpSettingsMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" role="menuitem" onclick="closeSidebarUserMenu()">📧 SMTP Settings</a>
-                    <a href="/change-password" class="sidebar-settings-item" role="menuitem" onclick="closeSidebarUserMenu()">🔐 Change Password</a>
-                    <button type="button" class="sidebar-settings-item danger" onclick="submitSidebarLogout()" role="menuitem">🚪 Logout</button>
+                    <button type="button" id="sidebarUserManagementMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" onclick="closeSidebarUserMenu(); switchTab('users');" role="menuitem">👥 <span th:text="#{sidebar.userManagement}">User Management</span></button>
+                    <a href="/settings/smtp" id="sidebarSmtpSettingsMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" role="menuitem" onclick="closeSidebarUserMenu()">📧 <span th:text="#{sidebar.smtpSettings}">SMTP Settings</span></a>
+                    <a href="/change-password" class="sidebar-settings-item" role="menuitem" onclick="closeSidebarUserMenu()">🔐 <span th:text="#{sidebar.changePassword}">Change Password</span></a>
+                    <button type="button" class="sidebar-settings-item danger" onclick="submitSidebarLogout()" role="menuitem">🚪 <span th:text="#{sidebar.logout}">Logout</span></button>
                 </div>
 
                 <form id="sidebarLogoutForm" th:action="@{/logout}" method="post" style="display: none;">

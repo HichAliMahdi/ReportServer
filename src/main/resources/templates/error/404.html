@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page Not Found - Reports Server</title>
+    <title th:text="#{error404.title}">Page Not Found - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -84,17 +84,17 @@
 <body>
     <div class="error-container">
         <div class="error-icon">🔍</div>
-        <h1>Page Not Found</h1>
-        <div class="error-code">Error 404</div>
+        <h1 th:text="#{error404.heading}">Page Not Found</h1>
+        <div class="error-code" th:text="#{error404.code}">Error 404</div>
         <div class="error-message">
-            The page you're looking for doesn't exist or has been moved. Please check the URL or navigate back to the dashboard.
+            <span th:text="#{error404.message}">The page you're looking for doesn't exist or has been moved. Please check the URL or navigate back to the dashboard.</span>
         </div>
         <div class="btn-container">
-            <a href="/" class="btn">Go to Dashboard</a>
-            <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+            <a href="/" class="btn" th:text="#{error.action.dashboard}">Go to Dashboard</a>
+            <a href="javascript:history.back()" class="btn btn-secondary" th:text="#{error.action.back}">Go Back</a>
         </div>
         <div class="help-text">
-            If you continue to experience issues, please contact support.
+            <span th:text="#{error404.help}">If you continue to experience issues, please contact support.</span>
         </div>
     </div>
 </body>

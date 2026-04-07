@@ -42,8 +42,23 @@ public class InstallationService {
         status.put("setupCompleted", state != null && state.isSetupCompleted());
         status.put("adminConfigured", state != null && state.isAdminConfigured());
         status.put("smtpConfigured", state != null && state.isSmtpConfigured());
+        status.put("defaultLanguage", state != null ? normalizeLanguage(state.getDefaultLanguage()) : "en");
         status.put("completedAt", state != null ? state.getSetupCompletedAt() : null);
         return status;
+    }
+
+    public String getDefaultLanguage() {
+        InstallationState state = installationStateRepository.findTopByOrderByIdAsc().orElse(null);
+        if (state == null) {
+            return "en";
+        }
+        return normalizeLanguage(state.getDefaultLanguage());
+    }
+
+    public void setDefaultLanguage(String language) {
+        InstallationState state = getOrCreateState();
+        state.setDefaultLanguage(normalizeLanguage(language));
+        installationStateRepository.save(state);
     }
 
     public void markAdminConfigured() {
@@ -72,6 +87,19 @@ public class InstallationService {
     }
 
     private InstallationState getOrCreateState() {
-        return installationStateRepository.findTopByOrderByIdAsc().orElseGet(InstallationState::new);
+        InstallationState state = installationStateRepository.findTopByOrderByIdAsc().orElseGet(InstallationState::new);
+        state.setDefaultLanguage(normalizeLanguage(state.getDefaultLanguage()));
+        return state;
+    }
+
+    private String normalizeLanguage(String language) {
+        if (language == null) {
+            return "en";
+        }
+        String normalized = language.trim().toLowerCase();
+        if ("fr".equals(normalized) || "de".equals(normalized)) {
+            return normalized;
+        }
+        return "en";
     }
 }

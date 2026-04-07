@@ -61,6 +61,23 @@ public class SetupController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/api/setup/language")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> setLanguage(@RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String language = asString(request.get("language"));
+            installationService.setDefaultLanguage(language);
+            response.put("status", "success");
+            response.put("language", installationService.getDefaultLanguage());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
     @PostMapping("/api/setup/admin")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> setupAdmin(@RequestBody Map<String, String> request) {
@@ -166,6 +183,34 @@ public class SetupController {
 
             response.put("status", "success");
             response.put("message", "SMTP configuration saved");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @PostMapping("/api/setup/smtp/test")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> testSmtp(@RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String testRecipient = (String) request.get("testRecipient");
+            if (testRecipient == null || testRecipient.trim().isEmpty()) {
+                testRecipient = (String) request.get("fromEmail");
+            }
+            if (testRecipient == null || testRecipient.trim().isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Please provide a test recipient email address");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Create temporary SMTP settings from request for testing
+            smtpSettingsService.testConnection(request, testRecipient);
+
+            response.put("status", "success");
+            response.put("message", "Test email sent successfully");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status", "error");

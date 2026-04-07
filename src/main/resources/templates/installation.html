@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}">
     <meta name="_csrf_header" th:content="${_csrf.headerName}">
-    <title>Installation Wizard - Reports Server</title>
+    <title th:text="#{setup.title}">Installation Wizard - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -24,6 +24,28 @@
             border-radius: 14px;
             box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+        }
+        .language-picker {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-size: 13px;
+        }
+        .language-picker select {
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            padding: 6px 8px;
+            backdrop-filter: blur(4px);
+        }
+        .language-picker option {
+            color: #1f2937;
         }
         .wizard-header {
             padding: 20px 24px;
@@ -159,10 +181,19 @@
     </style>
 </head>
 <body>
+<div class="language-picker">
+    <label for="setupLanguage" th:text="#{lang.label}">Language</label>
+    <select id="setupLanguage" onchange="changeSetupLanguage()">
+        <option value="en" th:text="#{lang.en}">English</option>
+        <option value="fr" th:text="#{lang.fr}">French</option>
+        <option value="de" th:text="#{lang.de}">German</option>
+    </select>
+</div>
+
 <div class="wizard">
     <div class="wizard-header">
-        <h1>Install Reports Server</h1>
-        <p>Complete these steps to finalize your instance setup.</p>
+        <h1 th:text="#{setup.header.title}">Install Reports Server</h1>
+        <p th:text="#{setup.header.subtitle}">Complete these steps to finalize your instance setup.</p>
         <div class="progress">
             <div id="progress1" class="progress-step active"></div>
             <div id="progress2" class="progress-step"></div>
@@ -170,127 +201,141 @@
     </div>
     <div class="wizard-content">
         <div id="step1" class="step active">
-            <h2>Step 1: SMTP Configuration</h2>
-            <p>Configure SMTP first so the installer can send the welcome email and future account notifications.</p>
+            <h2 th:text="#{setup.step1.title}">Step 1: SMTP Configuration</h2>
+            <p th:text="#{setup.step1.subtitle}">Configure SMTP first so the installer can send the welcome email and future account notifications.</p>
             <div class="grid">
                 <div class="form-group full">
-                    <label for="smtpProviderPreset">SMTP Provider Preset</label>
+                    <label for="smtpProviderPreset" th:text="#{setup.smtp.preset}">SMTP Provider Preset</label>
                     <select id="smtpProviderPreset" onchange="applyPreset()">
-                        <option value="">Custom</option>
-                        <option value="gmail">Gmail</option>
-                        <option value="outlook">Outlook / Hotmail</option>
-                        <option value="office365">Microsoft 365 (Office365)</option>
-                        <option value="sendgrid">SendGrid</option>
-                        <option value="ses">Amazon SES</option>
+                        <option value="" th:text="#{setup.smtp.preset.custom}">Custom</option>
+                        <option value="gmail" th:text="#{setup.smtp.preset.gmail}">Gmail</option>
+                        <option value="outlook" th:text="#{setup.smtp.preset.outlook}">Outlook / Hotmail</option>
+                        <option value="office365" th:text="#{setup.smtp.preset.office365}">Microsoft 365 (Office365)</option>
+                        <option value="sendgrid" th:text="#{setup.smtp.preset.sendgrid}">SendGrid</option>
+                        <option value="ses" th:text="#{setup.smtp.preset.ses}">Amazon SES</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="smtpHost">SMTP Host</label>
-                    <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+                    <label for="smtpHost" th:text="#{setup.smtp.host}">SMTP Host</label>
+                    <input type="text" id="smtpHost" th:placeholder="#{setup.smtp.host.placeholder}" placeholder="smtp.gmail.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpPort">SMTP Port</label>
-                    <input type="number" id="smtpPort" min="1" placeholder="587">
+                    <label for="smtpPort" th:text="#{setup.smtp.port}">SMTP Port</label>
+                    <input type="number" id="smtpPort" min="1" th:placeholder="#{setup.smtp.port.placeholder}" placeholder="587">
                 </div>
                 <div class="form-group">
-                    <label for="smtpUsername">Username</label>
-                    <input type="text" id="smtpUsername" placeholder="noreply@company.com">
+                    <label for="smtpUsername" th:text="#{setup.smtp.username}">Username</label>
+                    <input type="text" id="smtpUsername" th:placeholder="#{setup.smtp.username.placeholder}" placeholder="noreply@company.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpFromEmail">From Email</label>
-                    <input type="email" id="smtpFromEmail" placeholder="noreply@company.com">
+                    <label for="smtpFromEmail" th:text="#{setup.smtp.fromEmail}">From Email</label>
+                    <input type="email" id="smtpFromEmail" th:placeholder="#{setup.smtp.fromEmail.placeholder}" placeholder="noreply@company.com">
                 </div>
                 <div class="form-group full">
-                    <label for="smtpPassword">Password</label>
-                    <input type="password" id="smtpPassword" placeholder="SMTP password or app password">
+                    <label for="smtpPassword" th:text="#{setup.smtp.password}">Password</label>
+                    <input type="password" id="smtpPassword" th:placeholder="#{setup.smtp.password.placeholder}" placeholder="SMTP password or app password">
                 </div>
                 <div class="form-group full">
                     <div class="check">
                         <input type="checkbox" id="smtpEnabled" checked>
-                        <label for="smtpEnabled">Enable custom SMTP settings</label>
+                        <label for="smtpEnabled" th:text="#{setup.smtp.enabled}">Enable custom SMTP settings</label>
                     </div>
                     <div class="check">
                         <input type="checkbox" id="smtpAuthEnabled" checked>
-                        <label for="smtpAuthEnabled">Require SMTP authentication</label>
+                        <label for="smtpAuthEnabled" th:text="#{setup.smtp.auth}">Require SMTP authentication</label>
                     </div>
                     <div class="check">
                         <input type="checkbox" id="smtpStarttlsEnabled" checked>
-                        <label for="smtpStarttlsEnabled">Enable STARTTLS</label>
+                        <label for="smtpStarttlsEnabled" th:text="#{setup.smtp.starttls}">Enable STARTTLS</label>
                     </div>
                     <div class="check">
                         <input type="checkbox" id="smtpStarttlsRequired" checked>
-                        <label for="smtpStarttlsRequired">Require STARTTLS</label>
+                        <label for="smtpStarttlsRequired" th:text="#{setup.smtp.starttlsRequired}">Require STARTTLS</label>
                     </div>
                 </div>
             </div>
-            <div class="help">
+            <div class="help" th:text="#{setup.smtp.help}">
                 For Gmail/Microsoft accounts, use an app password. Usually port 587 + STARTTLS is recommended.
             </div>
             <div class="actions">
-                <button class="btn" type="button" onclick="saveSmtpAndContinue()">Save & Continue</button>
+                <button class="btn" type="button" style="background: #6c757d;" onclick="sendTestSmtpEmail()">Send Test Email</button>
+                <button class="btn" type="button" onclick="saveSmtpAndContinue()" th:text="#{setup.action.saveContinue}">Save & Continue</button>
             </div>
             <div id="step1Msg" class="msg"></div>
         </div>
 
         <div id="step2" class="step">
-            <h2>Step 2: Admin User Configuration</h2>
-            <p>Create the first account. This user will have ADMIN role.</p>
+            <h2 th:text="#{setup.step2.title}">Step 2: Admin User Configuration</h2>
+            <p th:text="#{setup.step2.subtitle}">Create the first account. This user will have ADMIN role.</p>
             <div class="grid">
                 <div class="form-group">
-                    <label for="adminUsername">Username</label>
-                    <input type="text" id="adminUsername" placeholder="admin" required>
+                    <label for="adminUsername" th:text="#{setup.admin.username}">Username</label>
+                    <input type="text" id="adminUsername" th:placeholder="#{setup.admin.username.placeholder}" placeholder="admin" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminEmail">Email</label>
-                    <input type="email" id="adminEmail" placeholder="admin@company.com" required>
+                    <label for="adminEmail" th:text="#{setup.admin.email}">Email</label>
+                    <input type="email" id="adminEmail" th:placeholder="#{setup.admin.email.placeholder}" placeholder="admin@company.com" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminPassword">Password</label>
+                    <label for="adminPassword" th:text="#{setup.admin.password}">Password</label>
                     <input type="password" id="adminPassword" minlength="8" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminConfirmPassword">Confirm Password</label>
+                    <label for="adminConfirmPassword" th:text="#{setup.admin.confirmPassword}">Confirm Password</label>
                     <input type="password" id="adminConfirmPassword" minlength="8" required>
                 </div>
                 <div class="form-group full">
                     <div class="check">
                         <input type="checkbox" id="adminEnable2fa">
-                        <label for="adminEnable2fa">Enable 2FA for the first admin user</label>
+                        <label for="adminEnable2fa" th:text="#{setup.admin.enable2fa}">Enable 2FA for the first admin user</label>
                     </div>
-                    <div class="help">If enabled, the wizard will show a QR code after creating the admin account.</div>
+                    <div class="help" th:text="#{setup.admin.enable2fa.help}">If enabled, the wizard will show a QR code after creating the admin account.</div>
                 </div>
                 <div id="admin2faSetup" class="form-group full" style="display: none;">
-                    <label>2FA QR Code</label>
+                    <label th:text="#{setup.admin.qr}">2FA QR Code</label>
                     <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center;">
                         <img id="admin2faQr" alt="2FA QR code" style="width: 220px; height: 220px; border: 1px solid #d7dce6; border-radius: 12px; background: white;">
                         <div style="flex: 1; min-width: 220px;">
-                            <div class="help" style="margin-top: 0;">Scan this code with Google Authenticator, Microsoft Authenticator, or any TOTP app.</div>
+                            <div class="help" style="margin-top: 0;" th:text="#{setup.admin.qr.help}">Scan this code with Google Authenticator, Microsoft Authenticator, or any TOTP app.</div>
                             <div class="form-group" style="margin-top: 12px;">
-                                <label for="admin2faSecret">Manual key</label>
+                                <label for="admin2faSecret" th:text="#{setup.admin.manualKey}">Manual key</label>
                                 <input type="text" id="admin2faSecret" readonly>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div id="admin2faConfirm" class="form-group full" style="display: none;">
-                    <label for="admin2faCode">Authenticator code</label>
-                    <input type="text" id="admin2faCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
-                    <div class="help">Enter the current 6-digit code from your authenticator app to finish installation.</div>
+                    <label for="admin2faCode" th:text="#{setup.admin.code}">Authenticator code</label>
+                    <input type="text" id="admin2faCode" inputmode="numeric" autocomplete="one-time-code" th:placeholder="#{setup.admin.code.placeholder}" placeholder="123456">
+                    <div class="help" th:text="#{setup.admin.code.help}">Enter the current 6-digit code from your authenticator app to finish installation.</div>
                 </div>
             </div>
             <div class="actions">
-                <button class="btn secondary" type="button" onclick="goToStep(1)">Back</button>
-                <button class="btn" type="button" onclick="saveAdminAndFinish()">Save Admin & Finish</button>
-                <button id="confirm2faButton" class="btn success" type="button" style="display: none;" onclick="confirmAdminTwoFactorAndFinish()">Confirm 2FA & Finish</button>
+                <button class="btn secondary" type="button" onclick="goToStep(1)" th:text="#{setup.action.back}">Back</button>
+                <button class="btn" type="button" onclick="saveAdminAndFinish()" th:text="#{setup.action.saveFinish}">Save Admin & Finish</button>
+                <button id="confirm2faButton" class="btn success" type="button" style="display: none;" onclick="confirmAdminTwoFactorAndFinish()" th:text="#{setup.action.confirm2faFinish}">Confirm 2FA & Finish</button>
             </div>
             <div id="step2Msg" class="msg"></div>
         </div>
     </div>
 </div>
 
-<script>
+<script th:inline="javascript">
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+    const I18N = {
+        saveSmtpFailed: /*[[#{setup.msg.smtp.saveFailed}]]*/ 'Failed to save SMTP',
+        saveSmtpSuccess: /*[[#{setup.msg.smtp.saved}]]*/ 'SMTP configured successfully.',
+        saveAdminFailed: /*[[#{setup.msg.admin.saveFailed}]]*/ 'Failed to save admin user',
+        saveAdminSuccess: /*[[#{setup.msg.admin.saved}]]*/ 'Admin configured successfully.',
+        scanQrThenFinish: /*[[#{setup.msg.admin.scanQr}]]*/ 'Scan the QR code, then enter the current code to finish installation.',
+        confirm2faFailed: /*[[#{setup.msg.2fa.confirmFailed}]]*/ 'Failed to confirm 2FA',
+        confirm2faSuccess: /*[[#{setup.msg.2fa.confirmed}]]*/ '2FA confirmed successfully. Redirecting to login...',
+        completeInstallFailed: /*[[#{setup.msg.complete.failed}]]*/ 'Failed to complete installation',
+        completeInstallSuccess: /*[[#{setup.msg.complete.success}]]*/ 'Installation completed. Redirecting to login...',
+        testSmtpSuccess: /*[[#{smtp.msg.testSuccess}]]*/ 'Test email sent.',
+        testSmtpFailed: /*[[#{smtp.msg.testFailed}]]*/ 'Failed to send test email'
+    };
     const SMTP_PRESETS = {
         gmail: { host: 'smtp.gmail.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
         outlook: { host: 'smtp-mail.outlook.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
@@ -307,6 +352,10 @@
             .then(r => r.json())
             .then(data => {
                 const setup = data?.setup || {};
+                const setupLanguage = document.getElementById('setupLanguage');
+                if (setupLanguage) {
+                    setupLanguage.value = setup.defaultLanguage || document.documentElement.lang || 'en';
+                }
                 if (setup.setupCompleted) {
                     window.location.href = '/login';
                     return;
@@ -326,6 +375,26 @@
                 }
             })
             .catch(() => {});
+    }
+
+    function changeSetupLanguage() {
+        const selectedLanguage = document.getElementById('setupLanguage').value;
+
+        fetch('/api/setup/language', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ language: selectedLanguage })
+        })
+            .then(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('lang', selectedLanguage);
+                window.location.href = url.toString();
+            })
+            .catch(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('lang', selectedLanguage);
+                window.location.href = url.toString();
+            });
     }
 
     function getHeaders() {
@@ -352,6 +421,41 @@
         el.className = 'msg ' + type;
     }
 
+    function sendTestSmtpEmail() {
+        const fromEmail = document.getElementById('smtpFromEmail').value;
+        if (!fromEmail) {
+            showMsg('step1', 'Please enter a from email address first.', 'error');
+            return;
+        }
+
+        const payload = {
+            host: document.getElementById('smtpHost').value,
+            port: parseInt(document.getElementById('smtpPort').value || '0', 10),
+            username: document.getElementById('smtpUsername').value,
+            fromEmail: fromEmail,
+            password: document.getElementById('smtpPassword').value,
+            enabled: document.getElementById('smtpEnabled').checked,
+            authEnabled: document.getElementById('smtpAuthEnabled').checked,
+            starttlsEnabled: document.getElementById('smtpStarttlsEnabled').checked,
+            starttlsRequired: document.getElementById('smtpStarttlsRequired').checked,
+            testRecipient: fromEmail
+        };
+
+        fetch('/api/setup/smtp/test', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.status !== 'success') {
+                    throw new Error((data && data.message) || I18N.testSmtpFailed);
+                }
+                showMsg('step1', data.message || I18N.testSmtpSuccess, 'success');
+            })
+            .catch(error => showMsg('step1', error.message, 'error'));
+    }
+
     function saveSmtpAndContinue() {
         const payload = {
             host: document.getElementById('smtpHost').value,
@@ -373,9 +477,9 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to save SMTP');
+                    throw new Error((data && data.message) || I18N.saveSmtpFailed);
                 }
-                showMsg('step1', data.message || 'SMTP configured successfully.', 'success');
+                showMsg('step1', data.message || I18N.saveSmtpSuccess, 'success');
                 goToStep(2);
             })
             .catch(error => showMsg('step1', error.message, 'error'));
@@ -398,13 +502,13 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to save admin user');
+                    throw new Error((data && data.message) || I18N.saveAdminFailed);
                 }
                 pendingAdminUsername = data.username || payload.username;
-                showMsg('step2', data.message || 'Admin configured successfully.', 'success');
+                showMsg('step2', data.message || I18N.saveAdminSuccess, 'success');
                 if (data.twoFactorSetup && data.twoFactorSetup.qrCodeDataUri) {
                     renderPendingTwoFactorSetup(data.twoFactorSetup);
-                    showMsg('step2', 'Scan the QR code, then enter the current code to finish installation.', 'success');
+                    showMsg('step2', I18N.scanQrThenFinish, 'success');
                 } else {
                     document.getElementById('admin2faSetup').style.display = 'none';
                     document.getElementById('admin2faConfirm').style.display = 'none';
@@ -437,9 +541,9 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to confirm 2FA');
+                    throw new Error((data && data.message) || I18N.confirm2faFailed);
                 }
-                showMsg('step2', data.message || '2FA confirmed successfully. Redirecting to login...', 'success');
+                showMsg('step2', data.message || I18N.confirm2faSuccess, 'success');
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 1200);
@@ -469,9 +573,9 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to complete installation');
+                    throw new Error((data && data.message) || I18N.completeInstallFailed);
                 }
-                showMsg('step2', 'Installation completed. Redirecting to login...', 'success');
+                showMsg('step2', I18N.completeInstallSuccess, 'success');
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 1200);

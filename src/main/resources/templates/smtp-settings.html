@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-    <title>SMTP Settings - Reports Server</title>
+    <title th:text="#{smtp.title}">SMTP Settings - Reports Server</title>
     <link rel="stylesheet" href="/css/index.css">
     <style>
         .container {
@@ -90,95 +90,106 @@
 
 <div class="container">
     <div class="card">
-        <h2>SMTP Configuration</h2>
-        <p style="color: #666; margin-bottom: 16px;">Configure outgoing email for password reset links and security notifications.</p>
+        <h2 th:text="#{smtp.heading}">SMTP Configuration</h2>
+        <p style="color: #666; margin-bottom: 16px;" th:text="#{smtp.subtitle}">Configure outgoing email for password reset links and security notifications.</p>
 
         <form id="smtpForm">
             <div class="smtp-grid">
                 <div class="form-group full">
-                    <label for="smtpProviderPreset">SMTP Provider Preset</label>
+                    <label for="smtpProviderPreset" th:text="#{smtp.preset}">SMTP Provider Preset</label>
                     <select id="smtpProviderPreset">
-                        <option value="">Custom</option>
-                        <option value="gmail">Gmail</option>
-                        <option value="outlook">Outlook / Hotmail</option>
-                        <option value="office365">Microsoft 365 (Office365)</option>
-                        <option value="sendgrid">SendGrid</option>
-                        <option value="ses">Amazon SES</option>
+                        <option value="" th:text="#{smtp.preset.custom}">Custom</option>
+                        <option value="gmail" th:text="#{smtp.preset.gmail}">Gmail</option>
+                        <option value="outlook" th:text="#{smtp.preset.outlook}">Outlook / Hotmail</option>
+                        <option value="office365" th:text="#{smtp.preset.office365}">Microsoft 365 (Office365)</option>
+                        <option value="sendgrid" th:text="#{smtp.preset.sendgrid}">SendGrid</option>
+                        <option value="ses" th:text="#{smtp.preset.ses}">Amazon SES</option>
                     </select>
-                    <div class="hint">Selecting a preset will auto-fill host, port, and TLS options.</div>
+                    <div class="hint" th:text="#{smtp.preset.hint}">Selecting a preset will auto-fill host, port, and TLS options.</div>
                 </div>
                 <div class="form-group">
-                    <label for="smtpHost">SMTP Host</label>
-                    <input type="text" id="smtpHost" required placeholder="smtp.gmail.com">
+                    <label for="smtpHost" th:text="#{smtp.host}">SMTP Host</label>
+                    <input type="text" id="smtpHost" required th:placeholder="#{smtp.host.placeholder}" placeholder="smtp.gmail.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpPort">SMTP Port</label>
-                    <input type="number" id="smtpPort" required min="1" placeholder="587">
+                    <label for="smtpPort" th:text="#{smtp.port}">SMTP Port</label>
+                    <input type="number" id="smtpPort" required min="1" th:placeholder="#{smtp.port.placeholder}" placeholder="587">
                 </div>
                 <div class="form-group">
-                    <label for="smtpUsername">Username</label>
-                    <input type="text" id="smtpUsername" placeholder="noreply@yourdomain.com">
+                    <label for="smtpUsername" th:text="#{smtp.username}">Username</label>
+                    <input type="text" id="smtpUsername" th:placeholder="#{smtp.username.placeholder}" placeholder="noreply@yourdomain.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpFromEmail">From Email</label>
-                    <input type="email" id="smtpFromEmail" placeholder="noreply@yourdomain.com">
+                    <label for="smtpFromEmail" th:text="#{smtp.fromEmail}">From Email</label>
+                    <input type="email" id="smtpFromEmail" th:placeholder="#{smtp.fromEmail.placeholder}" placeholder="noreply@yourdomain.com">
                 </div>
                 <div class="form-group full">
-                    <label for="smtpPassword">Password</label>
-                    <input type="password" id="smtpPassword" placeholder="Leave empty to keep existing password">
+                    <label for="smtpPassword" th:text="#{smtp.password}">Password</label>
+                    <input type="password" id="smtpPassword" th:placeholder="#{smtp.password.placeholder}" placeholder="Leave empty to keep existing password">
                     <div class="hint" id="smtpPasswordHint"></div>
                 </div>
                 <div class="form-group full">
                     <div class="checkbox-group">
                         <input type="checkbox" id="smtpEnabled">
-                        <label for="smtpEnabled">Enable custom SMTP settings</label>
+                        <label for="smtpEnabled" th:text="#{smtp.enabled}">Enable custom SMTP settings</label>
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="smtpAuthEnabled" checked>
-                        <label for="smtpAuthEnabled">Require SMTP authentication</label>
+                        <label for="smtpAuthEnabled" th:text="#{smtp.auth}">Require SMTP authentication</label>
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="smtpStarttlsEnabled" checked>
-                        <label for="smtpStarttlsEnabled">Enable STARTTLS</label>
+                        <label for="smtpStarttlsEnabled" th:text="#{smtp.starttls}">Enable STARTTLS</label>
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="smtpStarttlsRequired" checked>
-                        <label for="smtpStarttlsRequired">Require STARTTLS</label>
+                        <label for="smtpStarttlsRequired" th:text="#{smtp.starttlsRequired}">Require STARTTLS</label>
                     </div>
                 </div>
                 <div class="form-group full">
-                    <label for="smtpTestRecipient">Test Recipient</label>
-                    <input type="email" id="smtpTestRecipient" placeholder="admin@example.com">
+                    <label for="smtpTestRecipient" th:text="#{smtp.testRecipient}">Test Recipient</label>
+                    <input type="email" id="smtpTestRecipient" th:placeholder="#{smtp.testRecipient.placeholder}" placeholder="admin@example.com">
                 </div>
             </div>
 
             <div class="actions">
-                <button type="submit" class="btn">Save SMTP Settings</button>
-                <button type="button" class="btn" style="background:#6c757d;" onclick="sendSmtpTestEmail()">Send Test Email</button>
-                <button type="button" class="btn" style="background:#6c757d;" onclick="window.location.href='/'">Back to Dashboard</button>
+                <button type="submit" class="btn" th:text="#{smtp.action.save}">Save SMTP Settings</button>
+                <button type="button" class="btn" style="background:#6c757d;" onclick="sendSmtpTestEmail()" th:text="#{smtp.action.sendTest}">Send Test Email</button>
+                <button type="button" class="btn" style="background:#6c757d;" onclick="window.location.href='/'" th:text="#{smtp.action.back}">Back to Dashboard</button>
             </div>
             <div id="smtpMessage"></div>
         </form>
 
         <div class="help-card">
-            <h3>How To Configure SMTP</h3>
-            <p>1. Choose a preset (or keep Custom), then fill username and from email.</p>
-            <p>2. Paste your SMTP/app password and click Save SMTP Settings.</p>
-            <p>3. Send a test email before relying on forgot-password notifications.</p>
+            <h3 th:text="#{smtp.help.title}">How To Configure SMTP</h3>
+            <p th:text="#{smtp.help.step1}">1. Choose a preset (or keep Custom), then fill username and from email.</p>
+            <p th:text="#{smtp.help.step2}">2. Paste your SMTP/app password and click Save SMTP Settings.</p>
+            <p th:text="#{smtp.help.step3}">3. Send a test email before relying on forgot-password notifications.</p>
             <ul>
-                <li>Gmail and Microsoft accounts usually require an app password (not your account password).</li>
-                <li>Use port 587 with STARTTLS in most cases.</li>
-                <li>Set APP_BASE_URL so password reset links point to the correct server URL.</li>
+                <li th:text="#{smtp.help.item1}">Gmail and Microsoft accounts usually require an app password (not your account password).</li>
+                <li th:text="#{smtp.help.item2}">Use port 587 with STARTTLS in most cases.</li>
+                <li th:text="#{smtp.help.item3}">Set APP_BASE_URL so password reset links point to the correct server URL.</li>
             </ul>
         </div>
     </div>
 </div>
 
 <script src="/js/sidebar-common.js"></script>
-<script>
+<script th:inline="javascript">
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
     const sidebarUi = window.ReportServerSidebar || {};
+    const I18N_SMTP = {
+        currentUserFallback: /*[[#{smtp.currentUser.fallback}]]*/ 'User',
+        loadFailed: /*[[#{smtp.msg.loadFailed}]]*/ 'Failed to load SMTP settings',
+        savedPasswordHint: /*[[#{smtp.msg.savedPasswordHint}]]*/ 'A password is already saved. Leave blank to keep it.',
+        noPasswordHint: /*[[#{smtp.msg.noPasswordHint}]]*/ 'No password saved yet.',
+        saveFailed: /*[[#{smtp.msg.saveFailed}]]*/ 'Failed to save SMTP settings',
+        saveSuccess: /*[[#{smtp.msg.saveSuccess}]]*/ 'SMTP settings saved.',
+        missingRecipient: /*[[#{smtp.msg.missingRecipient}]]*/ 'Please enter a test recipient email first.',
+        testFailed: /*[[#{smtp.msg.testFailed}]]*/ 'Failed to send test email',
+        testSuccess: /*[[#{smtp.msg.testSuccess}]]*/ 'Test email sent.'
+    };
     const SMTP_PRESETS = {
         gmail: { host: 'smtp.gmail.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
         outlook: { host: 'smtp-mail.outlook.com', port: 587, authEnabled: true, starttlsEnabled: true, starttlsRequired: true },
@@ -235,7 +246,7 @@
                     return;
                 }
                 if (typeof sidebarUi.setSidebarCurrentUsername === 'function') {
-                    sidebarUi.setSidebarCurrentUsername(data.username || 'User');
+                    sidebarUi.setSidebarCurrentUsername(data.username || I18N_SMTP.currentUserFallback);
                 }
                 if (typeof sidebarUi.updateSidebarSettingsMenuVisibility === 'function') {
                     sidebarUi.updateSidebarSettingsMenuVisibility(data.role);
@@ -252,7 +263,7 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to load SMTP settings');
+                    throw new Error((data && data.message) || I18N_SMTP.loadFailed);
                 }
 
                 const settings = data.settings || {};
@@ -267,8 +278,8 @@
 
                 const hint = document.getElementById('smtpPasswordHint');
                 hint.textContent = settings.hasPassword
-                    ? 'A password is already saved. Leave blank to keep it.'
-                    : 'No password saved yet.';
+                    ? I18N_SMTP.savedPasswordHint
+                    : I18N_SMTP.noPasswordHint;
             })
             .catch(error => showSmtpMessage(error.message, 'error'));
     }
@@ -299,11 +310,11 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to save SMTP settings');
+                    throw new Error((data && data.message) || I18N_SMTP.saveFailed);
                 }
                 document.getElementById('smtpPassword').value = '';
                 loadSmtpSettings();
-                showSmtpMessage(data.message || 'SMTP settings saved.', 'success');
+                showSmtpMessage(data.message || I18N_SMTP.saveSuccess, 'success');
             })
             .catch(error => showSmtpMessage(error.message, 'error'));
     }
@@ -311,7 +322,7 @@
     function sendSmtpTestEmail() {
         const recipient = document.getElementById('smtpTestRecipient').value;
         if (!recipient) {
-            showSmtpMessage('Please enter a test recipient email first.', 'error');
+            showSmtpMessage(I18N_SMTP.missingRecipient, 'error');
             return;
         }
 
@@ -326,9 +337,9 @@
             .then(r => r.json())
             .then(data => {
                 if (!data || data.status !== 'success') {
-                    throw new Error((data && data.message) || 'Failed to send test email');
+                    throw new Error((data && data.message) || I18N_SMTP.testFailed);
                 }
-                showSmtpMessage(data.message || 'Test email sent.', 'success');
+                showSmtpMessage(data.message || I18N_SMTP.testSuccess, 'success');
             })
             .catch(error => showSmtpMessage(error.message, 'error'));
     }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error - Reports Server</title>
+    <title th:text="#{errorGeneric.title}">Error - Reports Server</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -84,20 +84,20 @@
 <body>
     <div class="error-container">
         <div class="error-icon">❌</div>
-        <h1>Oops! Something went wrong</h1>
+        <h1 th:text="#{errorGeneric.heading}">Oops! Something went wrong</h1>
         <div class="error-code" th:if="${status}" th:text="'Error ' + ${status}">Error</div>
         <div class="error-message" th:if="${message}" th:text="${message}">
             An unexpected error occurred. Please try again or contact support if the problem persists.
         </div>
         <div class="error-message" th:unless="${message}">
-            An unexpected error occurred. Please try again or contact support if the problem persists.
+            <span th:text="#{errorGeneric.message}">An unexpected error occurred. Please try again or contact support if the problem persists.</span>
         </div>
         <div class="btn-container">
-            <a href="/" class="btn">Go to Dashboard</a>
-            <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+            <a href="/" class="btn" th:text="#{error.action.dashboard}">Go to Dashboard</a>
+            <a href="javascript:history.back()" class="btn btn-secondary" th:text="#{error.action.back}">Go Back</a>
         </div>
         <div class="help-text">
-            If you continue to experience issues, please contact your system administrator.
+            <span th:text="#{errorGeneric.help}">If you continue to experience issues, please contact your system administrator.</span>
         </div>
     </div>
 </body>

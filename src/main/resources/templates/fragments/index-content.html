@@ -10,21 +10,21 @@
             <div class="reports-workspace">
                 <aside class="reports-tree-panel" aria-label="Reports explorer">
                     <div class="reports-tree-header">
-                        <h3>Reports Explorer</h3>
-                        <p>Browse authoring, library, and monitoring tools.</p>
+                        <h3 th:text="#{dashboard.explorer.title}">Reports Explorer</h3>
+                        <p th:text="#{dashboard.explorer.subtitle}">Browse authoring, library, and monitoring tools.</p>
                     </div>
 
                     <div class="reports-tree-group expanded" data-tree-section="authoring">
                         <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('authoring')" aria-expanded="true">
                             <span class="reports-tree-caret">▾</span>
-                            <span>Authoring</span>
+                            <span th:text="#{dashboard.tree.authoring}">Authoring</span>
                         </button>
                         <div class="reports-tree-children">
                             <button type="button" class="reports-tree-item active" data-report-tab="generate" onclick="switchReportsSubTab('generate')">
-                                ⚡ Generate Report
+                                ⚡ <span th:text="#{dashboard.report.generate}">Generate Report</span>
                             </button>
                             <button type="button" class="reports-tree-item" data-report-tab="update-jrxml" onclick="switchReportsSubTab('update-jrxml')">
-                                📤 Update JRXML
+                                📤 <span th:text="#{dashboard.report.updateJrxml}">Update JRXML</span>
                             </button>
                         </div>
                     </div>
@@ -32,14 +32,14 @@
                     <div class="reports-tree-group expanded" data-tree-section="library">
                         <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('library')" aria-expanded="true">
                             <span class="reports-tree-caret">▾</span>
-                            <span>Library</span>
+                            <span th:text="#{dashboard.tree.library}">Library</span>
                         </button>
                         <div class="reports-tree-children">
                             <button type="button" class="reports-tree-item" data-report-tab="templates" onclick="switchReportsSubTab('templates')">
-                                📋 Templates
+                                📋 <span th:text="#{dashboard.report.templates}">Templates</span>
                             </button>
                             <button type="button" class="reports-tree-item" data-report-tab="available-reports" onclick="switchReportsSubTab('available-reports')">
-                                📊 Available Reports
+                                📊 <span th:text="#{dashboard.report.available}">Available Reports</span>
                             </button>
                         </div>
                     </div>
@@ -47,11 +47,11 @@
                     <div class="reports-tree-group expanded" data-tree-section="monitoring">
                         <button type="button" class="reports-tree-group-toggle" onclick="toggleReportsTreeSection('monitoring')" aria-expanded="true">
                             <span class="reports-tree-caret">▾</span>
-                            <span>Monitoring</span>
+                            <span th:text="#{dashboard.tree.monitoring}">Monitoring</span>
                         </button>
                         <div class="reports-tree-children">
                             <button type="button" class="reports-tree-item" data-report-tab="execution-history" onclick="switchReportsSubTab('execution-history')">
-                                📜 Execution History
+                                📜 <span th:text="#{dashboard.report.history}">Execution History</span>
                             </button>
                         </div>
                     </div>
@@ -61,60 +61,60 @@
             <div id="reportSubTabGenerate" class="report-subtab-panel active">
                 <!-- Generate Report Section -->
                 <div id="generateReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                    <h2>⚡ Generate Report</h2>
+                    <h2>⚡ <span th:text="#{dashboard.generate.title}">Generate Report</span></h2>
                     <form id="generateForm">
                         <div class="form-group">
-                            <label for="reportSelect">Select Report:</label>
+                            <label for="reportSelect" th:text="#{dashboard.generate.selectReport}">Select Report:</label>
                             <select id="reportSelect" name="reportName" required>
-                                <option value="">-- Select a report --</option>
+                                <option value="" th:text="#{dashboard.generate.selectReport.placeholder}">-- Select a report --</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="formatSelect">Output Format:</label>
+                            <label for="formatSelect" th:text="#{dashboard.generate.outputFormat}">Output Format:</label>
                             <select id="formatSelect" name="format">
-                                <option value="pdf">PDF</option>
-                                <option value="html">HTML</option>
-                                <option value="xlsx">Microsoft Excel (XLSX)</option>
-                                <option value="xls">Microsoft Excel (XLS)</option>
-                                <option value="docx">Microsoft Word (DOCX)</option>
-                                <option value="rtf">Rich Text Format (RTF)</option>
-                                <option value="odt">OpenDocument Text (ODT)</option>
-                                <option value="csv">CSV (Comma-separated values)</option>
-                                <option value="xml">XML</option>
-                                <option value="txt">Plain Text (TXT)</option>
+                                <option value="pdf" th:text="#{dashboard.format.pdf}">PDF</option>
+                                <option value="html" th:text="#{dashboard.format.html}">HTML</option>
+                                <option value="xlsx" th:text="#{dashboard.format.xlsx}">Microsoft Excel (XLSX)</option>
+                                <option value="xls" th:text="#{dashboard.format.xls}">Microsoft Excel (XLS)</option>
+                                <option value="docx" th:text="#{dashboard.format.docx}">Microsoft Word (DOCX)</option>
+                                <option value="rtf" th:text="#{dashboard.format.rtf}">Rich Text Format (RTF)</option>
+                                <option value="odt" th:text="#{dashboard.format.odt}">OpenDocument Text (ODT)</option>
+                                <option value="csv" th:text="#{dashboard.format.csv}">CSV (Comma-separated values)</option>
+                                <option value="xml" th:text="#{dashboard.format.xml}">XML</option>
+                                <option value="txt" th:text="#{dashboard.format.txt}">Plain Text (TXT)</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="generateCategory">Category (optional):</label>
-                            <input type="text" id="generateCategory" name="category" placeholder="Finance, Sales, Inventory...">
+                            <label for="generateCategory" th:text="#{dashboard.generate.category}">Category (optional):</label>
+                            <input type="text" id="generateCategory" name="category" th:placeholder="#{dashboard.generate.category.placeholder}" placeholder="Finance, Sales, Inventory...">
                         </div>
 
                         <div class="form-group">
-                            <label for="generateTags">Tags (optional):</label>
-                            <input type="text" id="generateTags" name="tags" placeholder="monthly, kpi, executive">
+                            <label for="generateTags" th:text="#{dashboard.generate.tags}">Tags (optional):</label>
+                            <input type="text" id="generateTags" name="tags" th:placeholder="#{dashboard.generate.tags.placeholder}" placeholder="monthly, kpi, executive">
                         </div>
 
                         <div class="checkbox-group">
                             <input type="checkbox" id="useDatabaseCheck" name="useDatabase">
-                            <label for="useDatabaseCheck">Use Database Connection</label>
+                            <label for="useDatabaseCheck" th:text="#{dashboard.generate.useDatabase}">Use Database Connection</label>
                         </div>
 
                         <div class="form-group" id="datasourceGroup" style="display: none;">
-                            <label for="datasourceSelect">Select Datasource:</label>
+                            <label for="datasourceSelect" th:text="#{dashboard.generate.datasource}">Select Datasource:</label>
                             <select id="datasourceSelect" name="datasourceId">
-                                <option value="">-- Use default datasource --</option>
+                                <option value="" th:text="#{dashboard.generate.datasource.placeholder}">-- Use default datasource --</option>
                             </select>
                         </div>
 
                         <!-- Report Parameters Section -->
                         <div id="parametersSection" style="display: none;">
-                            <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">📝 Report Parameters</h3>
+                            <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;"><span th:text="#{dashboard.generate.parameters}">📝 Report Parameters</span></h3>
                             <div id="parametersContainer"></div>
                         </div>
 
-                        <button type="submit" class="btn">Generate Report</button>
+                        <button type="submit" class="btn" th:text="#{dashboard.generate.action}">Generate Report</button>
                     </form>
                     <div id="generateMessage" style="margin-top: 15px;"></div>
                 </div>
@@ -123,23 +123,23 @@
             <div id="reportSubTabUpdateJrxml" class="report-subtab-panel">
                 <!-- Upload Section -->
                 <div id="uploadReportSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                    <h2>📤 Upload JRXML Report</h2>
+                    <h2>📤 <span th:text="#{dashboard.upload.title}">Upload JRXML Report</span></h2>
                     <div class="form-group">
-                        <label for="uploadCategory">Category (optional):</label>
-                        <input type="text" id="uploadCategory" placeholder="Finance, Sales, Inventory...">
+                        <label for="uploadCategory" th:text="#{dashboard.upload.category}">Category (optional):</label>
+                        <input type="text" id="uploadCategory" th:placeholder="#{dashboard.generate.category.placeholder}" placeholder="Finance, Sales, Inventory...">
                     </div>
                     <div class="form-group">
-                        <label for="uploadTags">Tags (optional):</label>
-                        <input type="text" id="uploadTags" placeholder="invoice, monthly, dashboard">
+                        <label for="uploadTags" th:text="#{dashboard.upload.tags}">Tags (optional):</label>
+                        <input type="text" id="uploadTags" th:placeholder="#{dashboard.upload.tags.placeholder}" placeholder="invoice, monthly, dashboard">
                     </div>
                     <div class="form-group">
-                        <label for="uploadDescription">Description (optional):</label>
-                        <input type="text" id="uploadDescription" placeholder="Short description for this template">
+                        <label for="uploadDescription" th:text="#{dashboard.upload.description}">Description (optional):</label>
+                        <input type="text" id="uploadDescription" th:placeholder="#{dashboard.upload.description.placeholder}" placeholder="Short description for this template">
                     </div>
                     <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                         <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
-                        <p style="color: #667eea; font-size: 18px;">Click to select JRXML file</p>
-                        <p style="color: #999; margin-top: 10px;">or drag and drop here</p>
+                        <p style="color: #667eea; font-size: 18px;" th:text="#{dashboard.upload.selectFile}">Click to select JRXML file</p>
+                        <p style="color: #999; margin-top: 10px;" th:text="#{dashboard.upload.dragDrop}">or drag and drop here</p>
                     </div>
                     <input type="file" id="fileInput" accept=".jrxml" onchange="uploadFile()">
                     <div id="message"></div>
@@ -149,11 +149,11 @@
             <div id="reportSubTabTemplates" class="report-subtab-panel">
                 <!-- Available JRXML Templates (for Admins/Operators) -->
                 <div id="jrxmlTemplatesSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                    <h2>📋 Available JRXML Templates</h2>
+                    <h2>📋 <span th:text="#{dashboard.templates.title}">Available JRXML Templates</span></h2>
                     <div class="search-filter-bar">
-                        <input type="text" id="jrxmlSearch" class="filter-input" placeholder="🔍 Search templates..." oninput="debouncedLoadJrxmlTemplates()">
-                        <input type="text" id="jrxmlCategory" class="filter-input" placeholder="Category filter" oninput="debouncedLoadJrxmlTemplates()">
-                        <input type="text" id="jrxmlTag" class="filter-input" placeholder="Tag filter" oninput="debouncedLoadJrxmlTemplates()">
+                        <input type="text" id="jrxmlSearch" class="filter-input" th:placeholder="#{dashboard.templates.search}" placeholder="🔍 Search templates..." oninput="debouncedLoadJrxmlTemplates()">
+                        <input type="text" id="jrxmlCategory" class="filter-input" th:placeholder="#{dashboard.templates.categoryFilter}" placeholder="Category filter" oninput="debouncedLoadJrxmlTemplates()">
+                        <input type="text" id="jrxmlTag" class="filter-input" th:placeholder="#{dashboard.templates.tagFilter}" placeholder="Tag filter" oninput="debouncedLoadJrxmlTemplates()">
                     </div>
                     <div id="jrxmlPaginationTop" class="pagination-bar"></div>
                     <div id="jrxmlTemplateList" class="report-list"></div>
@@ -164,11 +164,11 @@
             <div id="reportSubTabAvailableReports" class="report-subtab-panel">
                 <!-- Available Reports (Generated Reports) -->
                 <div id="adminGeneratedReportsSection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
-                    <h2>📊 Available Reports</h2>
+                    <h2>📊 <span th:text="#{dashboard.available.title}">Available Reports</span></h2>
                     <div class="search-filter-bar">
-                        <input type="text" id="genSearch" class="filter-input" placeholder="🔍 Search reports..." oninput="debouncedLoadGeneratedReports()">
-                        <input type="text" id="genCategory" class="filter-input" placeholder="Category filter" oninput="debouncedLoadGeneratedReports()">
-                        <input type="text" id="genTag" class="filter-input" placeholder="Tag filter" oninput="debouncedLoadGeneratedReports()">
+                        <input type="text" id="genSearch" class="filter-input" th:placeholder="#{dashboard.available.search}" placeholder="🔍 Search reports..." oninput="debouncedLoadGeneratedReports()">
+                        <input type="text" id="genCategory" class="filter-input" th:placeholder="#{dashboard.templates.categoryFilter}" placeholder="Category filter" oninput="debouncedLoadGeneratedReports()">
+                        <input type="text" id="genTag" class="filter-input" th:placeholder="#{dashboard.templates.tagFilter}" placeholder="Tag filter" oninput="debouncedLoadGeneratedReports()">
                     </div>
                     <div id="genPaginationTop" class="pagination-bar"></div>
                     <div id="generatedReportList" class="report-list"></div>
@@ -178,21 +178,21 @@
                 <!-- Available Reports for READ_ONLY users (shared only) -->
                 <div id="readOnlyReportsSection" style="display: none;" sec:authorize="hasRole('READ_ONLY')">
                     <div class="card">
-                        <h2>📊 Available Reports</h2>
+                        <h2>📊 <span th:text="#{dashboard.available.title}">Available Reports</span></h2>
                         <div id="readOnlyReportList" class="report-list"></div>
                     </div>
                 </div>
 
                 <div id="embeddedViewerSection" class="card embedded-viewer-card">
                     <div class="embedded-viewer-header">
-                        <h2 id="embeddedViewerTitle">👁️ Embedded Report Viewer</h2>
-                        <button type="button" class="btn" id="viewerCloseBtn" onclick="closeEmbeddedViewer()" style="padding: 6px 14px; display: none;">Close</button>
+                        <h2 id="embeddedViewerTitle" th:text="#{dashboard.viewer.title}">👁️ Embedded Report Viewer</h2>
+                        <button type="button" class="btn" id="viewerCloseBtn" onclick="closeEmbeddedViewer()" style="padding: 6px 14px; display: none;" th:text="#{dashboard.action.close}">Close</button>
                     </div>
-                    <p id="embeddedViewerMeta" class="embedded-viewer-meta">Select a generated report and click Preview to open it here.</p>
+                    <p id="embeddedViewerMeta" class="embedded-viewer-meta" th:text="#{dashboard.viewer.meta}">Select a generated report and click Preview to open it here.</p>
                     <div class="embedded-viewer-stage">
                         <div id="embeddedViewerEmpty" class="embedded-viewer-empty">
-                            <strong>No report selected</strong>
-                            <span>Use the Preview action from a generated report card to load the viewer.</span>
+                            <strong th:text="#{dashboard.viewer.empty.title}">No report selected</strong>
+                            <span th:text="#{dashboard.viewer.empty.subtitle}">Use the Preview action from a generated report card to load the viewer.</span>
                         </div>
                         <iframe id="embeddedPreviewFrame" class="embedded-preview-frame" title="Embedded Report Preview"></iframe>
                     </div>
@@ -203,8 +203,8 @@
                 <!-- Execution History Section -->
                 <div id="executionHistorySection" class="card" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h2 style="margin: 0;">📜 Execution History</h2>
-                        <button class="btn" onclick="loadExecutionHistory(0)" style="padding: 6px 14px; background: #6c757d;">🔄 Refresh</button>
+                        <h2 style="margin: 0;">📜 <span th:text="#{dashboard.history.title}">Execution History</span></h2>
+                        <button class="btn" onclick="loadExecutionHistory(0)" style="padding: 6px 14px; background: #6c757d;" th:text="#{dashboard.action.refresh}">🔄 Refresh</button>
                     </div>
                     <div id="historyPaginationTop" class="pagination-bar"></div>
                     <div id="executionHistoryList" class="report-list"></div>
@@ -221,13 +221,13 @@
             <div class="card" style="padding: 15px; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: center; gap: 10px;">
                     <button class="btn" id="formBuilderBtn" onclick="switchBuilderMode('form')" style="flex: 1; max-width: 200px; background: #667eea;">
-                        📝 Form Builder
+                        📝 <span th:text="#{dashboard.builder.form}">Form Builder</span>
                     </button>
                     <button class="btn" id="visualBuilderBtn" onclick="switchBuilderMode('visual')" style="flex: 1; max-width: 200px; background: #6c757d;">
-                        🎨 Visual Builder
+                        🎨 <span th:text="#{dashboard.builder.visual}">Visual Builder</span>
                     </button>
                     <button class="btn" id="coverBuilderBtn" onclick="switchBuilderMode('cover')" style="flex: 1; max-width: 200px; background: #6c757d;">
-                        📘 Cover Page
+                        📘 <span th:text="#{dashboard.builder.cover}">Cover Page</span>
                     </button>
                 </div>
             </div>
@@ -235,160 +235,160 @@
             <!-- Form Builder (existing) -->
             <div id="formBuilderSection">
             <div class="card">
-                <h2>🔧 Report Builder</h2>
-                <p style="color: #666; margin-bottom: 20px;">Build a simple report from database tables</p>
+                <h2>🔧 <span th:text="#{dashboard.builder.title}">Report Builder</span></h2>
+                <p style="color: #666; margin-bottom: 20px;" th:text="#{dashboard.builder.subtitle}">Build a simple report from database tables</p>
                 
                 <form id="builderForm" onsubmit="generateBuilderReport(event)">
                     <div class="form-group">
-                        <label for="builderReportName">Report Name:</label>
-                        <input type="text" id="builderReportName" required placeholder="MyReport" />
+                        <label for="builderReportName" th:text="#{dashboard.builder.reportName}">Report Name:</label>
+                        <input type="text" id="builderReportName" required th:placeholder="#{dashboard.builder.reportName.placeholder}" placeholder="MyReport" />
                     </div>
 
                     <div class="form-group">
-                        <label for="fbCoverTemplateSelect">Cover Page Template:</label>
+                        <label for="fbCoverTemplateSelect" th:text="#{dashboard.builder.coverTemplate}">Cover Page Template:</label>
                         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                             <select id="fbCoverTemplateSelect" onchange="vbHandleCoverTemplateSelectionChange('form')" style="min-width: 280px;">
-                                <option value="">-- No Cover Page --</option>
+                                <option value="" th:text="#{dashboard.builder.coverTemplate.none}">-- No Cover Page --</option>
                             </select>
                             <button type="button" id="fbEditCoverTemplateBtn" class="btn vb-btn-secondary" style="display: none; padding: 6px 12px;" onclick="vbEditSelectedCoverTemplate('form')">
-                                Edit the cover page
+                                <span th:text="#{dashboard.builder.coverTemplate.edit}">Edit the cover page</span>
                             </button>
                         </div>
-                        <p style="margin: 6px 0 0; color: #5d6f86; font-size: 12px;">Select a saved cover template. Use Cover Page Builder to create or modify templates.</p>
+                        <p style="margin: 6px 0 0; color: #5d6f86; font-size: 12px;" th:text="#{dashboard.builder.coverTemplate.help}">Select a saved cover template. Use Cover Page Builder to create or modify templates.</p>
                     </div>
                     
                     <div class="form-group" style="margin-top: 10px;">
-                        <label for="builderOutputFormat">Report Output Format:</label>
+                        <label for="builderOutputFormat" th:text="#{dashboard.generate.outputFormat}">Report Output Format:</label>
                         <select id="builderOutputFormat">
-                            <option value="pdf" selected>PDF</option>
-                            <option value="html">HTML</option>
-                            <option value="xlsx">Microsoft Excel (XLSX)</option>
-                            <option value="xls">Microsoft Excel (XLS)</option>
-                            <option value="docx">Microsoft Word (DOCX)</option>
-                            <option value="rtf">Rich Text Format (RTF)</option>
-                            <option value="odt">OpenDocument Text (ODT)</option>
-                            <option value="csv">CSV</option>
-                            <option value="xml">XML</option>
-                            <option value="txt">Plain Text (TXT)</option>
+                            <option value="pdf" selected th:text="#{dashboard.format.pdf}">PDF</option>
+                            <option value="html" th:text="#{dashboard.format.html}">HTML</option>
+                            <option value="xlsx" th:text="#{dashboard.format.xlsx}">Microsoft Excel (XLSX)</option>
+                            <option value="xls" th:text="#{dashboard.format.xls}">Microsoft Excel (XLS)</option>
+                            <option value="docx" th:text="#{dashboard.format.docx}">Microsoft Word (DOCX)</option>
+                            <option value="rtf" th:text="#{dashboard.format.rtf}">Rich Text Format (RTF)</option>
+                            <option value="odt" th:text="#{dashboard.format.odt}">OpenDocument Text (ODT)</option>
+                            <option value="csv" th:text="#{dashboard.format.csv}">CSV</option>
+                            <option value="xml" th:text="#{dashboard.format.xml}">XML</option>
+                            <option value="txt" th:text="#{dashboard.format.txt}">Plain Text (TXT)</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
-                        <label for="builderDatasource">Select Datasource:</label>
+                        <label for="builderDatasource" th:text="#{dashboard.generate.datasource}">Select Datasource:</label>
                         <select id="builderDatasource" required onchange="loadBuilderTables()">
-                            <option value="">-- Select a datasource --</option>
+                            <option value="" th:text="#{dashboard.generate.datasource.select}">-- Select a datasource --</option>
                         </select>
                     </div>
                     
                     <div class="form-group" id="builderTableGroup" style="display: none;">
-                        <label for="builderTable">Select Table:</label>
+                        <label for="builderTable" th:text="#{dashboard.builder.table}">Select Table:</label>
                         <select id="builderTable" onchange="loadBuilderColumns()">
-                            <option value="">-- Select a table --</option>
+                            <option value="" th:text="#{dashboard.builder.table.select}">-- Select a table --</option>
                         </select>
                     </div>
                     
                     <div class="form-group" id="builderColumnsGroup" style="display: none;">
-                        <label>Select Columns:</label>
+                        <label th:text="#{dashboard.builder.columns}">Select Columns:</label>
                         <div style="margin-bottom: 10px;">
-                            <button type="button" onclick="selectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; margin-right: 10px;">✓ Select All</button>
-                            <button type="button" onclick="unselectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; background: #6c757d;">✗ Unselect All</button>
+                            <button type="button" onclick="selectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; margin-right: 10px;" th:text="#{dashboard.builder.selectAll}">✓ Select All</button>
+                            <button type="button" onclick="unselectAllColumns()" class="btn" style="display: inline-block; padding: 6px 12px; font-size: 14px; background: #6c757d;" th:text="#{dashboard.builder.unselectAll}">✗ Unselect All</button>
                         </div>
                         <div id="builderColumnsContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px;">
-                            <p style="color: #999;">Select a table first</p>
+                            <p style="color: #999;" th:text="#{dashboard.builder.selectTableFirst}">Select a table first</p>
                         </div>
                     </div>
                     
                     <!-- Parameters Section -->
                     <div class="form-group" id="builderParametersGroup" style="display: none;">
-                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">🔧 Parameters (Optional)</label>
-                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Parameters are input values you can pass to your report to filter data or customize output.</p>
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;" th:text="#{dashboard.parameters.title}">🔧 Parameters (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;" th:text="#{dashboard.parameters.help}">Parameters are input values you can pass to your report to filter data or customize output.</p>
                         <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;" th:text="#{dashboard.parameters.examples}">💡 Examples & Tips</summary>
                             <div style="margin-top: 10px; font-size: 13px; color: #555;">
-                                <p><strong>Date Filter:</strong> Name: startDate, Type: Date, Default: new java.util.Date()</p>
-                                <p><strong>Text Filter:</strong> Name: customerName, Type: String, Default: "All"</p>
-                                <p><strong>Number Filter:</strong> Name: minAmount, Type: BigDecimal, Default: 0</p>
-                                <p style="margin-top: 8px;"><em>Use in SQL: WHERE date >= $P{startDate} AND amount >= $P{minAmount}</em></p>
-                                <p><em>Tip: Parameters must be passed when generating the report. Use them in your SQL query to filter data.</em></p>
+                                <p th:text="#{dashboard.parameters.example.date}"><strong>Date Filter:</strong> Name: startDate, Type: Date, Default: new java.util.Date()</p>
+                                <p th:text="#{dashboard.parameters.example.text}"><strong>Text Filter:</strong> Name: customerName, Type: String, Default: "All"</p>
+                                <p th:text="#{dashboard.parameters.example.number}"><strong>Number Filter:</strong> Name: minAmount, Type: BigDecimal, Default: 0</p>
+                                <p style="margin-top: 8px;" th:text="#{dashboard.parameters.tip.sql}"><em>Use in SQL: WHERE date >= $P{startDate} AND amount >= $P{minAmount}</em></p>
+                                <p th:text="#{dashboard.parameters.tip.main}"><em>Tip: Parameters must be passed when generating the report. Use them in your SQL query to filter data.</em></p>
                             </div>
                         </details>
                         
-                        <button type="button" onclick="openParameterModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Parameter</button>
+                        <button type="button" onclick="openParameterModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;" th:text="#{dashboard.parameters.add}">➕ Add Parameter</button>
                         
                         <div id="parametersList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
-                            <p style="color: #999; text-align: center; margin: 20px 0;">No parameters added yet</p>
+                            <p style="color: #999; text-align: center; margin: 20px 0;" th:text="#{dashboard.empty.parameters}">No parameters added yet</p>
                         </div>
                     </div>
                     
                     <!-- Variables Section -->
                     <div class="form-group" id="builderVariablesGroup" style="display: none;">
-                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">📊 Variables (Optional)</label>
-                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Variables allow you to perform calculations, store values, and create running totals.</p>
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;" th:text="#{dashboard.variables.title}">📊 Variables (Optional)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;" th:text="#{dashboard.variables.help}">Variables allow you to perform calculations, store values, and create running totals.</p>
                         <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Tips</summary>
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;" th:text="#{dashboard.variables.examples}">💡 Examples & Tips</summary>
                             <div style="margin-top: 10px; font-size: 13px; color: #555;">
-                                <p><strong>Running Total:</strong> Name: totalSales, Type: BigDecimal, Calculation: Sum, Expression: $F{price}</p>
-                                <p><strong>Record Counter:</strong> Name: recordCount, Type: Integer, Calculation: Count, Expression: $F{id}</p>
-                                <p><strong>Page Numbering:</strong> Use built-in variable $V{PAGE_NUMBER}</p>
-                                <p style="margin-top: 8px;"><em>Tip: Variables are evaluated in the order they're declared. One variable can reference another declared before it.</em></p>
+                                <p th:text="#{dashboard.variables.example.total}"><strong>Running Total:</strong> Name: totalSales, Type: BigDecimal, Calculation: Sum, Expression: $F{price}</p>
+                                <p th:text="#{dashboard.variables.example.count}"><strong>Record Counter:</strong> Name: recordCount, Type: Integer, Calculation: Count, Expression: $F{id}</p>
+                                <p th:text="#{dashboard.variables.example.page}"><strong>Page Numbering:</strong> Use built-in variable $V{PAGE_NUMBER}</p>
+                                <p style="margin-top: 8px;" th:text="#{dashboard.variables.tip}"><em>Tip: Variables are evaluated in the order they're declared. One variable can reference another declared before it.</em></p>
                             </div>
                         </details>
                         
-                        <button type="button" onclick="openVariableModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Variable</button>
+                        <button type="button" onclick="openVariableModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;" th:text="#{dashboard.variables.add}">➕ Add Variable</button>
                         
                         <div id="variablesList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
-                            <p style="color: #999; text-align: center; margin: 20px 0;">No variables added yet</p>
+                            <p style="color: #999; text-align: center; margin: 20px 0;" th:text="#{dashboard.empty.variables}">No variables added yet</p>
                         </div>
                     </div>
                     
                     <!-- Datasets Section -->
                     <div class="form-group" id="builderDatasetsGroup" style="display: none;">
-                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">🗃️ Datasets (Optional - Advanced)</label>
-                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Datasets allow you to organize multiple queries within one report, useful for charts, tables, and aggregations.</p>
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;" th:text="#{dashboard.datasets.title}">🗃️ Datasets (Optional - Advanced)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;" th:text="#{dashboard.datasets.help}">Datasets allow you to organize multiple queries within one report, useful for charts, tables, and aggregations.</p>
                         <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Use Cases</summary>
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;" th:text="#{dashboard.datasets.examples}">💡 Examples & Use Cases</summary>
                             <div style="margin-top: 10px; font-size: 13px; color: #555;">
-                                <p><strong>Sales by Category:</strong> Name: CategorySales, Query: SELECT category, SUM(amount) FROM sales GROUP BY category</p>
-                                <p><strong>Top Products:</strong> Name: TopProducts, Query: SELECT product_name, quantity FROM orders ORDER BY quantity DESC LIMIT 10</p>
-                                <p><strong>Monthly Trends:</strong> Name: MonthlyData, Query: SELECT MONTH(date), AVG(value) FROM metrics GROUP BY MONTH(date)</p>
-                                <p style="margin-top: 8px;"><em>Use Case: Create charts, crosstabs, or tables that use different data than your main report query.</em></p>
-                                <p><em>Tip: Datasets can accept parameters from the main report. Use $P{parameterName} in dataset queries.</em></p>
+                                <p th:text="#{dashboard.datasets.example.category}"><strong>Sales by Category:</strong> Name: CategorySales, Query: SELECT category, SUM(amount) FROM sales GROUP BY category</p>
+                                <p th:text="#{dashboard.datasets.example.top}"><strong>Top Products:</strong> Name: TopProducts, Query: SELECT product_name, quantity FROM orders ORDER BY quantity DESC LIMIT 10</p>
+                                <p th:text="#{dashboard.datasets.example.monthly}"><strong>Monthly Trends:</strong> Name: MonthlyData, Query: SELECT MONTH(date), AVG(value) FROM metrics GROUP BY MONTH(date)</p>
+                                <p style="margin-top: 8px;" th:text="#{dashboard.datasets.useCase}"><em>Use Case: Create charts, crosstabs, or tables that use different data than your main report query.</em></p>
+                                <p th:text="#{dashboard.datasets.tip}"><em>Tip: Datasets can accept parameters from the main report. Use $P{parameterName} in dataset queries.</em></p>
                             </div>
                         </details>
                         
-                        <button type="button" onclick="openDatasetModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Dataset</button>
+                        <button type="button" onclick="openDatasetModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;" th:text="#{dashboard.datasets.add}">➕ Add Dataset</button>
                         
                         <div id="datasetsList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
-                            <p style="color: #999; text-align: center; margin: 20px 0;">No datasets added yet</p>
+                            <p style="color: #999; text-align: center; margin: 20px 0;" th:text="#{dashboard.empty.datasets}">No datasets added yet</p>
                         </div>
                     </div>
                     
                     <!-- Subreports Section -->
                     <div class="form-group" id="builderSubreportsGroup" style="display: none;">
-                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;">📑 Subreports (Optional - Advanced)</label>
-                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Subreports embed one report inside another, perfect for combining data from multiple datasources.</p>
+                        <label style="font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block;" th:text="#{dashboard.subreports.title}">📑 Subreports (Optional - Advanced)</label>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;" th:text="#{dashboard.subreports.help}">Subreports embed one report inside another, perfect for combining data from multiple datasources.</p>
                         <details style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;">💡 Examples & Use Cases</summary>
+                            <summary style="cursor: pointer; font-weight: 500; color: #667eea;" th:text="#{dashboard.subreports.examples}">💡 Examples & Use Cases</summary>
                             <div style="margin-top: 10px; font-size: 13px; color: #555;">
-                                <p><strong>Customer Orders:</strong> Main report shows customers, subreport shows their orders (different datasource)</p>
-                                <p><strong>Multi-Source Invoice:</strong> Main report from billing DB, subreport items from inventory DB</p>
-                                <p><strong>Summary with Details:</strong> Main report shows totals, subreport lists all transactions</p>
-                                <p style="margin-top: 8px;"><em>Use Case: Combine data from different databases or tables that can't be joined with SQL.</em></p>
-                                <p><em>Tip: You can pass parameters from main report to subreport, and each subreport can use a different datasource!</em></p>
+                                <p th:text="#{dashboard.subreports.example.customer}"><strong>Customer Orders:</strong> Main report shows customers, subreport shows their orders (different datasource)</p>
+                                <p th:text="#{dashboard.subreports.example.invoice}"><strong>Multi-Source Invoice:</strong> Main report from billing DB, subreport items from inventory DB</p>
+                                <p th:text="#{dashboard.subreports.example.summary}"><strong>Summary with Details:</strong> Main report shows totals, subreport lists all transactions</p>
+                                <p style="margin-top: 8px;" th:text="#{dashboard.subreports.useCase}"><em>Use Case: Combine data from different databases or tables that can't be joined with SQL.</em></p>
+                                <p th:text="#{dashboard.subreports.tip}"><em>Tip: You can pass parameters from main report to subreport, and each subreport can use a different datasource!</em></p>
                             </div>
                         </details>
                         
-                        <button type="button" onclick="openSubreportModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;">➕ Add Subreport</button>
+                        <button type="button" onclick="openSubreportModal()" class="btn" style="display: inline-block; padding: 8px 16px; font-size: 14px; margin-bottom: 15px;" th:text="#{dashboard.subreports.add}">➕ Add Subreport</button>
                         
                         <div id="subreportsList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 80px;">
-                            <p style="color: #999; text-align: center; margin: 20px 0;">No subreports added yet - Note: Upload subreport JRXML files first</p>
+                            <p style="color: #999; text-align: center; margin: 20px 0;" th:text="#{dashboard.empty.subreports}">No subreports added yet - Note: Upload subreport JRXML files first</p>
                         </div>
                     </div>
 
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn">🚀 Generate JRXML</button>
-                        <button type="button" class="btn" onclick="generateBuilderAndReport(event)">⚡ Generate JRXML and Report</button>
-                        <button type="button" class="btn vb-btn-secondary" onclick="generateBuilderReportOnly(event)">📄 Generate Report Only</button>
+                        <button type="submit" class="btn" th:text="#{dashboard.builder.generateJrxml}">🚀 Generate JRXML</button>
+                        <button type="button" class="btn" onclick="generateBuilderAndReport(event)" th:text="#{dashboard.builder.generateJrxmlAndReport}">⚡ Generate JRXML and Report</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="generateBuilderReportOnly(event)" th:text="#{dashboard.builder.generateReportOnly}">📄 Generate Report Only</button>
                     </div>
                     
                     <div id="builderMessage" style="margin-top: 15px;"></div>
@@ -401,103 +401,103 @@
                 <div class="card vb-studio-card">
                     <div class="vb-studio-header">
                         <div>
-                            <h2 class="vb-studio-title">Visual Report Builder</h2>
-                            <p class="vb-studio-subtitle">Studio layout with component palette, workspace canvas, and rich property inspector</p>
+                            <h2 class="vb-studio-title" th:text="#{dashboard.visual.title}">Visual Report Builder</h2>
+                            <p class="vb-studio-subtitle" th:text="#{dashboard.visual.subtitle}">Studio layout with component palette, workspace canvas, and rich property inspector</p>
                         </div>
                     </div>
 
                     <div class="vb-toolbar">
-                        <input type="text" id="vbReportName" class="vb-input" placeholder="Report Name" />
+                        <input type="text" id="vbReportName" class="vb-input" th:placeholder="#{dashboard.builder.reportName.placeholder}" placeholder="Report Name" />
 
                         <select id="vbDatasourceSelect" class="vb-select" onchange="vbLoadTables()">
-                            <option value="">Select Datasource</option>
+                            <option value="" th:text="#{dashboard.generate.datasource.select}">Select Datasource</option>
                         </select>
 
                         <select id="vbOrientationSelect" class="vb-select" onchange="vbChangeOrientation()">
-                            <option value="portrait" selected>Portrait</option>
-                            <option value="landscape">Landscape</option>
+                            <option value="portrait" selected th:text="#{dashboard.visual.orientation.portrait}">Portrait</option>
+                            <option value="landscape" th:text="#{dashboard.visual.orientation.landscape}">Landscape</option>
                         </select>
 
-                        <select id="vbOutputFormat" class="vb-select" title="Output format for report-generation actions">
-                            <option value="pdf" selected>PDF</option>
-                            <option value="html">HTML</option>
-                            <option value="xlsx">XLSX</option>
-                            <option value="xls">XLS</option>
-                            <option value="docx">DOCX</option>
-                            <option value="rtf">RTF</option>
-                            <option value="odt">ODT</option>
-                            <option value="csv">CSV</option>
-                            <option value="xml">XML</option>
-                            <option value="txt">TXT</option>
+                        <select id="vbOutputFormat" class="vb-select" th:title="#{dashboard.visual.outputTitle}">
+                            <option value="pdf" selected th:text="#{dashboard.format.pdf}">PDF</option>
+                            <option value="html" th:text="#{dashboard.format.html}">HTML</option>
+                            <option value="xlsx" th:text="#{dashboard.format.xlsx}">XLSX</option>
+                            <option value="xls" th:text="#{dashboard.format.xls}">XLS</option>
+                            <option value="docx" th:text="#{dashboard.format.docx}">DOCX</option>
+                            <option value="rtf" th:text="#{dashboard.format.rtf}">RTF</option>
+                            <option value="odt" th:text="#{dashboard.format.odt}">ODT</option>
+                            <option value="csv" th:text="#{dashboard.format.csv}">CSV</option>
+                            <option value="xml" th:text="#{dashboard.format.xml}">XML</option>
+                            <option value="txt" th:text="#{dashboard.format.txt}">TXT</option>
                         </select>
 
-                        <button type="button" class="btn vb-btn-secondary" onclick="vbClear()">Clear Canvas</button>
-                        <button type="button" class="btn" onclick="vbGenerate()">Generate JRXML</button>
-                        <button type="button" class="btn" onclick="vbGenerateAndReport()">Generate JRXML and Report</button>
-                        <button type="button" class="btn vb-btn-secondary" onclick="vbGenerateReportOnly()">Generate Report Only</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="vbClear()" th:text="#{dashboard.visual.clear}">Clear Canvas</button>
+                        <button type="button" class="btn" onclick="vbGenerate()" th:text="#{dashboard.builder.generateJrxml}">Generate JRXML</button>
+                        <button type="button" class="btn" onclick="vbGenerateAndReport()" th:text="#{dashboard.builder.generateJrxmlAndReport}">Generate JRXML and Report</button>
+                        <button type="button" class="btn vb-btn-secondary" onclick="vbGenerateReportOnly()" th:text="#{dashboard.builder.generateReportOnly}">Generate Report Only</button>
                     </div>
 
                     <div class="vb-toolbar-options">
                         <label class="vb-inline-check" title="When enabled, elements in the header zone print only on page 1.">
                             <input type="checkbox" id="vbHeaderFirstPageOnly" />
-                            Header only on first page
+                            <span th:text="#{dashboard.visual.headerFirstPageOnly}">Header only on first page</span>
                         </label>
 
                         <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                            <span style="font-size: 13px; color: #5d6f86;">Cover template:</span>
+                            <span style="font-size: 13px; color: #5d6f86;" th:text="#{dashboard.builder.coverTemplate}">Cover template:</span>
                             <select id="vbVisualCoverTemplateSelect" class="vb-select" style="min-width: 240px;" onchange="vbHandleCoverTemplateSelectionChange('visual')">
-                                <option value="">-- No Cover Page --</option>
+                                <option value="" th:text="#{dashboard.builder.coverTemplate.none}">-- No Cover Page --</option>
                             </select>
                             <button type="button" id="vbVisualEditCoverTemplateBtn" class="btn vb-btn-secondary" style="display: none; padding: 6px 12px;" onclick="vbEditSelectedCoverTemplate('visual')">
-                                Edit the cover page
+                                <span th:text="#{dashboard.builder.coverTemplate.edit}">Edit the cover page</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="vb-studio-layout">
                         <aside class="vb-panel vb-panel-left">
-                            <div class="vb-panel-title">Palette</div>
+                            <div class="vb-panel-title" th:text="#{dashboard.visual.palette}">Palette</div>
 
                             <div class="vb-panel-section">
-                                <div class="vb-panel-section-title">Basic Elements</div>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')">Text</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')">Label</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')">Field</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')">Line</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')">Rectangle</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')">Page Number</button>
-                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')">Date</button>
+                                <div class="vb-panel-section-title" th:text="#{dashboard.visual.basicElements}">Basic Elements</div>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'text')" ondragend="vbEndDrag(event)" onclick="vbAddElement('text')" th:text="#{dashboard.visual.element.text}">Text</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'label')" ondragend="vbEndDrag(event)" onclick="vbAddElement('label')" th:text="#{dashboard.visual.element.label}">Label</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'field')" ondragend="vbEndDrag(event)" onclick="vbAddElement('field')" th:text="#{dashboard.visual.element.field}">Field</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'line')" ondragend="vbEndDrag(event)" onclick="vbAddElement('line')" th:text="#{dashboard.visual.element.line}">Line</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'rectangle')" ondragend="vbEndDrag(event)" onclick="vbAddElement('rectangle')" th:text="#{dashboard.visual.element.rectangle}">Rectangle</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'pageNumber')" ondragend="vbEndDrag(event)" onclick="vbAddElement('pageNumber')" th:text="#{dashboard.visual.element.pageNumber}">Page Number</button>
+                                <button type="button" class="vb-toolbox-btn" draggable="true" ondragstart="vbStartDrag(event, 'date')" ondragend="vbEndDrag(event)" onclick="vbAddElement('date')" th:text="#{dashboard.visual.element.date}">Date</button>
                             </div>
 
                             <div class="vb-panel-section">
-                                <div class="vb-panel-section-title">Database Tables</div>
-                                <div id="vbTablesList" class="vb-table-list-empty">Select a datasource to load tables</div>
+                                <div class="vb-panel-section-title" th:text="#{dashboard.visual.tables}">Database Tables</div>
+                                <div id="vbTablesList" class="vb-table-list-empty" th:text="#{dashboard.visual.tables.empty}">Select a datasource to load tables</div>
                             </div>
 
                             <div class="vb-panel-section">
-                                <div class="vb-panel-section-title">Resources</div>
-                                <button type="button" class="vb-toolbox-btn" onclick="vbAddLogo()">Image / Logo</button>
+                                <div class="vb-panel-section-title" th:text="#{dashboard.visual.resources}">Resources</div>
+                                <button type="button" class="vb-toolbox-btn" onclick="vbAddLogo()" th:text="#{dashboard.visual.resource.logo}">Image / Logo</button>
                                 <input type="file" id="vbLogoInput" accept="image/*" style="display: none;" onchange="vbUploadLogo(event)" />
                             </div>
                         </aside>
 
                         <section class="vb-workspace">
                             <div class="vb-workspace-header">
-                                <span>Canvas</span>
-                                <span class="vb-workspace-band-label" id="vbCanvasStatus">Orientation: Portrait · Zones: Header / Body / Footer</span>
+                                <span th:text="#{dashboard.visual.canvas}">Canvas</span>
+                                <span class="vb-workspace-band-label" id="vbCanvasStatus" th:text="#{dashboard.visual.canvasStatus}">Orientation: Portrait · Zones: Header / Body / Footer</span>
                             </div>
 
                             <div id="vbCanvas" class="vb-canvas-surface">
                                 <div id="vbPlaceholder" class="vb-placeholder">
-                                    <p class="vb-placeholder-title">Drop Components Here</p>
-                                    <p class="vb-placeholder-subtitle">Drag from palette or click an element to insert it into Header, Body, or Footer.</p>
+                                    <p class="vb-placeholder-title" th:text="#{dashboard.visual.placeholder.title}">Drop Components Here</p>
+                                    <p class="vb-placeholder-subtitle" th:text="#{dashboard.visual.placeholder.subtitle}">Drag from palette or click an element to insert it into Header, Body, or Footer.</p>
                                 </div>
                             </div>
                         </section>
 
                         <aside id="vbProperties" class="vb-panel vb-panel-right">
-                            <div class="vb-panel-title">Properties</div>
-                            <div id="vbPropsPanel" class="vb-props-empty">Select an element on the canvas to edit its properties.</div>
+                            <div class="vb-panel-title" th:text="#{dashboard.visual.properties}">Properties</div>
+                            <div id="vbPropsPanel" class="vb-props-empty" th:text="#{dashboard.visual.properties.empty}">Select an element on the canvas to edit its properties.</div>
                         </aside>
                     </div>
                 </div>
@@ -508,127 +508,127 @@
                 <div class="card vb-studio-card">
                     <div class="vb-studio-header">
                         <div>
-                            <h2 class="vb-studio-title">Cover Page Builder</h2>
-                            <p class="vb-studio-subtitle">Design one reusable cover page and choose where to apply it.</p>
+                            <h2 class="vb-studio-title" th:text="#{dashboard.cover.title}">Cover Page Builder</h2>
+                            <p class="vb-studio-subtitle" th:text="#{dashboard.cover.subtitle}">Design one reusable cover page and choose where to apply it.</p>
                         </div>
                     </div>
 
                     <div class="vb-toolbar-options">
                         <label class="vb-inline-check" title="Enable a dedicated cover page before report content.">
                             <input type="checkbox" id="vbEnableCoverPage" checked onchange="vbToggleCoverOptions()" />
-                            Enable cover page
+                            <span th:text="#{dashboard.cover.enable}">Enable cover page</span>
                         </label>
-                        <span style="font-size: 13px; color: #5d6f86;">Save templates here, then select them in Visual Builder or Form Builder.</span>
+                        <span style="font-size: 13px; color: #5d6f86;" th:text="#{dashboard.cover.help}">Save templates here, then select them in Visual Builder or Form Builder.</span>
                     </div>
 
                     <div id="vbCoverEditor" class="vb-cover-editor" style="display: none;">
-                        <div class="vb-cover-editor-title">Cover Page Editor</div>
+                        <div class="vb-cover-editor-title" th:text="#{dashboard.cover.editor}">Cover Page Editor</div>
 
                         <div class="vb-cover-preset-row">
                             <div class="vb-prop-field">
-                                <label for="vbCoverPreset">Cover Template</label>
+                                <label for="vbCoverPreset" th:text="#{dashboard.cover.preset}">Cover Template</label>
                                 <select id="vbCoverPreset" class="vb-select" onchange="vbApplyCoverPreset()">
-                                    <option value="custom" selected>Custom</option>
-                                    <option value="corporate">Corporate</option>
-                                    <option value="minimal">Minimal</option>
-                                    <option value="executive">Executive</option>
+                                    <option value="custom" selected th:text="#{dashboard.cover.preset.custom}">Custom</option>
+                                    <option value="corporate" th:text="#{dashboard.cover.preset.corporate}">Corporate</option>
+                                    <option value="minimal" th:text="#{dashboard.cover.preset.minimal}">Minimal</option>
+                                    <option value="executive" th:text="#{dashboard.cover.preset.executive}">Executive</option>
                                 </select>
                             </div>
 
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbApplyCoverPreset()">Apply Template</button>
-                            <p class="vb-cover-hint">Templates prefill title, subtitle, author, date, alignment, and typography.</p>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbApplyCoverPreset()" th:text="#{dashboard.cover.apply}">Apply Template</button>
+                            <p class="vb-cover-hint" th:text="#{dashboard.cover.hint}">Templates prefill title, subtitle, author, date, alignment, and typography.</p>
                         </div>
 
                         <div class="vb-cover-save-row">
-                            <input type="text" id="vbCoverPresetName" class="vb-input" placeholder="My template name" maxlength="60" />
+                            <input type="text" id="vbCoverPresetName" class="vb-input" th:placeholder="#{dashboard.cover.presetName.placeholder}" placeholder="My template name" maxlength="60" />
                             <label class="vb-inline-check" title="Store uploaded cover assets with the template in your browser.">
                                 <input type="checkbox" id="vbCoverPresetIncludeLogo" checked />
-                                Include uploaded files in template
+                                <span th:text="#{dashboard.cover.includeFiles}">Include uploaded files in template</span>
                             </label>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbSaveCoverPreset()">Save My Template</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbDeleteCoverPreset()">Delete Selected Template</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbDownloadCoverTemplate()">Download Template</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverTemplateImportInput').click()">Import Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbSaveCoverPreset()" th:text="#{dashboard.cover.save}">Save My Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbDeleteCoverPreset()" th:text="#{dashboard.cover.delete}">Delete Selected Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbDownloadCoverTemplate()" th:text="#{dashboard.cover.download}">Download Template</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverTemplateImportInput').click()" th:text="#{dashboard.cover.import}">Import Template</button>
                             <input type="file" id="vbCoverTemplateImportInput" accept=".json,application/json" style="display: none;" onchange="vbImportCoverTemplate(event)" />
-                            <p class="vb-cover-hint">Saved templates are stored locally in your browser for quick reuse.</p>
+                            <p class="vb-cover-hint" th:text="#{dashboard.cover.savedLocal}">Saved templates are stored locally in your browser for quick reuse.</p>
                         </div>
 
                         <div class="vb-cover-grid">
                             <div class="vb-prop-field">
-                                <label for="vbCoverTitle">Cover Title</label>
-                                <input type="text" id="vbCoverTitle" class="vb-input vb-cover-input" placeholder="Quarterly Sales Report" />
+                                <label for="vbCoverTitle" th:text="#{dashboard.cover.titleField}">Cover Title</label>
+                                <input type="text" id="vbCoverTitle" class="vb-input vb-cover-input" th:placeholder="#{dashboard.cover.titleField.placeholder}" placeholder="Quarterly Sales Report" />
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverSubtitle">Cover Subtitle</label>
-                                <input type="text" id="vbCoverSubtitle" class="vb-input vb-cover-input" placeholder="Region, period, and KPI focus" />
+                                <label for="vbCoverSubtitle" th:text="#{dashboard.cover.subtitleField}">Cover Subtitle</label>
+                                <input type="text" id="vbCoverSubtitle" class="vb-input vb-cover-input" th:placeholder="#{dashboard.cover.subtitleField.placeholder}" placeholder="Region, period, and KPI focus" />
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverAuthor">Author / Department</label>
-                                <input type="text" id="vbCoverAuthor" class="vb-input vb-cover-input" placeholder="Prepared by BI Team" />
+                                <label for="vbCoverAuthor" th:text="#{dashboard.cover.authorField}">Author / Department</label>
+                                <input type="text" id="vbCoverAuthor" class="vb-input vb-cover-input" th:placeholder="#{dashboard.cover.authorField.placeholder}" placeholder="Prepared by BI Team" />
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverAlignment">Text Alignment</label>
+                                <label for="vbCoverAlignment" th:text="#{dashboard.cover.alignment}">Text Alignment</label>
                                 <select id="vbCoverAlignment" class="vb-select">
-                                    <option value="Center" selected>Center</option>
-                                    <option value="Left">Left</option>
-                                    <option value="Right">Right</option>
+                                    <option value="Center" selected th:text="#{dashboard.cover.alignment.center}">Center</option>
+                                    <option value="Left" th:text="#{dashboard.cover.alignment.left}">Left</option>
+                                    <option value="Right" th:text="#{dashboard.cover.alignment.right}">Right</option>
                                 </select>
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverTheme">Cover Theme</label>
+                                <label for="vbCoverTheme" th:text="#{dashboard.cover.theme}">Cover Theme</label>
                                 <select id="vbCoverTheme" class="vb-select">
-                                    <option value="classicBlue" selected>Classic Blue</option>
-                                    <option value="forest">Forest</option>
-                                    <option value="sunrise">Sunrise</option>
-                                    <option value="charcoal">Charcoal</option>
-                                    <option value="midnightGold">Midnight Gold</option>
+                                    <option value="classicBlue" selected th:text="#{dashboard.cover.theme.classicBlue}">Classic Blue</option>
+                                    <option value="forest" th:text="#{dashboard.cover.theme.forest}">Forest</option>
+                                    <option value="sunrise" th:text="#{dashboard.cover.theme.sunrise}">Sunrise</option>
+                                    <option value="charcoal" th:text="#{dashboard.cover.theme.charcoal}">Charcoal</option>
+                                    <option value="midnightGold" th:text="#{dashboard.cover.theme.midnightGold}">Midnight Gold</option>
                                 </select>
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverTitleSize">Title Size</label>
+                                <label for="vbCoverTitleSize" th:text="#{dashboard.cover.titleSize}">Title Size</label>
                                 <input type="number" id="vbCoverTitleSize" class="vb-input" min="12" max="72" value="30" />
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverSubtitleSize">Subtitle Size</label>
+                                <label for="vbCoverSubtitleSize" th:text="#{dashboard.cover.subtitleSize}">Subtitle Size</label>
                                 <input type="number" id="vbCoverSubtitleSize" class="vb-input" min="10" max="48" value="16" />
                             </div>
 
                             <div class="vb-prop-field">
-                                <label for="vbCoverDatePattern">Date Format</label>
-                                <input type="text" id="vbCoverDatePattern" class="vb-input" value="dd/MM/yyyy" placeholder="dd/MM/yyyy" />
+                                <label for="vbCoverDatePattern" th:text="#{dashboard.cover.dateFormat}">Date Format</label>
+                                <input type="text" id="vbCoverDatePattern" class="vb-input" value="dd/MM/yyyy" th:placeholder="#{dashboard.cover.dateFormat.placeholder}" placeholder="dd/MM/yyyy" />
                             </div>
 
                             <div class="vb-prop-field vb-cover-check-row">
                                 <label class="vb-inline-check" title="Show generation date on the cover page.">
                                     <input type="checkbox" id="vbCoverShowDate" checked />
-                                    Show Date
+                                    <span th:text="#{dashboard.cover.showDate}">Show Date</span>
                                 </label>
                             </div>
 
                             <div class="vb-prop-field vb-cover-check-row">
                                 <label class="vb-inline-check" title="Include report name text on the cover page.">
                                     <input type="checkbox" id="vbCoverIncludeReportName" checked />
-                                    Include Report Name
+                                    <span th:text="#{dashboard.cover.includeReportName}">Include Report Name</span>
                                 </label>
                             </div>
 
                             <div class="vb-prop-field vb-cover-check-row">
                                 <label class="vb-inline-check" title="Draw an accent line under cover metadata.">
                                     <input type="checkbox" id="vbCoverAccentEnabled" checked />
-                                    Accent Line
+                                    <span th:text="#{dashboard.cover.accentLine}">Accent Line</span>
                                 </label>
                             </div>
 
                             <div class="vb-prop-field vb-cover-check-row">
                                 <label class="vb-inline-check" title="Add a soft background shape on the cover.">
                                     <input type="checkbox" id="vbCoverBackgroundShapeEnabled" checked />
-                                    Background Shape
+                                    <span th:text="#{dashboard.cover.backgroundShape}">Background Shape</span>
                                 </label>
                             </div>
                         </div>
@@ -636,31 +636,31 @@
                         <div class="vb-cover-logo-row">
                             <input type="hidden" id="vbCoverLogoData" />
                             <input type="file" id="vbCoverLogoInput" accept="image/*" style="display: none;" onchange="vbUploadCoverLogo(event)" />
-                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverLogoInput').click()">Upload Cover Logo</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverLogo()">Remove Cover Logo</button>
-                            <span id="vbCoverLogoStatus" class="vb-cover-logo-status">No logo selected</span>
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverLogoInput').click()" th:text="#{dashboard.cover.uploadLogo}">Upload Cover Logo</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverLogo()" th:text="#{dashboard.cover.removeLogo}">Remove Cover Logo</button>
+                            <span id="vbCoverLogoStatus" class="vb-cover-logo-status" th:text="#{dashboard.cover.noLogo}">No logo selected</span>
                         </div>
 
                         <div class="vb-cover-logo-row">
                             <input type="hidden" id="vbCoverPageFileData" />
                             <input type="file" id="vbCoverPageFileInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display: none;" onchange="vbUploadCoverPageFile(event)" />
-                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverPageFileInput').click()">Upload Cover Page File</button>
-                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverPageFile()">Remove Cover Page File</button>
-                            <span id="vbCoverPageFileStatus" class="vb-cover-logo-status">No cover page file selected</span>
+                            <button type="button" class="btn vb-btn-secondary" onclick="document.getElementById('vbCoverPageFileInput').click()" th:text="#{dashboard.cover.uploadFile}">Upload Cover Page File</button>
+                            <button type="button" class="btn vb-btn-secondary" onclick="vbRemoveCoverPageFile()" th:text="#{dashboard.cover.removeFile}">Remove Cover Page File</button>
+                            <span id="vbCoverPageFileStatus" class="vb-cover-logo-status" th:text="#{dashboard.cover.noFile}">No cover page file selected</span>
                         </div>
 
                         <div id="vbCoverLogoPreview" class="vb-cover-logo-preview" style="display: none;"></div>
 
                         <div class="vb-cover-preview-wrap">
-                            <div class="vb-cover-editor-title">Live Preview</div>
+                            <div class="vb-cover-editor-title" th:text="#{dashboard.cover.preview}">Live Preview</div>
                             <div class="vb-cover-preview-toolbar">
                                 <label class="vb-inline-check" title="Preview with real A4 page dimensions. Scroll to inspect the full page.">
                                     <input type="checkbox" id="vbCoverPreviewA4Scale" />
-                                    Full A4 Scale Preview
+                                    <span th:text="#{dashboard.cover.previewA4}">Full A4 Scale Preview</span>
                                 </label>
                             </div>
                             <div class="vb-cover-live-preview-stage">
-                                <div id="vbCoverLivePreview" class="vb-cover-live-preview-empty">Enable cover page to preview.</div>
+                                <div id="vbCoverLivePreview" class="vb-cover-live-preview-empty" th:text="#{dashboard.cover.previewEmpty}">Enable cover page to preview.</div>
                             </div>
                         </div>
                     </div>
@@ -671,20 +671,20 @@
         <!-- Datasources Tab -->
         <div id="datasourcesTab" class="tab-content" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
             <div class="card">
-                <h2>🗄️ Datasource Management</h2>
-                <button class="btn" onclick="openDatasourceModal()">➕ Add New Datasource</button>
+                <h2>🗄️ <span th:text="#{dashboard.datasources.title}">Datasource Management</span></h2>
+                <button class="btn" onclick="openDatasourceModal()" th:text="#{dashboard.datasources.add}">➕ Add New Datasource</button>
                 <table class="datasource-table" id="datasourceTable">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Details</th>
-                            <th>Actions</th>
+                            <th th:text="#{dashboard.datasources.table.name}">Name</th>
+                            <th th:text="#{dashboard.datasources.table.type}">Type</th>
+                            <th th:text="#{dashboard.datasources.table.details}">Details</th>
+                            <th th:text="#{dashboard.datasources.table.actions}">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="datasourceTableBody">
                         <tr>
-                            <td colspan="4" style="text-align: center; color: #999;">No datasources configured</td>
+                            <td colspan="4" style="text-align: center; color: #999;" th:text="#{dashboard.datasources.empty}">No datasources configured</td>
                         </tr>
                     </tbody>
                 </table>
@@ -694,27 +694,27 @@
         <!-- Schedules Tab -->
         <div id="schedulesTab" class="tab-content" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
             <div class="card">
-                <h2>⏰ Scheduled Reports</h2>
-                <p style="color: #666; margin-bottom: 20px;">Automate report generation on a recurring schedule. Reports are saved to the output directory.</p>
-                <button class="btn" onclick="openScheduleModal()">➕ Create New Schedule</button>
+                <h2>⏰ <span th:text="#{dashboard.schedules.title}">Scheduled Reports</span></h2>
+                <p style="color: #666; margin-bottom: 20px;" th:text="#{dashboard.schedules.subtitle}">Automate report generation on a recurring schedule. Reports are saved to the output directory.</p>
+                <button class="btn" onclick="openScheduleModal()" th:text="#{dashboard.schedules.add}">➕ Create New Schedule</button>
                 
                 <div id="schedulesListContainer" style="margin-top: 20px;">
                     <table class="datasource-table" id="schedulesTable">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Report</th>
-                                <th>Frequency</th>
-                                <th>Format</th>
-                                <th>Next Run</th>
-                                <th>Last Run</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th th:text="#{dashboard.schedules.table.name}">Name</th>
+                                <th th:text="#{dashboard.schedules.table.report}">Report</th>
+                                <th th:text="#{dashboard.schedules.table.frequency}">Frequency</th>
+                                <th th:text="#{dashboard.schedules.table.format}">Format</th>
+                                <th th:text="#{dashboard.schedules.table.nextRun}">Next Run</th>
+                                <th th:text="#{dashboard.schedules.table.lastRun}">Last Run</th>
+                                <th th:text="#{dashboard.schedules.table.status}">Status</th>
+                                <th th:text="#{dashboard.schedules.table.actions}">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="schedulesTableBody">
                             <tr>
-                                <td colspan="8" style="text-align: center; color: #999;">No scheduled reports configured</td>
+                                <td colspan="8" style="text-align: center; color: #999;" th:text="#{dashboard.schedules.empty}">No scheduled reports configured</td>
                             </tr>
                         </tbody>
                     </table>

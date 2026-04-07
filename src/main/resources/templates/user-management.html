@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-    <title>User Management - Reports Server</title>
+    <title th:text="#{users.title}">User Management - Reports Server</title>
     <link rel="stylesheet" href="/css/index.css">
     <style>
         .container {
@@ -202,32 +202,32 @@
             <div style="display: flex; align-items: center; gap: 15px;">
                 <span style="font-size: 48px;">👤</span>
                 <div>
-                    <h3 style="color: white; margin: 0 0 5px 0; border: none; padding: 0;">Logged in as</h3>
+                    <h3 style="color: white; margin: 0 0 5px 0; border: none; padding: 0;" th:text="#{users.loggedInAs}">Logged in as</h3>
                     <p id="currentUserUsername" style="font-size: 20px; font-weight: 600; margin: 0;" sec:authentication="name">User</p>
-                    <p id="currentUserRole" style="font-size: 14px; opacity: 0.9; margin: 5px 0 0 0;">Role</p>
+                    <p id="currentUserRole" style="font-size: 14px; opacity: 0.9; margin: 5px 0 0 0;" th:text="#{users.role}">Role</p>
                 </div>
             </div>
         </div>
         
         <div class="card">
-            <h2>🔐 Manage Users</h2>
-            <button class="btn" onclick="openUserModal()">➕ Add New User</button>
+            <h2>🔐 <span th:text="#{users.heading}">Manage Users</span></h2>
+            <button class="btn" onclick="openUserModal()" th:text="#{users.action.add}">➕ Add New User</button>
             <table class="users-table" id="usersTable">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Status</th>
+                        <th th:text="#{users.table.id}">ID</th>
+                        <th th:text="#{users.table.username}">Username</th>
+                        <th th:text="#{users.table.email}">Email</th>
+                        <th th:text="#{users.table.role}">Role</th>
+                        <th th:text="#{users.table.status}">Status</th>
                         <th>2FA</th>
-                        <th>Created At</th>
-                        <th>Actions</th>
+                        <th th:text="#{users.table.createdAt}">Created At</th>
+                        <th th:text="#{users.table.actions}">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="8" style="text-align: center; color: #999;">Loading users...</td>
+                        <td colspan="8" style="text-align: center; color: #999;" th:text="#{users.loading}">Loading users...</td>
                     </tr>
                 </tbody>
             </table>
@@ -239,36 +239,36 @@
         <div class="modal-content">
             <div class="modal-header">
                 <span class="close" onclick="closeUserModal()">&times;</span>
-                <h3 id="modalTitle">Add User</h3>
+                <h3 id="modalTitle" th:text="#{users.modal.addTitle}">Add User</h3>
             </div>
             <form id="userForm">
                 <input type="hidden" id="userId">
                 <div class="form-group">
-                    <label for="username">Username:</label>
+                    <label for="username" th:text="#{users.table.username}">Username:</label>
                     <input type="text" id="username" name="username" required>
                 </div>
                 <div class="form-group">
-                    <label for="email">Email:</label>
+                    <label for="email" th:text="#{users.table.email}">Email:</label>
                     <input type="email" id="email" name="email" required>
                 </div>
                 <div class="form-group" id="passwordGroup">
-                    <label for="password">Password:</label>
+                    <label for="password" th:text="#{users.password}">Password:</label>
                     <input type="password" id="password" name="password" required>
                 </div>
                 <div class="form-group">
-                    <label for="role">Role:</label>
+                    <label for="role" th:text="#{users.role}">Role:</label>
                     <select id="role" name="role" required>
-                        <option value="READ_ONLY">Read Only</option>
-                        <option value="OPERATOR">Operator</option>
-                        <option value="ADMIN">Admin</option>
+                        <option value="READ_ONLY" th:text="#{users.role.readOnly}">Read Only</option>
+                        <option value="OPERATOR" th:text="#{users.role.operator}">Operator</option>
+                        <option value="ADMIN" th:text="#{users.role.admin}">Admin</option>
                     </select>
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="enabled" name="enabled" checked>
-                    <label for="enabled">Enabled</label>
+                    <label for="enabled" th:text="#{users.status.enabled}">Enabled</label>
                 </div>
-                <button type="submit" class="btn">Save</button>
-                <button type="button" id="resetPasswordBtn" class="btn" style="background: #dc3545; display: none; margin-left: 10px;" onclick="openResetPasswordModal()">🔐 Reset Password</button>
+                <button type="submit" class="btn" th:text="#{users.action.save}">Save</button>
+                <button type="button" id="resetPasswordBtn" class="btn" style="background: #dc3545; display: none; margin-left: 10px;" onclick="openResetPasswordModal()" th:text="#{users.action.resetPassword}">🔐 Reset Password</button>
                 <div id="userMessage" style="margin-top: 15px;"></div>
             </form>
         </div>
@@ -279,22 +279,22 @@
         <div class="modal-content">
             <div class="modal-header">
                 <span class="close" onclick="closeResetPasswordModal()">&times;</span>
-                <h3>Reset Password for <span id="resetPasswordUsername"></span></h3>
+                <h3><span th:text="#{users.reset.title}">Reset Password for</span> <span id="resetPasswordUsername"></span></h3>
             </div>
             <form id="resetPasswordForm">
                 <div class="form-group">
-                    <label for="newPasswordField">New Password:</label>
-                    <input type="password" id="newPasswordField" name="newPassword" required placeholder="Enter new password (min 8 characters)">
+                    <label for="newPasswordField" th:text="#{users.reset.newPassword}">New Password:</label>
+                    <input type="password" id="newPasswordField" name="newPassword" required th:placeholder="#{users.reset.newPassword.placeholder}" placeholder="Enter new password (min 8 characters)">
                 </div>
                 <div class="form-group">
-                    <label for="confirmPasswordField">Confirm Password:</label>
-                    <input type="password" id="confirmPasswordField" name="confirmPassword" required placeholder="Confirm new password">
+                    <label for="confirmPasswordField" th:text="#{users.reset.confirmPassword}">Confirm Password:</label>
+                    <input type="password" id="confirmPasswordField" name="confirmPassword" required th:placeholder="#{users.reset.confirmPassword.placeholder}" placeholder="Confirm new password">
                 </div>
                 <div style="background: #f0f0f0; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 13px; color: #555;">
-                    <strong>Note:</strong> The user will be required to set a new password on their next login.
+                    <strong th:text="#{users.note}">Note:</strong> <span th:text="#{users.reset.note}">The user will be required to set a new password on their next login.</span>
                 </div>
-                <button type="submit" class="btn">Reset Password</button>
-                <button type="button" class="btn" style="background: #6c757d; margin-left: 10px;" onclick="closeResetPasswordModal()">Cancel</button>
+                <button type="submit" class="btn" th:text="#{users.action.resetPassword}">Reset Password</button>
+                <button type="button" class="btn" style="background: #6c757d; margin-left: 10px;" onclick="closeResetPasswordModal()" th:text="#{users.action.cancel}">Cancel</button>
                 <div id="resetPasswordMessage" style="margin-top: 15px;"></div>
             </form>
         </div>
@@ -304,27 +304,53 @@
         <div class="modal-content" style="max-width: 520px;">
             <div class="modal-header">
                 <span class="close" onclick="closeTwoFactorSetupModal()">&times;</span>
-                <h3>2FA Setup for <span id="twoFactorSetupUsername"></span></h3>
+                <h3><span th:text="#{users.2fa.setupTitle}">2FA Setup for</span> <span id="twoFactorSetupUsername"></span></h3>
             </div>
-            <p style="margin-bottom: 10px; color: #555;">Ask the user to scan this QR code with Google Authenticator, Microsoft Authenticator, or another TOTP app.</p>
+            <p style="margin-bottom: 10px; color: #555;" th:text="#{users.2fa.setupInfo}">Ask the user to scan this QR code with Google Authenticator, Microsoft Authenticator, or another TOTP app.</p>
             <div style="display: flex; justify-content: center; margin-bottom: 12px;">
                 <img id="twoFactorSetupQr" alt="2FA QR code" style="width: 260px; height: 260px; border: 1px solid #ddd; border-radius: 8px;">
             </div>
             <div class="form-group" style="margin-bottom: 8px;">
-                <label for="twoFactorSetupSecret">Manual key (if QR scan is unavailable):</label>
+                <label for="twoFactorSetupSecret" th:text="#{users.2fa.manualKey}">Manual key (if QR scan is unavailable):</label>
                 <input type="text" id="twoFactorSetupSecret" readonly>
             </div>
-            <div style="font-size: 12px; color: #777;">After scanning, the user can verify 2FA from their Change Password page.</div>
+            <div style="font-size: 12px; color: #777;" th:text="#{users.2fa.setupHelp}">After scanning, the user can verify 2FA from their Change Password page.</div>
         </div>
     </div>
 
     <script src="/js/sidebar-common.js"></script>
-    <script>
+    <script th:inline="javascript">
         const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
         const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
         const ROLE_ADMIN = 'ADMIN';
         const ROLE_OPERATOR = 'OPERATOR';
         const ROLE_READ_ONLY = 'READ_ONLY';
+        const I18N_USERS = {
+            userFallback: /*[[#{users.userFallback}]]*/ 'User',
+            noUsers: /*[[#{users.noUsers}]]*/ 'No users found',
+            statusEnabled: /*[[#{users.status.enabled}]]*/ 'Enabled',
+            statusDisabled: /*[[#{users.status.disabled}]]*/ 'Disabled',
+            twoFaPending: /*[[#{users.2fa.pending}]]*/ 'Pending setup',
+            actionEdit: /*[[#{users.action.edit}]]*/ 'Edit',
+            actionDisable2fa: /*[[#{users.action.disable2fa}]]*/ 'Disable 2FA',
+            actionEnable2fa: /*[[#{users.action.enable2fa}]]*/ 'Enable 2FA',
+            actionDelete: /*[[#{users.action.delete}]]*/ 'Delete',
+            failedEnable2fa: /*[[#{users.msg.failedEnable2fa}]]*/ 'Failed to enable 2FA',
+            failedDisable2fa: /*[[#{users.msg.failedDisable2fa}]]*/ 'Failed to disable 2FA',
+            disabled2fa: /*[[#{users.msg.disabled2fa}]]*/ '2FA disabled',
+            confirmDisable2fa: /*[[#{users.msg.confirmDisable2fa}]]*/ 'Disable 2FA for',
+            editTitle: /*[[#{users.modal.editTitle}]]*/ 'Edit User',
+            addTitle: /*[[#{users.modal.addTitle}]]*/ 'Add User',
+            failedLoadUserDetails: /*[[#{users.msg.failedLoadUserDetails}]]*/ 'Failed to load user details',
+            saveUserFirst: /*[[#{users.msg.saveUserFirst}]]*/ 'Please save the user first before resetting password',
+            confirmDelete: /*[[#{users.msg.confirmDelete}]]*/ 'Are you sure you want to delete this user?',
+            failedDeleteUser: /*[[#{users.msg.failedDeleteUser}]]*/ 'Failed to delete user',
+            failedSaveUser: /*[[#{users.msg.failedSaveUser}]]*/ 'Failed to save user',
+            passwordMin8: /*[[#{users.msg.passwordMin8}]]*/ 'Password must be at least 8 characters long',
+            passwordsMismatch: /*[[#{users.msg.passwordsMismatch}]]*/ 'Passwords do not match',
+            userIdMissing: /*[[#{users.msg.userIdMissing}]]*/ 'User ID not found',
+            failedResetPassword: /*[[#{users.msg.failedResetPassword}]]*/ 'Failed to reset password'
+        };
 
         let currentResetUserId = null;
         const sidebarUi = window.ReportServerSidebar || {};
@@ -410,7 +436,7 @@
                         return;
                     }
 
-                    const username = data.username || 'User';
+                    const username = data.username || I18N_USERS.userFallback;
                     const role = normalizeRole(data.role);
 
                     updateSidebarSettingsMenuVisibility(role);
@@ -523,7 +549,7 @@
                     tableBody.innerHTML = '';
 
                     if (users.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No users found</td></tr>';
+                        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">' + I18N_USERS.noUsers + '</td></tr>';
                         return;
                     }
 
@@ -550,19 +576,19 @@
 
             const statusBadge = document.createElement('span');
             statusBadge.className = user.enabled ? 'badge badge-enabled' : 'badge badge-disabled';
-            statusBadge.textContent = user.enabled ? 'Enabled' : 'Disabled';
+            statusBadge.textContent = user.enabled ? I18N_USERS.statusEnabled : I18N_USERS.statusDisabled;
             row.appendChild(createBadgeCell(statusBadge));
 
             const twoFaBadge = document.createElement('span');
             if (user.twoFactorEnabled && user.twoFactorConfirmed) {
                 twoFaBadge.className = 'badge badge-2fa-on';
-                twoFaBadge.textContent = 'Enabled';
+                twoFaBadge.textContent = I18N_USERS.statusEnabled;
             } else if (user.twoFactorEnabled) {
                 twoFaBadge.className = 'badge badge-2fa-pending';
-                twoFaBadge.textContent = 'Pending setup';
+                twoFaBadge.textContent = I18N_USERS.twoFaPending;
             } else {
                 twoFaBadge.className = 'badge badge-2fa-off';
-                twoFaBadge.textContent = 'Disabled';
+                twoFaBadge.textContent = I18N_USERS.statusDisabled;
             }
             row.appendChild(createBadgeCell(twoFaBadge));
 
@@ -589,23 +615,23 @@
 
             const editBtn = document.createElement('button');
             editBtn.className = 'btn-small';
-            editBtn.textContent = 'Edit';
+            editBtn.textContent = I18N_USERS.actionEdit;
             editBtn.onclick = () => editUser(user.id);
 
             const twoFaBtn = document.createElement('button');
             twoFaBtn.className = 'btn-small';
             if (user.twoFactorEnabled) {
                 twoFaBtn.classList.add('btn-danger');
-                twoFaBtn.textContent = 'Disable 2FA';
+                twoFaBtn.textContent = I18N_USERS.actionDisable2fa;
                 twoFaBtn.onclick = () => disableTwoFactor(user.id, user.username);
             } else {
-                twoFaBtn.textContent = 'Enable 2FA';
+                twoFaBtn.textContent = I18N_USERS.actionEnable2fa;
                 twoFaBtn.onclick = () => enableTwoFactor(user.id);
             }
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-small btn-danger';
-            deleteBtn.textContent = 'Delete';
+            deleteBtn.textContent = I18N_USERS.actionDelete;
             deleteBtn.onclick = () => deleteUser(user.id);
 
             actionsCell.appendChild(editBtn);
@@ -624,16 +650,16 @@
                         loadUsers();
                         openTwoFactorSetupModal(data.setup || {});
                     } else {
-                        alert(data.message || 'Failed to enable 2FA');
+                        alert(data.message || I18N_USERS.failedEnable2fa);
                     }
                 })
                 .catch(error => {
-                    alert('Failed to enable 2FA: ' + error);
+                    alert(I18N_USERS.failedEnable2fa + ': ' + error);
                 });
         }
 
         function disableTwoFactor(userId, username) {
-            if (!confirm('Disable 2FA for ' + username + '?')) {
+            if (!confirm(I18N_USERS.confirmDisable2fa + ' ' + username + '?')) {
                 return;
             }
 
@@ -643,14 +669,14 @@
             })
                 .then(data => {
                     if (data.status === 'success') {
-                        alert(data.message || '2FA disabled');
+                        alert(data.message || I18N_USERS.disabled2fa);
                         loadUsers();
                     } else {
-                        alert(data.message || 'Failed to disable 2FA');
+                        alert(data.message || I18N_USERS.failedDisable2fa);
                     }
                 })
                 .catch(error => {
-                    alert('Failed to disable 2FA: ' + error);
+                    alert(I18N_USERS.failedDisable2fa + ': ' + error);
                 });
         }
 
@@ -717,12 +743,12 @@
             resetUserFormState();
 
             if (userId) {
-                title.textContent = 'Edit User';
+                title.textContent = I18N_USERS.editTitle;
                 passwordGroup.style.display = 'none';
                 resetPasswordBtn.style.display = 'inline-block';
                 loadUserDetailsIntoForm(userId);
             } else {
-                title.textContent = 'Add User';
+                title.textContent = I18N_USERS.addTitle;
                 userIdInput.value = '';
                 usernameInput.readOnly = false;
                 passwordGroup.style.display = 'block';
@@ -751,7 +777,7 @@
                     if (enabledCheckbox) enabledCheckbox.checked = !!user.enabled;
                 })
                 .catch(error => {
-                    showUserMessage('Failed to load user details: ' + error, 'error');
+                    showUserMessage(I18N_USERS.failedLoadUserDetails + ': ' + error, 'error');
                 });
         }
 
@@ -767,7 +793,7 @@
             const username = getElement('username')?.value;
 
             if (!userId) {
-                alert('Please save the user first before resetting password');
+                alert(I18N_USERS.saveUserFirst);
                 return;
             }
 
@@ -806,7 +832,7 @@
         }
 
         function deleteUser(id) {
-            if (!confirm('Are you sure you want to delete this user?')) return;
+            if (!confirm(I18N_USERS.confirmDelete)) return;
 
             fetchJson('/api/users/' + id, {
                 method: 'DELETE',
@@ -821,7 +847,7 @@
                     }
                 })
                 .catch(error => {
-                    alert('Failed to delete user: ' + error);
+                    alert(I18N_USERS.failedDeleteUser + ': ' + error);
                 });
         }
 
@@ -862,7 +888,7 @@
                     }
                 })
                 .catch(error => {
-                    showUserMessage('Failed to save user: ' + error, 'error');
+                    showUserMessage(I18N_USERS.failedSaveUser + ': ' + error, 'error');
                 });
         }
 
@@ -873,17 +899,17 @@
             const confirmPassword = getElement('confirmPasswordField')?.value || '';
 
             if (newPassword.length < 8) {
-                showResetPasswordMessage('Password must be at least 8 characters long', 'error');
+                showResetPasswordMessage(I18N_USERS.passwordMin8, 'error');
                 return;
             }
 
             if (newPassword !== confirmPassword) {
-                showResetPasswordMessage('Passwords do not match', 'error');
+                showResetPasswordMessage(I18N_USERS.passwordsMismatch, 'error');
                 return;
             }
 
             if (!currentResetUserId) {
-                showResetPasswordMessage('User ID not found', 'error');
+                showResetPasswordMessage(I18N_USERS.userIdMissing, 'error');
                 return;
             }
 
@@ -907,7 +933,7 @@
                     }
                 })
                 .catch(error => {
-                    showResetPasswordMessage('Failed to reset password: ' + error, 'error');
+                    showResetPasswordMessage(I18N_USERS.failedResetPassword + ': ' + error, 'error');
                 });
         }
 
