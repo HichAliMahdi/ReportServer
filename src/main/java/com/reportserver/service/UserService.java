@@ -385,6 +385,18 @@ public class UserService implements UserDetailsService {
         }
         return valid;
     }
+
+    public String updatePreferredLanguage(String username, String language) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String normalizedLanguage = normalizePreferredLanguage(language);
+        user.setPreferredLanguage(normalizedLanguage);
+        userRepository.save(user);
+
+        logger.info("Updated preferred language for user {} to {}", username, normalizedLanguage);
+        return normalizedLanguage;
+    }
     
     // Helper method to validate email format
     private boolean isValidEmail(String email) {
@@ -429,6 +441,18 @@ public class UserService implements UserDetailsService {
             return "READ_ONLY";
         }
         return role;
+    }
+
+    private String normalizePreferredLanguage(String language) {
+        if (language == null || language.trim().isEmpty()) {
+            return "en";
+        }
+
+        String normalized = language.trim().toLowerCase();
+        if ("fr".equals(normalized) || "de".equals(normalized)) {
+            return normalized;
+        }
+        return "en";
     }
 
     private String[] getAuthoritiesForRole(String role) {

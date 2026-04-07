@@ -28,22 +28,57 @@ function getTemplateMgrHeaders(additionalHeaders = {}) {
                     const list = document.getElementById('templateList');
 
                     if (data.templates && data.templates.length > 0) {
-                        list.innerHTML = '';
+                        list.replaceChildren();
                         data.templates.forEach(template => {
                             const div = document.createElement('div');
                             div.className = 'template-item';
-                            div.innerHTML = `
-                                <h4>${template.name || 'Unnamed Template'}</h4>
-                                <p style="font-size: 12px; color: #666; margin: 5px 0;">${template.description || 'No description'}</p>
-                                <div class="template-actions">
-                                    <button class="btn" onclick="loadTemplate('${template.fileName}')" style="flex: 1; padding: 6px; font-size: 12px;">Load</button>
-                                    <button class="btn" onclick="deleteTemplate('${template.fileName}')" style="flex: 1; padding: 6px; font-size: 12px; background: #dc3545;">Delete</button>
-                                </div>
-                            `;
+
+                            const title = document.createElement('h4');
+                            title.textContent = template.name || 'Unnamed Template';
+
+                            const description = document.createElement('p');
+                            description.style.fontSize = '12px';
+                            description.style.color = '#666';
+                            description.style.margin = '5px 0';
+                            description.textContent = template.description || 'No description';
+
+                            const actions = document.createElement('div');
+                            actions.className = 'template-actions';
+
+                            const loadButton = document.createElement('button');
+                            loadButton.className = 'btn';
+                            loadButton.type = 'button';
+                            loadButton.style.flex = '1';
+                            loadButton.style.padding = '6px';
+                            loadButton.style.fontSize = '12px';
+                            loadButton.textContent = 'Load';
+                            loadButton.addEventListener('click', () => loadTemplate(template.fileName));
+
+                            const deleteButton = document.createElement('button');
+                            deleteButton.className = 'btn';
+                            deleteButton.type = 'button';
+                            deleteButton.style.flex = '1';
+                            deleteButton.style.padding = '6px';
+                            deleteButton.style.fontSize = '12px';
+                            deleteButton.style.background = '#dc3545';
+                            deleteButton.textContent = 'Delete';
+                            deleteButton.addEventListener('click', () => deleteTemplate(template.fileName));
+
+                            actions.appendChild(loadButton);
+                            actions.appendChild(deleteButton);
+                            div.appendChild(title);
+                            div.appendChild(description);
+                            div.appendChild(actions);
                             list.appendChild(div);
                         });
                     } else {
-                        list.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No templates saved yet</p>';
+                        list.replaceChildren();
+                        const empty = document.createElement('p');
+                        empty.style.color = '#999';
+                        empty.style.textAlign = 'center';
+                        empty.style.padding = '40px';
+                        empty.textContent = 'No templates saved yet';
+                        list.appendChild(empty);
                     }
                 })
                 .catch(error => {

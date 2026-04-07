@@ -9,31 +9,6 @@
     <!-- Monaco Editor -->
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
     <link rel="stylesheet" href="/css/index.css">
-    <style>
-        .global-language-picker {
-            position: fixed;
-            top: 14px;
-            right: 16px;
-            z-index: 1500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #111827;
-            font-size: 13px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #d7dce6;
-            border-radius: 10px;
-            padding: 6px 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-        }
-        .global-language-picker select {
-            border: 1px solid #cfd6e4;
-            border-radius: 6px;
-            padding: 4px 6px;
-            background: white;
-            color: #1f2937;
-        }
-    </style>
     <script>
         window.addEventListener('unhandledrejection', function(event) {
             var reason = event && event.reason;
@@ -65,15 +40,6 @@
 
 </head>
 <body class="page-loading" data-bwignore="true" data-1p-ignore="true" data-lpignore="true">
-    <form class="global-language-picker" method="get" action="/" onsubmit="event.preventDefault();">
-        <label for="globalLangSelect" th:text="#{lang.label}">Language</label>
-        <select id="globalLangSelect" onchange="changeGlobalLanguage(this.value)">
-            <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
-            <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
-            <option value="de" th:selected="${#locale.language == 'de'}" th:text="#{lang.de}">German</option>
-        </select>
-    </form>
-
     <th:block th:replace="~{fragments/index-sidebar :: sidebar}"></th:block>
     <th:block th:replace="~{fragments/index-content :: content}"></th:block>
     <th:block th:replace="~{fragments/index-modals :: modals}"></th:block>
@@ -96,12 +62,5 @@
     
     <!-- NEW Clean Visual Builder -->
     <script src="/js/visual-builder-clean.js"></script>
-    <script>
-        function changeGlobalLanguage(lang) {
-            var url = new URL(window.location.href);
-            url.searchParams.set('lang', lang);
-            window.location.href = url.toString();
-        }
-    </script>
 </body>
 </html>

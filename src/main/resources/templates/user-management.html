@@ -546,10 +546,17 @@
                     const tableBody = getElement('usersTableBody');
                     if (!tableBody) return;
 
-                    tableBody.innerHTML = '';
+                    tableBody.replaceChildren();
 
                     if (users.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">' + I18N_USERS.noUsers + '</td></tr>';
+                        const row = document.createElement('tr');
+                        const cell = document.createElement('td');
+                        cell.colSpan = 8;
+                        cell.style.textAlign = 'center';
+                        cell.style.color = '#999';
+                        cell.textContent = I18N_USERS.noUsers;
+                        row.appendChild(cell);
+                        tableBody.appendChild(row);
                         return;
                     }
 
@@ -719,7 +726,7 @@
 
             const message = getElement('userMessage');
             if (message) {
-                message.innerHTML = '';
+                message.replaceChildren();
             }
 
             const enabledCheckbox = getElement('enabled');
@@ -810,7 +817,7 @@
 
             const message = getElement('resetPasswordMessage');
             if (message) {
-                message.innerHTML = '';
+                message.replaceChildren();
             }
 
             const modal = getElement('resetPasswordModal');

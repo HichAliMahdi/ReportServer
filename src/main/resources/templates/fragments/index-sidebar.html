@@ -53,6 +53,17 @@
                 <div id="sidebarSettingsMenu" class="sidebar-settings-menu" role="menu" aria-label="User settings menu">
                     <button type="button" id="sidebarUserManagementMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" onclick="closeSidebarUserMenu(); switchTab('users');" role="menuitem">👥 <span th:text="#{sidebar.userManagement}">User Management</span></button>
                     <a href="/settings/smtp" id="sidebarSmtpSettingsMenuItem" class="sidebar-settings-item" sec:authorize="hasRole('ADMIN')" style="display: none;" role="menuitem" onclick="closeSidebarUserMenu()">📧 <span th:text="#{sidebar.smtpSettings}">SMTP Settings</span></a>
+                    <div class="sidebar-settings-language" role="none">
+                        <label for="sidebarLanguageSelect" class="sidebar-settings-language-label" th:text="#{sidebar.language}">Language</label>
+                        <select id="sidebarLanguageSelect"
+                                class="sidebar-settings-language-select"
+                            th:attr="data-current-language=${#locale.language},data-save-failed-message=#{sidebar.language.saveFailed}"
+                                onchange="changeUserLanguage(this.value)">
+                            <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
+                            <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
+                            <option value="de" th:selected="${#locale.language == 'de'}" th:text="#{lang.de}">German</option>
+                        </select>
+                    </div>
                     <a href="/change-password" class="sidebar-settings-item" role="menuitem" onclick="closeSidebarUserMenu()">🔐 <span th:text="#{sidebar.changePassword}">Change Password</span></a>
                     <button type="button" class="sidebar-settings-item danger" onclick="submitSidebarLogout()" role="menuitem">🚪 <span th:text="#{sidebar.logout}">Logout</span></button>
                 </div>

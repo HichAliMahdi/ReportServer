@@ -1,11 +1,29 @@
 // ========== Report Builder Functions ==========
 
+        function clearElement(element) {
+            if (element) {
+                element.replaceChildren();
+            }
+        }
+
+        function createEmptyMessage(text) {
+            const paragraph = document.createElement('p');
+            paragraph.style.color = '#999';
+            paragraph.style.textAlign = 'center';
+            paragraph.style.margin = '20px 0';
+            paragraph.textContent = text;
+            return paragraph;
+        }
+
         function loadBuilderDatasources() {
             fetch('/api/datasources')
                 .then(response => response.json())
                 .then(datasources => {
                     const select = document.getElementById('builderDatasource');
-                    select.innerHTML = '<option value="">-- Select a datasource --</option>';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = '-- Select a datasource --';
+                    select.replaceChildren(placeholder);
                     datasources.forEach(ds => {
                         const option = document.createElement('option');
                         option.value = ds.id;
@@ -84,31 +102,95 @@
             const container = document.getElementById('parametersList');
 
             if (reportParameters.length === 0) {
-                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No parameters added yet</p>';
+                clearElement(container);
+                container.appendChild(createEmptyMessage('No parameters added yet'));
                 return;
             }
 
-            let html = '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
-            html += '<th style="padding: 8px; text-align: left;">Name</th>';
-            html += '<th style="padding: 8px; text-align: left;">Type</th>';
-            html += '<th style="padding: 8px; text-align: left;">Default Value</th>';
-            html += '<th style="padding: 8px; text-align: center;">Actions</th>';
-            html += '</tr></thead><tbody>';
+            clearElement(container);
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
 
-            reportParameters.forEach((parameter, index) => {
-                html += '<tr style="border-bottom: 1px solid #dee2e6;">';
-                html += `<td style="padding: 8px;"><strong>$P{${parameter.name}}</strong></td>`;
-                html += `<td style="padding: 8px; font-size: 12px;">${parameter.javaClass.split('.').pop()}</td>`;
-                html += `<td style="padding: 8px; font-family: monospace; font-size: 12px;">${parameter.defaultValueExpression || '<em>none</em>'}</td>`;
-                html += `<td style="padding: 8px; text-align: center;">`;
-                html += `<button type="button" onclick="openParameterModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
-                html += `<button type="button" onclick="deleteParameter(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
-                html += `</td></tr>`;
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.style.background = '#f8f9fa';
+            headerRow.style.borderBottom = '2px solid #dee2e6';
+            ['Name', 'Type', 'Default Value', 'Actions'].forEach((title, index) => {
+                const th = document.createElement('th');
+                th.style.padding = '8px';
+                th.style.textAlign = index === 3 ? 'center' : 'left';
+                th.textContent = title;
+                headerRow.appendChild(th);
             });
+            thead.appendChild(headerRow);
 
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            const tbody = document.createElement('tbody');
+            reportParameters.forEach((parameter, index) => {
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #dee2e6';
+
+                const nameCell = document.createElement('td');
+                nameCell.style.padding = '8px';
+                const strong = document.createElement('strong');
+                strong.textContent = `$P{${parameter.name}}`;
+                nameCell.appendChild(strong);
+
+                const typeCell = document.createElement('td');
+                typeCell.style.padding = '8px';
+                typeCell.style.fontSize = '12px';
+                typeCell.textContent = parameter.javaClass.split('.').pop();
+
+                const defaultCell = document.createElement('td');
+                defaultCell.style.padding = '8px';
+                defaultCell.style.fontFamily = 'monospace';
+                defaultCell.style.fontSize = '12px';
+                if (parameter.defaultValueExpression) {
+                    defaultCell.textContent = parameter.defaultValueExpression;
+                } else {
+                    const em = document.createElement('em');
+                    em.textContent = 'none';
+                    defaultCell.appendChild(em);
+                }
+
+                const actionsCell = document.createElement('td');
+                actionsCell.style.padding = '8px';
+                actionsCell.style.textAlign = 'center';
+
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.textContent = '✏️ Edit';
+                editButton.style.padding = '4px 8px';
+                editButton.style.marginRight = '5px';
+                editButton.style.cursor = 'pointer';
+                editButton.style.background = '#ffc107';
+                editButton.style.border = 'none';
+                editButton.style.borderRadius = '4px';
+                editButton.addEventListener('click', () => openParameterModal(index));
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.textContent = '🗑️ Delete';
+                deleteButton.style.padding = '4px 8px';
+                deleteButton.style.cursor = 'pointer';
+                deleteButton.style.background = '#dc3545';
+                deleteButton.style.color = 'white';
+                deleteButton.style.border = 'none';
+                deleteButton.style.borderRadius = '4px';
+                deleteButton.addEventListener('click', () => deleteParameter(index));
+
+                actionsCell.appendChild(editButton);
+                actionsCell.appendChild(deleteButton);
+
+                row.appendChild(nameCell);
+                row.appendChild(typeCell);
+                row.appendChild(defaultCell);
+                row.appendChild(actionsCell);
+                tbody.appendChild(row);
+            });
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            container.appendChild(table);
         }
 
         function deleteParameter(index) {
@@ -206,33 +288,94 @@
             const container = document.getElementById('variablesList');
 
             if (reportVariables.length === 0) {
-                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No variables added yet</p>';
+                clearElement(container);
+                container.appendChild(createEmptyMessage('No variables added yet'));
                 return;
             }
 
-            let html = '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
-            html += '<th style="padding: 8px; text-align: left;">Name</th>';
-            html += '<th style="padding: 8px; text-align: left;">Type</th>';
-            html += '<th style="padding: 8px; text-align: left;">Calculation</th>';
-            html += '<th style="padding: 8px; text-align: left;">Expression</th>';
-            html += '<th style="padding: 8px; text-align: center;">Actions</th>';
-            html += '</tr></thead><tbody>';
+            clearElement(container);
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
 
-            reportVariables.forEach((variable, index) => {
-                html += '<tr style="border-bottom: 1px solid #dee2e6;">';
-                html += `<td style="padding: 8px;"><strong>$V{${variable.name}}</strong></td>`;
-                html += `<td style="padding: 8px; font-size: 12px;">${variable.javaClass.split('.').pop()}</td>`;
-                html += `<td style="padding: 8px;">${variable.calculation}</td>`;
-                html += `<td style="padding: 8px; font-family: monospace; font-size: 12px;">${variable.expression}</td>`;
-                html += `<td style="padding: 8px; text-align: center;">`;
-                html += `<button type="button" onclick="openVariableModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
-                html += `<button type="button" onclick="deleteVariable(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
-                html += `</td></tr>`;
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.style.background = '#f8f9fa';
+            headerRow.style.borderBottom = '2px solid #dee2e6';
+            ['Name', 'Type', 'Calculation', 'Expression', 'Actions'].forEach((title, index) => {
+                const th = document.createElement('th');
+                th.style.padding = '8px';
+                th.style.textAlign = index === 4 ? 'center' : 'left';
+                th.textContent = title;
+                headerRow.appendChild(th);
             });
+            thead.appendChild(headerRow);
 
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            const tbody = document.createElement('tbody');
+            reportVariables.forEach((variable, index) => {
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #dee2e6';
+
+                const nameCell = document.createElement('td');
+                nameCell.style.padding = '8px';
+                const strong = document.createElement('strong');
+                strong.textContent = `$V{${variable.name}}`;
+                nameCell.appendChild(strong);
+
+                const typeCell = document.createElement('td');
+                typeCell.style.padding = '8px';
+                typeCell.style.fontSize = '12px';
+                typeCell.textContent = variable.javaClass.split('.').pop();
+
+                const calcCell = document.createElement('td');
+                calcCell.style.padding = '8px';
+                calcCell.textContent = variable.calculation;
+
+                const expressionCell = document.createElement('td');
+                expressionCell.style.padding = '8px';
+                expressionCell.style.fontFamily = 'monospace';
+                expressionCell.style.fontSize = '12px';
+                expressionCell.textContent = variable.expression;
+
+                const actionsCell = document.createElement('td');
+                actionsCell.style.padding = '8px';
+                actionsCell.style.textAlign = 'center';
+
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.textContent = '✏️ Edit';
+                editButton.style.padding = '4px 8px';
+                editButton.style.marginRight = '5px';
+                editButton.style.cursor = 'pointer';
+                editButton.style.background = '#ffc107';
+                editButton.style.border = 'none';
+                editButton.style.borderRadius = '4px';
+                editButton.addEventListener('click', () => openVariableModal(index));
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.textContent = '🗑️ Delete';
+                deleteButton.style.padding = '4px 8px';
+                deleteButton.style.cursor = 'pointer';
+                deleteButton.style.background = '#dc3545';
+                deleteButton.style.color = 'white';
+                deleteButton.style.border = 'none';
+                deleteButton.style.borderRadius = '4px';
+                deleteButton.addEventListener('click', () => deleteVariable(index));
+
+                actionsCell.appendChild(editButton);
+                actionsCell.appendChild(deleteButton);
+
+                row.appendChild(nameCell);
+                row.appendChild(typeCell);
+                row.appendChild(calcCell);
+                row.appendChild(expressionCell);
+                row.appendChild(actionsCell);
+                tbody.appendChild(row);
+            });
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            container.appendChild(table);
         }
 
         function deleteVariable(index) {
@@ -305,27 +448,87 @@
             const container = document.getElementById('datasetsList');
 
             if (reportDatasets.length === 0) {
-                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No datasets added yet</p>';
+                clearElement(container);
+                container.appendChild(createEmptyMessage('No datasets added yet'));
                 return;
             }
 
-            let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
-
+            clearElement(container);
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'column';
+            wrapper.style.gap = '10px';
             reportDatasets.forEach((dataset, index) => {
-                html += '<div style="border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #f8f9fa;">';
-                html += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">`;
-                html += `<div><strong style="font-size: 14px;">Dataset: ${dataset.name}</strong></div>`;
-                html += `<div>`;
-                html += `<button type="button" onclick="openDatasetModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
-                html += `<button type="button" onclick="deleteDataset(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
-                html += `</div></div>`;
-                html += `<div style="font-family: monospace; font-size: 12px; background: white; padding: 8px; border-radius: 4px; margin-bottom: 8px; max-height: 100px; overflow-y: auto;">${dataset.query}</div>`;
-                html += `<div style="color: #666; font-size: 12px;">Fields: ${dataset.fields}</div>`;
-                html += '</div>';
+                const card = document.createElement('div');
+                card.style.border = '1px solid #ddd';
+                card.style.borderRadius = '6px';
+                card.style.padding = '12px';
+                card.style.background = '#f8f9fa';
+
+                const header = document.createElement('div');
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'start';
+                header.style.marginBottom = '8px';
+
+                const title = document.createElement('div');
+                const strong = document.createElement('strong');
+                strong.style.fontSize = '14px';
+                strong.textContent = `Dataset: ${dataset.name}`;
+                title.appendChild(strong);
+
+                const actions = document.createElement('div');
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.textContent = '✏️ Edit';
+                editButton.style.padding = '4px 8px';
+                editButton.style.marginRight = '5px';
+                editButton.style.cursor = 'pointer';
+                editButton.style.background = '#ffc107';
+                editButton.style.border = 'none';
+                editButton.style.borderRadius = '4px';
+                editButton.addEventListener('click', () => openDatasetModal(index));
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.textContent = '🗑️ Delete';
+                deleteButton.style.padding = '4px 8px';
+                deleteButton.style.cursor = 'pointer';
+                deleteButton.style.background = '#dc3545';
+                deleteButton.style.color = 'white';
+                deleteButton.style.border = 'none';
+                deleteButton.style.borderRadius = '4px';
+                deleteButton.addEventListener('click', () => deleteDataset(index));
+
+                actions.appendChild(editButton);
+                actions.appendChild(deleteButton);
+
+                header.appendChild(title);
+                header.appendChild(actions);
+
+                const query = document.createElement('div');
+                query.style.fontFamily = 'monospace';
+                query.style.fontSize = '12px';
+                query.style.background = 'white';
+                query.style.padding = '8px';
+                query.style.borderRadius = '4px';
+                query.style.marginBottom = '8px';
+                query.style.maxHeight = '100px';
+                query.style.overflowY = 'auto';
+                query.textContent = dataset.query;
+
+                const fields = document.createElement('div');
+                fields.style.color = '#666';
+                fields.style.fontSize = '12px';
+                fields.textContent = `Fields: ${dataset.fields}`;
+
+                card.appendChild(header);
+                card.appendChild(query);
+                card.appendChild(fields);
+                wrapper.appendChild(card);
             });
 
-            html += '</div>';
-            container.innerHTML = html;
+            container.appendChild(wrapper);
         }
 
         function deleteDataset(index) {
@@ -348,7 +551,10 @@
             fetch('/api/datasources')
                 .then(response => response.json())
                 .then(datasources => {
-                    datasourceSelect.innerHTML = '<option value="">-- Use same as main report --</option>';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = '-- Use same as main report --';
+                    datasourceSelect.replaceChildren(placeholder);
                     datasources.forEach(ds => {
                         const option = document.createElement('option');
                         option.value = ds.id;
@@ -412,31 +618,96 @@
             const container = document.getElementById('subreportsList');
 
             if (reportSubreports.length === 0) {
-                container.innerHTML = '<p style="color: #999; text-align: center; margin: 20px 0;">No subreports added yet - Note: Upload subreport JRXML files first</p>';
+                clearElement(container);
+                container.appendChild(createEmptyMessage('No subreports added yet - Note: Upload subreport JRXML files first'));
                 return;
             }
 
-            let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
-
+            clearElement(container);
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'column';
+            wrapper.style.gap = '10px';
             reportSubreports.forEach((subreport, index) => {
-                html += '<div style="border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #f8f9fa;">';
-                html += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">`;
-                html += `<div><strong style="font-size: 14px;">${subreport.name}</strong></div>`;
-                html += `<div>`;
-                html += `<button type="button" onclick="openSubreportModal(${index})" style="padding: 4px 8px; margin-right: 5px; cursor: pointer; background: #ffc107; border: none; border-radius: 4px;">✏️ Edit</button>`;
-                html += `<button type="button" onclick="deleteSubreport(${index})" style="padding: 4px 8px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px;">🗑️ Delete</button>`;
-                html += `</div></div>`;
-                html += `<div style="color: #666; font-size: 13px;">📄 File: ${subreport.file}</div>`;
-                html += `<div style="color: #666; font-size: 13px;">📊 Datasource: ${subreport.datasourceId || 'Same as main report'}</div>`;
-                html += `<div style="color: #666; font-size: 13px;">📐 Size: ${subreport.width}x${subreport.height} at (${subreport.x}, ${subreport.y})</div>`;
+                const card = document.createElement('div');
+                card.style.border = '1px solid #ddd';
+                card.style.borderRadius = '6px';
+                card.style.padding = '12px';
+                card.style.background = '#f8f9fa';
+
+                const header = document.createElement('div');
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'start';
+                header.style.marginBottom = '8px';
+
+                const title = document.createElement('div');
+                const strong = document.createElement('strong');
+                strong.style.fontSize = '14px';
+                strong.textContent = subreport.name;
+                title.appendChild(strong);
+
+                const actions = document.createElement('div');
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.textContent = '✏️ Edit';
+                editButton.style.padding = '4px 8px';
+                editButton.style.marginRight = '5px';
+                editButton.style.cursor = 'pointer';
+                editButton.style.background = '#ffc107';
+                editButton.style.border = 'none';
+                editButton.style.borderRadius = '4px';
+                editButton.addEventListener('click', () => openSubreportModal(index));
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.textContent = '🗑️ Delete';
+                deleteButton.style.padding = '4px 8px';
+                deleteButton.style.cursor = 'pointer';
+                deleteButton.style.background = '#dc3545';
+                deleteButton.style.color = 'white';
+                deleteButton.style.border = 'none';
+                deleteButton.style.borderRadius = '4px';
+                deleteButton.addEventListener('click', () => deleteSubreport(index));
+
+                actions.appendChild(editButton);
+                actions.appendChild(deleteButton);
+
+                header.appendChild(title);
+                header.appendChild(actions);
+
+                const fileLine = document.createElement('div');
+                fileLine.style.color = '#666';
+                fileLine.style.fontSize = '13px';
+                fileLine.textContent = `📄 File: ${subreport.file}`;
+
+                const datasourceLine = document.createElement('div');
+                datasourceLine.style.color = '#666';
+                datasourceLine.style.fontSize = '13px';
+                datasourceLine.textContent = `📊 Datasource: ${subreport.datasourceId || 'Same as main report'}`;
+
+                const sizeLine = document.createElement('div');
+                sizeLine.style.color = '#666';
+                sizeLine.style.fontSize = '13px';
+                sizeLine.textContent = `📐 Size: ${subreport.width}x${subreport.height} at (${subreport.x}, ${subreport.y})`;
+
+                card.appendChild(header);
+                card.appendChild(fileLine);
+                card.appendChild(datasourceLine);
+                card.appendChild(sizeLine);
+
                 if (subreport.parameters) {
-                    html += `<div style="color: #666; font-size: 13px;">🔧 Parameters: ${subreport.parameters}</div>`;
+                    const paramsLine = document.createElement('div');
+                    paramsLine.style.color = '#666';
+                    paramsLine.style.fontSize = '13px';
+                    paramsLine.textContent = `🔧 Parameters: ${subreport.parameters}`;
+                    card.appendChild(paramsLine);
                 }
-                html += '</div>';
+
+                wrapper.appendChild(card);
             });
 
-            html += '</div>';
-            container.innerHTML = html;
+            container.appendChild(wrapper);
         }
 
         function deleteSubreport(index) {
@@ -463,7 +734,10 @@
                 .then(data => {
                     if (data.success && data.tables) {
                         const select = document.getElementById('builderTable');
-                        select.innerHTML = '<option value="">-- Select a table --</option>';
+                        const placeholder = document.createElement('option');
+                        placeholder.value = '';
+                        placeholder.textContent = '-- Select a table --';
+                        select.replaceChildren(placeholder);
                         data.tables.forEach(table => {
                             const option = document.createElement('option');
                             option.value = table;
@@ -504,18 +778,37 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.columns) {
-                        columnsContainer.innerHTML = '';
+                        columnsContainer.replaceChildren();
                         data.columns.forEach(column => {
                             const div = document.createElement('div');
                             div.style.marginBottom = '8px';
-                            div.innerHTML = `
-                                <label style="display: flex; align-items: center; cursor: pointer;">
-                                    <input type="checkbox" name="builderColumns" value="${column.name}" 
-                                           style="margin-right: 8px;" checked>
-                                    <span style="font-weight: 500;">${column.name}</span>
-                                    <span style="color: #999; margin-left: 8px; font-size: 12px;">(${column.type})</span>
-                                </label>
-                            `;
+                            const label = document.createElement('label');
+                            label.style.display = 'flex';
+                            label.style.alignItems = 'center';
+                            label.style.cursor = 'pointer';
+
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.name = 'builderColumns';
+                            checkbox.value = column.name;
+                            checkbox.style.marginRight = '8px';
+                            checkbox.checked = true;
+
+                            const nameSpan = document.createElement('span');
+                            nameSpan.style.fontWeight = '500';
+                            nameSpan.textContent = column.name;
+
+                            const typeSpan = document.createElement('span');
+                            typeSpan.style.color = '#999';
+                            typeSpan.style.marginLeft = '8px';
+                            typeSpan.style.fontSize = '12px';
+                            typeSpan.textContent = `(${column.type})`;
+
+                            label.appendChild(checkbox);
+                            label.appendChild(nameSpan);
+                            label.appendChild(typeSpan);
+
+                            div.appendChild(label);
                             columnsContainer.appendChild(div);
                         });
                         columnsGroup.style.display = 'block';
@@ -731,7 +1024,7 @@
 
             require(['vs/editor/editor.main'], function() {
                 const container = document.getElementById('editorContainer');
-                container.innerHTML = '';
+                container.replaceChildren();
 
                 monacoEditor = monaco.editor.create(container, {
                     value: content,
@@ -780,17 +1073,34 @@
             .then(r => r.json())
             .then(result => {
                 if (result.valid && (!result.issues || result.issues.length === 0)) {
-                    panel.innerHTML = '<span style="color: #4caf50;">✅ JRXML is valid</span>';
+                    panel.replaceChildren();
+                    const span = document.createElement('span');
+                    span.style.color = '#4caf50';
+                    span.textContent = '✅ JRXML is valid';
+                    panel.appendChild(span);
                 } else if (result.issues && result.issues.length > 0) {
-                    panel.innerHTML = result.issues
-                        .map(iss => `<span style="color: #f48771; margin-right: 12px;">⚠️ ${iss.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`)
-                        .join('');
+                    panel.replaceChildren();
+                    result.issues.forEach(iss => {
+                        const span = document.createElement('span');
+                        span.style.color = '#f48771';
+                        span.style.marginRight = '12px';
+                        span.textContent = `⚠️ ${iss}`;
+                        panel.appendChild(span);
+                    });
                 } else {
-                    panel.innerHTML = '<span style="color: #f48771;">❌ JRXML has issues</span>';
+                    panel.replaceChildren();
+                    const span = document.createElement('span');
+                    span.style.color = '#f48771';
+                    span.textContent = '❌ JRXML has issues';
+                    panel.appendChild(span);
                 }
             })
             .catch(() => {
-                panel.innerHTML = '<span style="color: #fd7e14;">⚠️ Validation unavailable</span>';
+                panel.replaceChildren();
+                const span = document.createElement('span');
+                span.style.color = '#fd7e14';
+                span.textContent = '⚠️ Validation unavailable';
+                panel.appendChild(span);
             });
         }
 

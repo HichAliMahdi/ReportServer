@@ -56,7 +56,10 @@
 
             const tablesSelect = document.getElementById('modalAvailableTables');
             if (tablesSelect) {
-                tablesSelect.innerHTML = '<option value="">Loading tables...</option>';
+                const loadingOption = document.createElement('option');
+                loadingOption.value = '';
+                loadingOption.textContent = 'Loading tables...';
+                tablesSelect.replaceChildren(loadingOption);
             }
             setQueryTesterTablesHint('Loading available tables for this datasource...');
 
@@ -86,7 +89,10 @@
                 return;
             }
 
-            tablesSelect.innerHTML = '<option value="">Loading tables...</option>';
+            const loadingOption = document.createElement('option');
+            loadingOption.value = '';
+            loadingOption.textContent = 'Loading tables...';
+            tablesSelect.replaceChildren(loadingOption);
             tablesSelect.disabled = true;
 
             try {
@@ -98,11 +104,14 @@
                 const data = await readQueryTesterResponse(response, 'Failed to load datasource tables');
                 const tables = Array.isArray(data.tables) ? data.tables : [];
 
-                tablesSelect.innerHTML = '';
                 if (tables.length === 0) {
-                    tablesSelect.innerHTML = '<option value="">No tables found</option>';
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'No tables found';
+                    tablesSelect.replaceChildren(emptyOption);
                     setQueryTesterTablesHint('No tables or views were found for this datasource.');
                 } else {
+                    tablesSelect.replaceChildren();
                     tablesSelect.appendChild(new Option('Select a table...', ''));
                     tables.forEach((tableName) => {
                         tablesSelect.appendChild(new Option(tableName, tableName));
@@ -110,7 +119,10 @@
                     setQueryTesterTablesHint('Loaded ' + tables.length + ' table(s)/view(s). Select one and click Insert.');
                 }
             } catch (error) {
-                tablesSelect.innerHTML = '<option value="">Unable to load tables</option>';
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = 'Unable to load tables';
+                tablesSelect.replaceChildren(errorOption);
                 setQueryTesterTablesHint(error.message || 'Unable to load tables for this datasource.', true);
             } finally {
                 tablesSelect.disabled = false;
@@ -221,8 +233,8 @@
             const truncatedWarning = document.getElementById('modalQueryTruncatedWarning');
 
             // Clear previous results
-            thead.innerHTML = '';
-            tbody.innerHTML = '';
+            thead.replaceChildren();
+            tbody.replaceChildren();
 
             // Display metadata
             metaDiv.textContent = `${data.rowCount} rows returned in ${data.executionTime}ms`;
@@ -236,7 +248,14 @@
             }
 
             if (data.rowCount === 0) {
-                tbody.innerHTML = '<tr><td colspan="100" style="text-align: center; color: #999;">No results returned</td></tr>';
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 100;
+                cell.style.textAlign = 'center';
+                cell.style.color = '#999';
+                cell.textContent = 'No results returned';
+                row.appendChild(cell);
+                tbody.appendChild(row);
                 resultsDiv.style.display = 'block';
                 return;
             }

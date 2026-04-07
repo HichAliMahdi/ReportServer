@@ -7,7 +7,7 @@ function initScheduleDropdowns() {
 
     if (!dayOfMonthSelect || !hourSelect || !minuteSelect) return;
 
-    dayOfMonthSelect.innerHTML = '';
+    dayOfMonthSelect.replaceChildren();
     for (let i = 1; i <= 31; i++) {
         const opt = document.createElement('option');
         opt.value = i;
@@ -15,7 +15,7 @@ function initScheduleDropdowns() {
         dayOfMonthSelect.appendChild(opt);
     }
 
-    hourSelect.innerHTML = '';
+    hourSelect.replaceChildren();
     for (let i = 0; i < 24; i++) {
         const opt = document.createElement('option');
         opt.value = i;
@@ -24,7 +24,7 @@ function initScheduleDropdowns() {
     }
     hourSelect.value = '8';
 
-    minuteSelect.innerHTML = '';
+    minuteSelect.replaceChildren();
     for (let i = 0; i < 60; i += 5) {
         const opt = document.createElement('option');
         opt.value = i;
@@ -334,31 +334,116 @@ function loadSchedules() {
 function renderSchedulesTable(schedules) {
     const tbody = document.getElementById('schedulesTableBody');
     if (!schedules || schedules.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No scheduled reports configured</td></tr>';
+        tbody.replaceChildren();
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.style.textAlign = 'center';
+        cell.style.color = '#999';
+        cell.textContent = 'No scheduled reports configured';
+        row.appendChild(cell);
+        tbody.appendChild(row);
         return;
     }
-    tbody.innerHTML = schedules.map(s => {
-        const statusBadge = s.enabled
-            ? '<span style="background:#d4edda;color:#155724;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Active</span>'
-            : '<span style="background:#f8d7da;color:#721c24;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">Paused</span>';
-        const nextRun = s.nextRunTime ? formatDateTime(s.nextRunTime) : '—';
-        const lastRun = s.lastRunTime ? formatDateTime(s.lastRunTime) : 'Never';
-        return `<tr>
-            <td><strong>${escapeHtml(s.name)}</strong>${s.description ? '<br><small style="color:#999;">' + escapeHtml(s.description) + '</small>' : ''}</td>
-            <td>${escapeHtml(s.reportName)}</td>
-            <td>${formatScheduleType(s)}</td>
-            <td>${s.format.toUpperCase()}</td>
-            <td>${nextRun}</td>
-            <td>${lastRun}</td>
-            <td>${statusBadge}</td>
-            <td style="white-space: nowrap;">
-                <button class="btn-small" onclick="editSchedule(${s.id})" title="Edit">✏️</button>
-                <button class="btn-small" onclick="toggleSchedule(${s.id}, ${!s.enabled})" title="${s.enabled ? 'Pause' : 'Resume'}" style="background:${s.enabled ? '#ffc107' : '#28a745'};color:${s.enabled ? '#333' : '#fff'};">${s.enabled ? '⏸' : '▶️'}</button>
-                <button class="btn-small" onclick="runScheduleNow(${s.id})" title="Run Now" style="background:#17a2b8;">▶</button>
-                <button class="btn-small btn-danger" onclick="deleteSchedule(${s.id}, '${escapeHtml(s.name)}')" title="Delete">🗑</button>
-            </td>
-        </tr>`;
-    }).join('');
+    tbody.replaceChildren();
+    schedules.forEach(s => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        const nameStrong = document.createElement('strong');
+        nameStrong.textContent = s.name || '';
+        nameCell.appendChild(nameStrong);
+        if (s.description) {
+            const lineBreak = document.createElement('br');
+            const description = document.createElement('small');
+            description.style.color = '#999';
+            description.textContent = s.description;
+            nameCell.appendChild(lineBreak);
+            nameCell.appendChild(description);
+        }
+
+        const reportCell = document.createElement('td');
+        reportCell.textContent = s.reportName || '';
+
+        const scheduleCell = document.createElement('td');
+        scheduleCell.textContent = formatScheduleType(s);
+
+        const formatCell = document.createElement('td');
+        formatCell.textContent = String(s.format || '').toUpperCase();
+
+        const nextRunCell = document.createElement('td');
+        nextRunCell.textContent = s.nextRunTime ? formatDateTime(s.nextRunTime) : '—';
+
+        const lastRunCell = document.createElement('td');
+        lastRunCell.textContent = s.lastRunTime ? formatDateTime(s.lastRunTime) : 'Never';
+
+        const statusCell = document.createElement('td');
+        const statusBadge = document.createElement('span');
+        statusBadge.style.padding = '4px 10px';
+        statusBadge.style.borderRadius = '12px';
+        statusBadge.style.fontSize = '12px';
+        statusBadge.style.fontWeight = '600';
+        if (s.enabled) {
+            statusBadge.style.background = '#d4edda';
+            statusBadge.style.color = '#155724';
+            statusBadge.textContent = 'Active';
+        } else {
+            statusBadge.style.background = '#f8d7da';
+            statusBadge.style.color = '#721c24';
+            statusBadge.textContent = 'Paused';
+        }
+        statusCell.appendChild(statusBadge);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.style.whiteSpace = 'nowrap';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-small';
+        editBtn.type = 'button';
+        editBtn.textContent = '✏️';
+        editBtn.title = 'Edit';
+        editBtn.addEventListener('click', () => editSchedule(s.id));
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'btn-small';
+        toggleBtn.type = 'button';
+        toggleBtn.title = s.enabled ? 'Pause' : 'Resume';
+        toggleBtn.style.background = s.enabled ? '#ffc107' : '#28a745';
+        toggleBtn.style.color = s.enabled ? '#333' : '#fff';
+        toggleBtn.textContent = s.enabled ? '⏸' : '▶️';
+        toggleBtn.addEventListener('click', () => toggleSchedule(s.id, !s.enabled));
+
+        const runBtn = document.createElement('button');
+        runBtn.className = 'btn-small';
+        runBtn.type = 'button';
+        runBtn.style.background = '#17a2b8';
+        runBtn.title = 'Run Now';
+        runBtn.textContent = '▶';
+        runBtn.addEventListener('click', () => runScheduleNow(s.id));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-small btn-danger';
+        deleteBtn.type = 'button';
+        deleteBtn.title = 'Delete';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.addEventListener('click', () => deleteSchedule(s.id, s.name || ''));
+
+        actionsCell.appendChild(editBtn);
+        actionsCell.appendChild(toggleBtn);
+        actionsCell.appendChild(runBtn);
+        actionsCell.appendChild(deleteBtn);
+
+        row.appendChild(nameCell);
+        row.appendChild(reportCell);
+        row.appendChild(scheduleCell);
+        row.appendChild(formatCell);
+        row.appendChild(nextRunCell);
+        row.appendChild(lastRunCell);
+        row.appendChild(statusCell);
+        row.appendChild(actionsCell);
+
+        tbody.appendChild(row);
+    });
 }
 
 function formatDateTime(dt) {
@@ -390,9 +475,12 @@ function formatScheduleType(s) {
 
 function escapeHtml(str) {
     if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function openScheduleModal(schedule) {
@@ -451,7 +539,10 @@ function loadScheduleReports(selectedReport) {
         .then(payload => {
             const reports = Array.isArray(payload) ? payload : (payload.content || []);
             const sel = document.getElementById('scheduleReportName');
-            sel.innerHTML = '<option value="">-- Select a report --</option>';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select a report --';
+            sel.replaceChildren(placeholder);
             reports.forEach(r => {
                 const reportName = typeof r === 'string' ? r : r.reportFileName;
                 const opt = document.createElement('option');
@@ -468,7 +559,10 @@ function loadScheduleDatasources(selectedId) {
         .then(res => res.json())
         .then(datasources => {
             const sel = document.getElementById('scheduleDatasource');
-            sel.innerHTML = '<option value="">-- No datasource --</option>';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- No datasource --';
+            sel.replaceChildren(placeholder);
             datasources.forEach(ds => {
                 const opt = document.createElement('option');
                 opt.value = ds.id;

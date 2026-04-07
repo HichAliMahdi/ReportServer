@@ -129,13 +129,32 @@ const VB = {
         const bandElements = this.elements.filter(el => el.band === this.currentBand);
         
         // Clear canvas
-        this.canvas.innerHTML = '';
+        this.canvas.replaceChildren();
         
         if (bandElements.length === 0) {
-            this.canvas.innerHTML = `<div style="padding: 40px; text-align: center; color: #999; pointer-events: none;">
-                <p style="font-size: 32px; margin: 0;">📄</p>
-                <p style="margin: 10px 0 0 0;">Drag elements here<br><small style="font-size: 12px;">or click buttons to add</small></p>
-            </div>`;
+            const emptyState = document.createElement('div');
+            emptyState.style.padding = '40px';
+            emptyState.style.textAlign = 'center';
+            emptyState.style.color = '#999';
+            emptyState.style.pointerEvents = 'none';
+
+            const icon = document.createElement('p');
+            icon.style.fontSize = '32px';
+            icon.style.margin = '0';
+            icon.textContent = '📄';
+
+            const message = document.createElement('p');
+            message.style.margin = '10px 0 0 0';
+            message.append('Drag elements here');
+            message.appendChild(document.createElement('br'));
+
+            const small = document.createElement('small');
+            small.style.fontSize = '12px';
+            small.textContent = 'or click buttons to add';
+            message.appendChild(small);
+
+            emptyState.append(icon, message);
+            this.canvas.appendChild(emptyState);
             return;
         }
         
@@ -214,48 +233,85 @@ const VB = {
         const panel = document.getElementById('vbPropsPanel');
         
         if (!this.selectedId) {
-            panel.innerHTML = 'Select an element to edit';
+            panel.replaceChildren(document.createTextNode('Select an element to edit'));
             return;
         }
         
         const el = this.elements.find(e => e.id === this.selectedId);
         if (!el) return;
-        
-        let html = `
-            <div style="margin-bottom: 15px;">
-                <strong style="color: #007bff;">${el.type.toUpperCase()}</strong><br>
-                <small style="color: #666;">ID: ${el.id}</small>
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Text:</label>
-                <input type="text" value="${el.text}" onchange="VB.updateElement('text', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Font Size:</label>
-                <input type="number" value="${el.fontSize}" min="8" max="32" onchange="VB.updateElement('fontSize', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Color:</label>
-                <input type="color" value="${el.color}" onchange="VB.updateElement('color', this.value)" style="width: 100%; padding: 4px; cursor: pointer;">
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Width:</label>
-                <input type="number" value="${el.width}" min="20" onchange="VB.updateElement('width', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; display: block; margin-bottom: 3px;">Height:</label>
-                <input type="number" value="${el.height}" min="20" onchange="VB.updateElement('height', this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
-            </div>
-            
-            <button onclick="VB.delete()" style="width: 100%; padding: 6px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 10px;">🗑️ Delete</button>
-        `;
-        
-        panel.innerHTML = html;
+
+        const container = document.createElement('div');
+
+        const summary = document.createElement('div');
+        summary.style.marginBottom = '15px';
+        const type = document.createElement('strong');
+        type.style.color = '#007bff';
+        type.textContent = String(el.type || '').toUpperCase();
+        const lineBreak = document.createElement('br');
+        const idLabel = document.createElement('small');
+        idLabel.style.color = '#666';
+        idLabel.textContent = `ID: ${el.id}`;
+        summary.append(type, lineBreak, idLabel);
+
+        const makeField = (labelText, input) => {
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '10px';
+            const label = document.createElement('label');
+            label.style.fontSize = '12px';
+            label.style.display = 'block';
+            label.style.marginBottom = '3px';
+            label.textContent = labelText;
+            wrapper.append(label, input);
+            return wrapper;
+        };
+
+        const makeInput = (type, value, minValue, maxValue, handler) => {
+            const input = document.createElement('input');
+            input.type = type;
+            input.value = value;
+            if (minValue != null) input.min = String(minValue);
+            if (maxValue != null) input.max = String(maxValue);
+            input.style.width = '100%';
+            input.style.padding = '4px';
+            input.style.fontSize = '12px';
+            if (type === 'color') {
+                input.style.cursor = 'pointer';
+            }
+            input.addEventListener('change', (event) => handler(event.target.value));
+            return input;
+        };
+
+        const textInput = makeInput('text', el.text, null, null, (value) => VB.updateElement('text', value));
+        const fontSizeInput = makeInput('number', el.fontSize, 8, 32, (value) => VB.updateElement('fontSize', value));
+        const colorInput = makeInput('color', el.color, null, null, (value) => VB.updateElement('color', value));
+        const widthInput = makeInput('number', el.width, 20, null, (value) => VB.updateElement('width', value));
+        const heightInput = makeInput('number', el.height, 20, null, (value) => VB.updateElement('height', value));
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.style.width = '100%';
+        deleteButton.style.padding = '6px';
+        deleteButton.style.background = '#dc3545';
+        deleteButton.style.color = 'white';
+        deleteButton.style.border = 'none';
+        deleteButton.style.borderRadius = '4px';
+        deleteButton.style.cursor = 'pointer';
+        deleteButton.style.fontSize = '12px';
+        deleteButton.style.marginTop = '10px';
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', () => VB.delete());
+
+        container.append(
+            summary,
+            makeField('Text:', textInput),
+            makeField('Font Size:', fontSizeInput),
+            makeField('Color:', colorInput),
+            makeField('Width:', widthInput),
+            makeField('Height:', heightInput),
+            deleteButton
+        );
+
+        panel.replaceChildren(container);
     },
 
     updateElement(property, value) {

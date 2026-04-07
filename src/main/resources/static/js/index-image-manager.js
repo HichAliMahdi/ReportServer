@@ -57,21 +57,46 @@ function getImageMgrHeaders(additionalHeaders = {}) {
                     const gallery = document.getElementById('imageGallery');
 
                     if (data.images && data.images.length > 0) {
-                        gallery.innerHTML = '';
+                        gallery.replaceChildren();
                         data.images.forEach(image => {
                             const div = document.createElement('div');
                             div.className = 'image-gallery-item';
-                            div.innerHTML = `
-                                <img src="/${image.path}" alt="${image.name}">
-                                <div class="image-actions">
-                                    <button onclick="useImage('${image.path}')" style="background: #28a745; color: white;">Use</button>
-                                    <button onclick="deleteImage('${image.name}')" style="background: #dc3545; color: white;">Delete</button>
-                                </div>
-                            `;
+
+                            const imageEl = document.createElement('img');
+                            imageEl.src = '/' + image.path;
+                            imageEl.alt = image.name;
+
+                            const actions = document.createElement('div');
+                            actions.className = 'image-actions';
+
+                            const useButton = document.createElement('button');
+                            useButton.type = 'button';
+                            useButton.style.background = '#28a745';
+                            useButton.style.color = 'white';
+                            useButton.textContent = 'Use';
+                            useButton.addEventListener('click', () => useImage(image.path));
+
+                            const deleteButton = document.createElement('button');
+                            deleteButton.type = 'button';
+                            deleteButton.style.background = '#dc3545';
+                            deleteButton.style.color = 'white';
+                            deleteButton.textContent = 'Delete';
+                            deleteButton.addEventListener('click', () => deleteImage(image.name));
+
+                            actions.appendChild(useButton);
+                            actions.appendChild(deleteButton);
+                            div.appendChild(imageEl);
+                            div.appendChild(actions);
                             gallery.appendChild(div);
                         });
                     } else {
-                        gallery.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No images uploaded yet</p>';
+                        gallery.replaceChildren();
+                        const empty = document.createElement('p');
+                        empty.style.color = '#999';
+                        empty.style.textAlign = 'center';
+                        empty.style.padding = '40px';
+                        empty.textContent = 'No images uploaded yet';
+                        gallery.appendChild(empty);
                     }
                 })
                 .catch(error => {

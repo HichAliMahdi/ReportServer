@@ -1,8 +1,13 @@
 package com.reportserver.config;
 
+import com.reportserver.model.User;
+import com.reportserver.repository.UserRepository;
 import com.reportserver.service.InstallationService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -14,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.util.Locale;
+import java.util.Optional;
 
 @Configuration
 public class LocaleConfig implements WebMvcConfigurer {
@@ -22,7 +28,7 @@ public class LocaleConfig implements WebMvcConfigurer {
     private static final String ORIGINAL_LOCALE_SESSION_ATTRIBUTE = "org.springframework.web.servlet.i18n.SessionLocaleResolver.LOCALE";
 
     @Bean
-    public LocaleResolver localeResolver(InstallationService installationService) {
+    public LocaleResolver localeResolver(InstallationService installationService, UserRepository userRepository) {
         return new LocaleResolver() {
             @Override
             public Locale resolveLocale(HttpServletRequest request) {
@@ -50,19 +56,38 @@ public class LocaleConfig implements WebMvcConfigurer {
                     }
                 }
 
-                // 3. Check installed default
+                // 3. Check authenticated user's preferred language
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication != null && authentication.isAuthenticated()
+                        && !(authentication instanceof AnonymousAuthenticationToken)) {
+                    String username = authentication.getName();
+                    if (username != null && !username.isBlank() && !"anonymousUser".equalsIgnoreCase(username)) {
+                        Optional<User> userOpt = userRepository.findByUsername(username);
+                        if (userOpt.isPresent()) {
+                            Locale userLocale = toLocale(userOpt.get().getPreferredLanguage());
+                            if (isSupported(userLocale)) {
+                                HttpSession ensuredSession = request.getSession(true);
+                                ensuredSession.setAttribute(LOCALE_SESSION_ATTRIBUTE, userLocale);
+                                ensuredSession.setAttribute(ORIGINAL_LOCALE_SESSION_ATTRIBUTE, userLocale);
+                                return userLocale;
+                            }
+                        }
+                    }
+                }
+
+                // 4. Check installed default
                 Locale installedDefault = toLocale(installationService.getDefaultLanguage());
                 if (isSupported(installedDefault)) {
                     return installedDefault;
                 }
 
-                // 4. Check request locale (browser preference)
+                // 5. Check request locale (browser preference)
                 Locale requestLocale = request.getLocale();
                 if (isSupported(requestLocale)) {
                     return requestLocale;
                 }
 
-                // 5. Default to English
+                // 6. Default to English
                 return Locale.ENGLISH;
             }
 

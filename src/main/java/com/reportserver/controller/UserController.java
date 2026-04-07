@@ -6,6 +6,7 @@ import com.reportserver.security.UserSessionRegistry;
 import com.reportserver.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,7 +19,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.LocaleResolver;
 
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,15 +34,18 @@ public class UserController {
 
     private UserSessionRegistry userSessionRegistry;
 
+    private LocaleResolver localeResolver;
+
     @Value("${reportserver.pagination.default-page-size:20}")
     private int defaultPageSize;
 
     @Value("${reportserver.pagination.max-page-size:200}")
     private int maxPageSize;
 
-    public UserController(UserService userService, UserSessionRegistry userSessionRegistry) {
+    public UserController(UserService userService, UserSessionRegistry userSessionRegistry, LocaleResolver localeResolver) {
         this.userService = userService;
         this.userSessionRegistry = userSessionRegistry;
+        this.localeResolver = localeResolver;
     }
     
     // Page for user management (Admin only)
@@ -363,11 +369,36 @@ public class UserController {
             response.put("enabled", user.isEnabled());
             response.put("twoFactorEnabled", user.isTwoFactorEnabled());
             response.put("twoFactorConfirmed", user.isTwoFactorConfirmed());
+            response.put("preferredLanguage", user.getPreferredLanguage());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status", "error");
             response.put("message", e.getMessage());
             return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @PostMapping("/api/users/me/language")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> updateCurrentUserLanguage(@RequestBody Map<String, String> request,
+                                                                         HttpServletRequest httpServletRequest,
+                                                                         HttpServletResponse httpServletResponse) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            String preferredLanguage = userService.updatePreferredLanguage(username, request.get("language"));
+            localeResolver.setLocale(httpServletRequest, httpServletResponse, toLocale(preferredLanguage));
+
+            response.put("status", "success");
+            response.put("language", preferredLanguage);
+            response.put("message", "Language updated successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         }
     }
     
@@ -406,5 +437,15 @@ public class UserController {
             response.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    private Locale toLocale(String language) {
+        if ("fr".equalsIgnoreCase(language)) {
+            return Locale.FRENCH;
+        }
+        if ("de".equalsIgnoreCase(language)) {
+            return Locale.GERMAN;
+        }
+        return Locale.ENGLISH;
     }
 }

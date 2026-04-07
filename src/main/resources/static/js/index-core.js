@@ -51,7 +51,7 @@ function renderPagination(containerId, currentPage, totalPages, onPageChange) {
     const container = document.getElementById(containerId);
     if (!container) return;
     if (totalPages <= 1) {
-        container.innerHTML = '';
+        container.replaceChildren();
         return;
     }
     const div = document.createElement('div');
@@ -60,7 +60,7 @@ function renderPagination(containerId, currentPage, totalPages, onPageChange) {
     const addBtn = (label, page, disabled, active) => {
         const btn = document.createElement('button');
         btn.className = 'pagination-btn' + (active ? ' active' : '');
-        btn.innerHTML = label;
+        btn.textContent = String(label);
         btn.disabled = disabled;
         if (!disabled) btn.onclick = () => onPageChange(page);
         div.appendChild(btn);
@@ -94,7 +94,7 @@ function renderPagination(containerId, currentPage, totalPages, onPageChange) {
     }
     addBtn('Next &rsaquo;', currentPage + 1, currentPage >= totalPages - 1, false);
 
-    container.innerHTML = '';
+    container.replaceChildren();
     container.appendChild(div);
 }
 
@@ -176,6 +176,61 @@ function updateSidebarSettingsMenuVisibility() {
     }
 }
 
+function normalizePreferredLanguage(language) {
+    const normalized = String(language || '').trim().toLowerCase();
+    return ['en', 'fr', 'de'].includes(normalized) ? normalized : 'en';
+}
+
+function syncSidebarLanguageSelect(language) {
+    const languageSelect = document.getElementById('sidebarLanguageSelect');
+    if (!languageSelect) {
+        return;
+    }
+    const normalized = normalizePreferredLanguage(language);
+    languageSelect.value = normalized;
+    languageSelect.dataset.currentLanguage = normalized;
+}
+
+function changeUserLanguage(language) {
+    const languageSelect = document.getElementById('sidebarLanguageSelect');
+    if (!languageSelect) {
+        return;
+    }
+
+    const previousLanguage = normalizePreferredLanguage(languageSelect.dataset.currentLanguage || languageSelect.value);
+    const selectedLanguage = normalizePreferredLanguage(language);
+    languageSelect.disabled = true;
+
+    fetch('/api/users/me/language', {
+        method: 'POST',
+        headers: getHeadersWithCSRF({
+            'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({ language: selectedLanguage })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                throw new Error(data.message || 'Failed to update language');
+            }
+
+            const nextLanguage = normalizePreferredLanguage(data.language || selectedLanguage);
+            languageSelect.dataset.currentLanguage = nextLanguage;
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', nextLanguage);
+            window.location.href = url.toString();
+        })
+        .catch((error) => {
+            console.error('Error updating preferred language:', error);
+            languageSelect.value = previousLanguage;
+            const saveFailedMessage = languageSelect.dataset.saveFailedMessage || 'Failed to update language';
+            showMessage(saveFailedMessage, 'error');
+        })
+        .finally(() => {
+            languageSelect.disabled = false;
+        });
+}
+
 // Fetch the current user's role
 function fetchCurrentUser() {
     return fetch('/api/current-user')
@@ -184,6 +239,7 @@ function fetchCurrentUser() {
             if (data.status === 'success') {
                 currentUserRole = normalizeRole(data.role);
                 currentUsername = data.username || currentUsername;
+                syncSidebarLanguageSelect(data.preferredLanguage);
                 updateTabVisibility();
                 applyCurrentUserDisplay();
             }
@@ -664,11 +720,12 @@ function loadJrxmlTemplates(page = 0) {
     if (!list) return; // Element might not exist for READ_ONLY users
 
     // Show loading skeletons
-    list.innerHTML = `
-        <div class="skeleton skeleton-card"></div>
-        <div class="skeleton skeleton-card"></div>
-        <div class="skeleton skeleton-card"></div>
-    `;
+    list.replaceChildren();
+    for (let i = 0; i < 3; i++) {
+        const skeleton = document.createElement('div');
+        skeleton.className = 'skeleton skeleton-card';
+        list.appendChild(skeleton);
+    }
 
     const search = document.getElementById('jrxmlSearch')?.value?.trim() || '';
     const category = document.getElementById('jrxmlCategory')?.value?.trim() || '';
@@ -687,26 +744,42 @@ function loadJrxmlTemplates(page = 0) {
         const select = document.getElementById('reportSelect');
         
         if (select) {
-            // Clear existing options (keep first one)
-            select.innerHTML = '<option value="">-- Select a report --</option>';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select a report --';
+            select.replaceChildren(placeholder);
         }
 
         renderPagination('jrxmlPaginationTop', jrxmlPage, jrxmlTotalPages, loadJrxmlTemplates);
         renderPagination('jrxmlPaginationBottom', jrxmlPage, jrxmlTotalPages, loadJrxmlTemplates);
         
-        list.innerHTML = '';
+        list.replaceChildren();
 
         if (reports.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">📋</div>
-                    <h3>No JRXML Templates Yet</h3>
-                    <p>Upload your first JRXML report file to get started</p>
-                    <button class="btn" onclick="document.getElementById('fileInput').click()">
-                        📄 Upload Template
-                    </button>
-                </div>
-            `;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+
+            const icon = document.createElement('div');
+            icon.className = 'empty-state-icon';
+            icon.textContent = '📋';
+
+            const heading = document.createElement('h3');
+            heading.textContent = 'No JRXML Templates Yet';
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'Upload your first JRXML report file to get started';
+
+            const button = document.createElement('button');
+            button.className = 'btn';
+            button.type = 'button';
+            button.textContent = '📄 Upload Template';
+            button.addEventListener('click', () => document.getElementById('fileInput')?.click());
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(heading);
+            emptyState.appendChild(paragraph);
+            emptyState.appendChild(button);
+            list.appendChild(emptyState);
             return;
         }
 
@@ -743,13 +816,13 @@ function loadJrxmlTemplates(page = 0) {
             downloadLink.href = `/api/builder/download/${encodeURIComponent(reportFileName)}`;
             downloadLink.download = reportFileName;
             downloadLink.className = 'report-action-btn report-action-download';
-            downloadLink.innerHTML = '📥 Download';
+            downloadLink.textContent = '📥 Download';
             downloadLink.title = 'Download JRXML template';
             downloadLink.setAttribute('aria-label', `Download ${reportFileName}`);
 
             const editBtn = document.createElement('button');
             editBtn.className = 'report-action-btn report-action-edit';
-            editBtn.innerHTML = '✏️ Edit';
+            editBtn.textContent = '✏️ Edit';
             editBtn.title = 'Edit in JRXML editor';
             editBtn.setAttribute('aria-label', `Edit ${reportFileName}`);
             editBtn.onclick = () => openJrxmlEditor(reportFileName);
@@ -757,7 +830,7 @@ function loadJrxmlTemplates(page = 0) {
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'report-action-btn report-action-delete';
-            deleteBtn.innerHTML = '🗑️ Delete';
+            deleteBtn.textContent = '🗑️ Delete';
             deleteBtn.title = 'Delete template';
             deleteBtn.setAttribute('aria-label', `Delete ${reportFileName}`);
             deleteBtn.onclick = () => confirmDeleteReport(reportFileName, deleteBtn);
@@ -774,16 +847,31 @@ function loadJrxmlTemplates(page = 0) {
         });
     })
     .catch(error => {
-        list.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">⚠️</div>
-                <h3>Error Loading Templates</h3>
-                <p>${error.message || 'Unable to load templates. Please try again.'}</p>
-                <button class="btn" onclick="loadJrxmlTemplates(0)">
-                    🔄 Retry
-                </button>
-            </div>
-        `;
+        list.replaceChildren();
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '⚠️';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Error Loading Templates';
+
+        const paragraph = document.createElement('p');
+        paragraph.textContent = error.message || 'Unable to load templates. Please try again.';
+
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.type = 'button';
+        button.textContent = '🔄 Retry';
+        button.addEventListener('click', () => loadJrxmlTemplates(0));
+
+        emptyState.appendChild(icon);
+        emptyState.appendChild(heading);
+        emptyState.appendChild(paragraph);
+        emptyState.appendChild(button);
+        list.appendChild(emptyState);
     });
 }
 
@@ -797,10 +885,12 @@ function loadGeneratedReports(page = 0) {
 
     // Show loading skeletons
     if (adminList) {
-        adminList.innerHTML = `
-            <div class="skeleton skeleton-card"></div>
-            <div class="skeleton skeleton-card"></div>
-        `;
+        adminList.replaceChildren();
+        for (let i = 0; i < 2; i++) {
+            const skeleton = document.createElement('div');
+            skeleton.className = 'skeleton skeleton-card';
+            adminList.appendChild(skeleton);
+        }
     }
 
     const search = document.getElementById('genSearch')?.value?.trim() || '';
@@ -822,25 +912,35 @@ function loadGeneratedReports(page = 0) {
         renderPagination('genPaginationBottom', genPage, genTotalPages, loadGeneratedReports);
 
         if (adminList) {
-            adminList.innerHTML = '';
+            adminList.replaceChildren();
         }
         if (readOnlyList) {
-            readOnlyList.innerHTML = '';
+            readOnlyList.replaceChildren();
         }
 
         if (!reportsData || reportsData.length === 0) {
-            const emptyMsg = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">📊</div>
-                    <h3>No Generated Reports Yet</h3>
-                    <p>Generate reports using the Generate Report or Report Builder features</p>
-                </div>
-            `;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+
+            const icon = document.createElement('div');
+            icon.className = 'empty-state-icon';
+            icon.textContent = '📊';
+
+            const heading = document.createElement('h3');
+            heading.textContent = 'No Generated Reports Yet';
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'Generate reports using the Generate Report or Report Builder features';
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(heading);
+            emptyState.appendChild(paragraph);
+
             if (adminList) {
-                adminList.innerHTML = emptyMsg;
+                adminList.appendChild(emptyState.cloneNode(true));
             }
             if (readOnlyList) {
-                readOnlyList.innerHTML = emptyMsg;
+                readOnlyList.appendChild(emptyState.cloneNode(true));
             }
             return;
         }
@@ -879,7 +979,7 @@ function loadGeneratedReports(page = 0) {
                 const previewBtn = document.createElement('button');
                 previewBtn.className = 'report-action-btn';
                 previewBtn.style.background = '#17a2b8';
-                previewBtn.innerHTML = '👁️ Preview';
+                previewBtn.textContent = '👁️ Preview';
                 previewBtn.title = 'Preview report in browser';
                 previewBtn.onclick = () => previewGeneratedReport(report.reportFileName);
                 actionsDiv.appendChild(previewBtn);
@@ -888,7 +988,7 @@ function loadGeneratedReports(page = 0) {
             // Download button - for all users
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'report-action-btn report-action-download';
-            downloadBtn.innerHTML = '📥 Download';
+            downloadBtn.textContent = '📥 Download';
             downloadBtn.title = 'Download generated report';
             downloadBtn.onclick = () => downloadGeneratedReport(report.reportFileName);
             actionsDiv.appendChild(downloadBtn);
@@ -897,7 +997,7 @@ function loadGeneratedReports(page = 0) {
             if (currentUserRole === 'ADMIN' || currentUserRole === 'OPERATOR') {
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'report-action-btn report-action-edit';
-                shareBtn.innerHTML = report.sharedWithReadOnly ? '🔓 Unshare' : '🔒 Share';
+                shareBtn.textContent = report.sharedWithReadOnly ? '🔓 Unshare' : '🔒 Share';
                 shareBtn.title = report.sharedWithReadOnly ? 'Remove from READ_ONLY users' : 'Share with READ_ONLY users';
                 shareBtn.onclick = () => toggleShareReport(report.id, !report.sharedWithReadOnly, shareBtn);
                 actionsDiv.appendChild(shareBtn);
@@ -906,7 +1006,7 @@ function loadGeneratedReports(page = 0) {
                 const linkBtn = document.createElement('button');
                 linkBtn.className = 'report-action-btn';
                 linkBtn.style.background = '#6f42c1';
-                linkBtn.innerHTML = '🔗 Share Link';
+                linkBtn.textContent = '🔗 Share Link';
                 linkBtn.title = 'Create a temporary download link';
                 linkBtn.onclick = () => openShareLinkModal(report.id);
                 actionsDiv.appendChild(linkBtn);
@@ -914,7 +1014,7 @@ function loadGeneratedReports(page = 0) {
                 // Delete button - only for ADMIN/OPERATOR
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'report-action-btn report-action-delete';
-                deleteBtn.innerHTML = '🗑️ Delete';
+                deleteBtn.textContent = '🗑️ Delete';
                 deleteBtn.title = 'Delete generated report';
                 deleteBtn.onclick = () => deleteGeneratedReport(report.id, deleteBtn);
                 actionsDiv.appendChild(deleteBtn);
@@ -930,18 +1030,32 @@ function loadGeneratedReports(page = 0) {
         });
     })
     .catch(error => {
-        const emptyMsg = `
-            <div class="empty-state">
-                <div class="empty-state-icon">⚠️</div>
-                <h3>Error Loading Reports</h3>
-                <p>${error.message || 'Unable to load reports.'}</p>
-                <button class="btn" onclick="loadGeneratedReports(0)">
-                    🔄 Retry
-                </button>
-            </div>
-        `;
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '⚠️';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Error Loading Reports';
+
+        const paragraph = document.createElement('p');
+        paragraph.textContent = error.message || 'Unable to load reports.';
+
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.type = 'button';
+        button.textContent = '🔄 Retry';
+        button.addEventListener('click', () => loadGeneratedReports(0));
+
+        emptyState.appendChild(icon);
+        emptyState.appendChild(heading);
+        emptyState.appendChild(paragraph);
+        emptyState.appendChild(button);
+
         if (adminList) {
-            adminList.innerHTML = emptyMsg;
+            adminList.replaceChildren(emptyState);
         }
     });
 }
@@ -1060,18 +1174,38 @@ function deleteReport(reportName, actionButton) {
 function downloadReportForReadOnly(reportName) {
     try {
         showLoading('Generating report...');
-        
-        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+        tableBody.replaceChildren();
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.style.padding = '30px 20px';
 
-        const formData = new FormData();
-        formData.append('reportName', reportName);
-        formData.append('format', 'pdf');
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '⚠️';
 
-        const headers = {};
-        if (csrfToken && csrfHeader) {
-            headers[csrfHeader] = csrfToken;
-        }
+        const heading = document.createElement('h3');
+        heading.textContent = 'Error Loading Datasources';
+
+        const paragraph = document.createElement('p');
+        paragraph.textContent = error.message || 'Unable to load datasources. Please try again.';
+
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.type = 'button';
+        button.style.marginTop = '15px';
+        button.textContent = '🔄 Retry';
+        button.addEventListener('click', () => loadDatasources());
+
+        emptyState.appendChild(icon);
+        emptyState.appendChild(heading);
+        emptyState.appendChild(paragraph);
+        emptyState.appendChild(button);
+        cell.appendChild(emptyState);
+        row.appendChild(cell);
+        tableBody.appendChild(row);
 
         fetch('/download-report', {
             method: 'POST',
@@ -1115,7 +1249,7 @@ function loadReportParameters(reportName) {
 
     if (!reportName) {
         parametersSection.style.display = 'none';
-        parametersContainer.innerHTML = '';
+        parametersContainer.replaceChildren();
         return;
     }
 
@@ -1127,7 +1261,7 @@ function loadReportParameters(reportName) {
             return;
         }
 
-        parametersContainer.innerHTML = '';
+        parametersContainer.replaceChildren();
         parametersSection.style.display = 'block';
 
         data.parameters.forEach(param => {
@@ -1199,7 +1333,18 @@ function loadDatasources() {
     const select = document.getElementById('datasourceSelect');
 
     // Show loading state
-    tableBody.innerHTML = '<tr><td colspan="4"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></td></tr>';
+    tableBody.replaceChildren();
+    const loadingRow = document.createElement('tr');
+    const loadingCell = document.createElement('td');
+    loadingCell.colSpan = 4;
+    const loadingOne = document.createElement('div');
+    loadingOne.className = 'skeleton skeleton-text';
+    const loadingTwo = document.createElement('div');
+    loadingTwo.className = 'skeleton skeleton-text';
+    loadingCell.appendChild(loadingOne);
+    loadingCell.appendChild(loadingTwo);
+    loadingRow.appendChild(loadingCell);
+    tableBody.appendChild(loadingRow);
 
     fetch('/api/datasources')
     .then(response => {
@@ -1208,22 +1353,44 @@ function loadDatasources() {
     })
     .then(datasources => {
         // Clear existing
-        tableBody.innerHTML = '';
-        select.innerHTML = '<option value="">-- Use default datasource --</option>';
+        tableBody.replaceChildren();
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Use default datasource --';
+        select.replaceChildren(defaultOption);
 
         if (datasources.length === 0) {
-            tableBody.innerHTML = `
-                <tr><td colspan="4">
-                    <div class="empty-state" style="padding: 40px 20px;">
-                        <div class="empty-state-icon">\ud83d\uddc4\ufe0f</div>
-                        <h3>No Datasources Configured</h3>
-                        <p>Create your first datasource to connect to databases</p>
-                        <button class="btn" onclick="openDatasourceModal()" style="margin-top: 15px;">
-                            \u2795 Add Datasource
-                        </button>
-                    </div>
-                </td></tr>
-            `;
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.style.padding = '40px 20px';
+
+            const icon = document.createElement('div');
+            icon.className = 'empty-state-icon';
+            icon.textContent = '🗄️';
+
+            const heading = document.createElement('h3');
+            heading.textContent = 'No Datasources Configured';
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'Create your first datasource to connect to databases';
+
+            const button = document.createElement('button');
+            button.className = 'btn';
+            button.type = 'button';
+            button.style.marginTop = '15px';
+            button.textContent = '➕ Add Datasource';
+            button.addEventListener('click', () => openDatasourceModal());
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(heading);
+            emptyState.appendChild(paragraph);
+            emptyState.appendChild(button);
+            cell.appendChild(emptyState);
+            row.appendChild(cell);
+            tableBody.appendChild(row);
             return;
         }
 
@@ -1299,18 +1466,38 @@ function loadDatasources() {
         });
     })
     .catch(error => {
-        tableBody.innerHTML = `
-            <tr><td colspan="4">
-                <div class="empty-state" style="padding: 30px 20px;">
-                    <div class="empty-state-icon">\u26a0\ufe0f</div>
-                    <h3>Error Loading Datasources</h3>
-                    <p>${error.message || 'Unable to load datasources. Please try again.'}</p>
-                    <button class="btn" onclick="loadDatasources()" style="margin-top: 15px;">
-                        \ud83d\udd04 Retry
-                    </button>
-                </div>
-            </td></tr>
-        `;
+        tableBody.replaceChildren();
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.style.padding = '30px 20px';
+
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '⚠️';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Error Loading Datasources';
+
+        const paragraph = document.createElement('p');
+        paragraph.textContent = error.message || 'Unable to load datasources. Please try again.';
+
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.type = 'button';
+        button.style.marginTop = '15px';
+        button.textContent = '🔄 Retry';
+        button.addEventListener('click', () => loadDatasources());
+
+        emptyState.appendChild(icon);
+        emptyState.appendChild(heading);
+        emptyState.appendChild(paragraph);
+        emptyState.appendChild(button);
+        cell.appendChild(emptyState);
+        row.appendChild(cell);
+        tableBody.appendChild(row);
     });
 }
 
@@ -1504,7 +1691,7 @@ function toggleDatasourceFields() {
         document.getElementById('dsDriver').parentElement.style.display = 'none';
         configurationGroup.style.display = 'block';
         document.getElementById('dsConfiguration').placeholder = '$.data[*] or /root/item';
-        configHelpText.innerHTML = 'JSONPath for JSON APIs (e.g., $.data[*]) or XPath for XML APIs (e.g., /root/item)';
+        configHelpText.textContent = 'JSONPath for JSON APIs (e.g., $.data[*]) or XPath for XML APIs (e.g., /root/item)';
         testBtn.style.display = 'inline-block';
     } else if (type === 'CSV' || type === 'XML' || type === 'JSON') {
         fileFields.style.display = 'block';
@@ -1517,10 +1704,10 @@ function toggleDatasourceFields() {
             configurationGroup.style.display = 'block';
             if (type === 'XML') {
                 document.getElementById('dsConfiguration').placeholder = '/root/items/item';
-                configHelpText.innerHTML = 'XPath expression to select nodes (e.g., /root/items/item)';
+                configHelpText.textContent = 'XPath expression to select nodes (e.g., /root/items/item)';
             } else {
                 document.getElementById('dsConfiguration').placeholder = '$.data.items[*]';
-                configHelpText.innerHTML = 'JSONPath expression to select data (e.g., $.data.items[*])';
+                configHelpText.textContent = 'JSONPath expression to select data (e.g., $.data.items[*])';
             }
         }
     } else if (type === 'EMPTY') {
@@ -1560,18 +1747,38 @@ async function parseApiJsonResponse(response, fallbackMessage) {
     if (trimmed && looksLikeJson) {
         try {
             payload = JSON.parse(trimmed);
-        } catch (error) {
-            throw new Error('Server returned invalid JSON. Please retry.');
-        }
-    }
+            tableBody.replaceChildren();
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.style.padding = '30px 20px';
 
-    if (!response.ok) {
-        const messageFromPayload = payload?.message || payload?.error;
-        const messageFromHtml = extractReadableTextFromHtml(trimmed);
-        throw new Error(messageFromPayload || messageFromHtml || fallbackMessage || `Request failed (${response.status})`);
-    }
+            const icon = document.createElement('div');
+            icon.className = 'empty-state-icon';
+            icon.textContent = '⚠️';
 
-    if (!payload) {
+            const heading = document.createElement('h3');
+            heading.textContent = 'Error Loading Datasources';
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = error.message || 'Unable to load datasources. Please try again.';
+
+            const button = document.createElement('button');
+            button.className = 'btn';
+            button.type = 'button';
+            button.style.marginTop = '15px';
+            button.textContent = '🔄 Retry';
+            button.addEventListener('click', () => loadDatasources());
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(heading);
+            emptyState.appendChild(paragraph);
+            emptyState.appendChild(button);
+            cell.appendChild(emptyState);
+            row.appendChild(cell);
+            tableBody.appendChild(row);
         if (!trimmed) {
             return {};
         }
@@ -1590,7 +1797,7 @@ function openDatasourceModal(datasourceId = null) {
 
     form.reset();
 
-    document.getElementById('datasourceMessage').innerHTML = '';
+    document.getElementById('datasourceMessage').replaceChildren();
 
     if (datasourceId) {
         title.textContent = 'Edit Datasource';
@@ -2052,11 +2259,12 @@ function loadExecutionHistory(page = 0) {
     const list = document.getElementById('executionHistoryList');
     if (!list) return;
 
-    list.innerHTML = `
-        <div class="skeleton skeleton-card"></div>
-        <div class="skeleton skeleton-card"></div>
-        <div class="skeleton skeleton-card"></div>
-    `;
+    list.replaceChildren();
+    for (let i = 0; i < 3; i++) {
+        const skeleton = document.createElement('div');
+        skeleton.className = 'skeleton skeleton-card';
+        list.appendChild(skeleton);
+    }
 
     fetch(`/api/report-executions?page=${page}&size=20`)
     .then(r => r.json())
@@ -2067,15 +2275,25 @@ function loadExecutionHistory(page = 0) {
         renderPagination('historyPaginationTop', historyPage, historyTotalPages, loadExecutionHistory);
         renderPagination('historyPaginationBottom', historyPage, historyTotalPages, loadExecutionHistory);
 
-        list.innerHTML = '';
+        list.replaceChildren();
         if (execs.length === 0) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">📜</div>
-                    <h3>No Execution History Yet</h3>
-                    <p>History will appear here after reports are generated</p>
-                </div>
-            `;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+
+            const icon = document.createElement('div');
+            icon.className = 'empty-state-icon';
+            icon.textContent = '📜';
+
+            const heading = document.createElement('h3');
+            heading.textContent = 'No Execution History Yet';
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'History will appear here after reports are generated';
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(heading);
+            emptyState.appendChild(paragraph);
+            list.appendChild(emptyState);
             return;
         }
 
@@ -2090,29 +2308,73 @@ function loadExecutionHistory(page = 0) {
 
             const left = document.createElement('div');
             left.style.flex = '1';
-            left.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="color: ${statusColor}; font-weight: bold; font-size: 12px; min-width:60px;">${exec.status}</span>
-                    <span class="report-item-name" style="font-size: 14px;">${exec.reportName} (${(exec.format || '').toUpperCase()})</span>
-                </div>
-                <div style="font-size: 12px; color: #888; margin-top: 4px;">
-                    By: ${exec.executedBy || '—'} · Type: ${exec.executionType || '—'} · Duration: ${duration} · ${exec.startedAt ? new Date(exec.startedAt).toLocaleString() : '—'}
-                </div>
-                ${exec.errorMessage ? `<div style="font-size: 12px; color: #dc3545; margin-top: 3px;">⚠️ ${exec.errorMessage}</div>` : ''}
-            `;
+            const statusRow = document.createElement('div');
+            statusRow.style.display = 'flex';
+            statusRow.style.alignItems = 'center';
+            statusRow.style.gap = '10px';
+
+            const statusSpan = document.createElement('span');
+            statusSpan.style.color = statusColor;
+            statusSpan.style.fontWeight = 'bold';
+            statusSpan.style.fontSize = '12px';
+            statusSpan.style.minWidth = '60px';
+            statusSpan.textContent = exec.status;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'report-item-name';
+            nameSpan.style.fontSize = '14px';
+            nameSpan.textContent = `${exec.reportName} (${(exec.format || '').toUpperCase()})`;
+
+            statusRow.appendChild(statusSpan);
+            statusRow.appendChild(nameSpan);
+
+            const infoRow = document.createElement('div');
+            infoRow.style.fontSize = '12px';
+            infoRow.style.color = '#888';
+            infoRow.style.marginTop = '4px';
+            infoRow.textContent = `By: ${exec.executedBy || '—'} · Type: ${exec.executionType || '—'} · Duration: ${duration} · ${exec.startedAt ? new Date(exec.startedAt).toLocaleString() : '—'}`;
+
+            left.appendChild(statusRow);
+            left.appendChild(infoRow);
+
+            if (exec.errorMessage) {
+                const errorRow = document.createElement('div');
+                errorRow.style.fontSize = '12px';
+                errorRow.style.color = '#dc3545';
+                errorRow.style.marginTop = '3px';
+                errorRow.textContent = `⚠️ ${exec.errorMessage}`;
+                left.appendChild(errorRow);
+            }
             item.appendChild(left);
             list.appendChild(item);
         });
     })
     .catch(err => {
-        list.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">⚠️</div>
-                <h3>Error Loading History</h3>
-                <p>${err.message || 'Unable to load execution history'}</p>
-                <button class="btn" onclick="loadExecutionHistory(0)">🔄 Retry</button>
-            </div>
-        `;
+        list.replaceChildren();
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+
+        const icon = document.createElement('div');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '⚠️';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Error Loading History';
+
+        const paragraph = document.createElement('p');
+        paragraph.textContent = err.message || 'Unable to load execution history';
+
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.type = 'button';
+        button.textContent = '🔄 Retry';
+        button.addEventListener('click', () => loadExecutionHistory(0));
+
+        emptyState.appendChild(icon);
+        emptyState.appendChild(heading);
+        emptyState.appendChild(paragraph);
+        emptyState.appendChild(button);
+        list.appendChild(emptyState);
     });
 }
 
@@ -2124,7 +2386,7 @@ function openShareLinkModal(reportId) {
     document.getElementById('shareLinkReportId').value = reportId;
     document.getElementById('shareLinkResult').style.display = 'none';
     document.getElementById('shareLinkGenerating').style.display = 'none';
-    document.getElementById('shareLinkMessage').innerHTML = '';
+    document.getElementById('shareLinkMessage').replaceChildren();
     document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
     modal.style.display = 'flex';
 }
@@ -2141,7 +2403,7 @@ function generateShareLink() {
     document.getElementById('shareLinkGenerating').style.display = 'block';
     document.getElementById('shareLinkResult').style.display = 'none';
     document.getElementById('generateShareLinkBtn').style.display = 'none';
-    document.getElementById('shareLinkMessage').innerHTML = '';
+    document.getElementById('shareLinkMessage').replaceChildren();
 
     fetch(`/api/generated-reports/${reportId}/create-share-link`, {
         method: 'POST',
@@ -2158,15 +2420,23 @@ function generateShareLink() {
                 `Expires: ${new Date(data.expiresAt).toLocaleString()}`;
             document.getElementById('shareLinkResult').style.display = 'block';
         } else {
-            document.getElementById('shareLinkMessage').innerHTML =
-                `<span style="color: #dc3545;">❌ ${data.message}</span>`;
+            const message = document.getElementById('shareLinkMessage');
+            message.replaceChildren();
+            const span = document.createElement('span');
+            span.style.color = '#dc3545';
+            span.textContent = `❌ ${data.message}`;
+            message.appendChild(span);
             document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
         }
     })
     .catch(err => {
         document.getElementById('shareLinkGenerating').style.display = 'none';
-        document.getElementById('shareLinkMessage').innerHTML =
-            `<span style="color: #dc3545;">❌ Error: ${err.message}</span>`;
+        const message = document.getElementById('shareLinkMessage');
+        message.replaceChildren();
+        const span = document.createElement('span');
+        span.style.color = '#dc3545';
+        span.textContent = `❌ Error: ${err.message}`;
+        message.appendChild(span);
         document.getElementById('generateShareLinkBtn').style.display = 'inline-block';
     });
 }

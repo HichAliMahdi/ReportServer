@@ -153,6 +153,11 @@
             font-size: 14px;
             background: white;
         }
+        .required-marker {
+            color: #c0392b;
+            font-weight: 700;
+            margin-right: 4px;
+        }
         .step {
             display: none;
         }
@@ -271,7 +276,7 @@
                     <div class="wizard-panel-badge" th:text="#{setup.language.badge}">Language Selection</div>
                     <h3 id="setupLanguageTitle" th:text="#{setup.language.title}">Choose your language first</h3>
                     <div class="wizard-language-select">
-                        <label for="setupLanguage" th:text="#{lang.label}">Language</label>
+                        <label for="setupLanguage"><span class="required-marker">*</span> <span th:text="#{lang.label}">Language</span></label>
                         <select id="setupLanguage" onchange="saveLanguageAndRefresh()">
                             <option value="en" th:selected="${#locale.language == 'en'}" th:text="#{lang.en}">English</option>
                             <option value="fr" th:selected="${#locale.language == 'fr'}" th:text="#{lang.fr}">French</option>
@@ -312,23 +317,23 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="smtpHost" th:text="#{setup.smtp.host}">SMTP Host</label>
+                    <label for="smtpHost"><span class="required-marker">*</span> <span th:text="#{setup.smtp.host}">SMTP Host</span></label>
                     <input type="text" id="smtpHost" th:placeholder="#{setup.smtp.host.placeholder}" placeholder="smtp.gmail.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpPort" th:text="#{setup.smtp.port}">SMTP Port</label>
+                    <label for="smtpPort"><span class="required-marker">*</span> <span th:text="#{setup.smtp.port}">SMTP Port</span></label>
                     <input type="number" id="smtpPort" min="1" th:placeholder="#{setup.smtp.port.placeholder}" placeholder="587">
                 </div>
                 <div class="form-group">
-                    <label for="smtpUsername" th:text="#{setup.smtp.username}">Username</label>
+                    <label for="smtpUsername"><span class="required-marker">*</span> <span th:text="#{setup.smtp.username}">Username</span></label>
                     <input type="text" id="smtpUsername" th:placeholder="#{setup.smtp.username.placeholder}" placeholder="noreply@company.com">
                 </div>
                 <div class="form-group">
-                    <label for="smtpFromEmail" th:text="#{setup.smtp.fromEmail}">From Email</label>
+                    <label for="smtpFromEmail"><span class="required-marker">*</span> <span th:text="#{setup.smtp.fromEmail}">From Email</span></label>
                     <input type="email" id="smtpFromEmail" th:placeholder="#{setup.smtp.fromEmail.placeholder}" placeholder="noreply@company.com">
                 </div>
                 <div class="form-group full">
-                    <label for="smtpPassword" th:text="#{setup.smtp.password}">Password</label>
+                    <label for="smtpPassword"><span class="required-marker">*</span> <span th:text="#{setup.smtp.password}">Password</span></label>
                     <input type="password" id="smtpPassword" th:placeholder="#{setup.smtp.password.placeholder}" placeholder="SMTP password or app password">
                 </div>
                 <div class="form-group full">
@@ -366,19 +371,19 @@
             <p th:text="#{setup.step3.subtitle}">Create the first account. This user will have ADMIN role.</p>
             <div class="grid">
                 <div class="form-group">
-                    <label for="adminUsername" th:text="#{setup.admin.username}">Username</label>
+                    <label for="adminUsername"><span class="required-marker">*</span> <span th:text="#{setup.admin.username}">Username</span></label>
                     <input type="text" id="adminUsername" th:placeholder="#{setup.admin.username.placeholder}" placeholder="admin" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminEmail" th:text="#{setup.admin.email}">Email</label>
+                    <label for="adminEmail"><span class="required-marker">*</span> <span th:text="#{setup.admin.email}">Email</span></label>
                     <input type="email" id="adminEmail" th:placeholder="#{setup.admin.email.placeholder}" placeholder="admin@company.com" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminPassword" th:text="#{setup.admin.password}">Password</label>
+                    <label for="adminPassword"><span class="required-marker">*</span> <span th:text="#{setup.admin.password}">Password</span></label>
                     <input type="password" id="adminPassword" minlength="8" required>
                 </div>
                 <div class="form-group">
-                    <label for="adminConfirmPassword" th:text="#{setup.admin.confirmPassword}">Confirm Password</label>
+                    <label for="adminConfirmPassword"><span class="required-marker">*</span> <span th:text="#{setup.admin.confirmPassword}">Confirm Password</span></label>
                     <input type="password" id="adminConfirmPassword" minlength="8" required>
                 </div>
                 <div class="form-group full">
@@ -402,7 +407,7 @@
                     </div>
                 </div>
                 <div id="admin2faConfirm" class="form-group full" style="display: none;">
-                    <label for="admin2faCode" th:text="#{setup.admin.code}">Authenticator code</label>
+                    <label for="admin2faCode"><span class="required-marker">*</span> <span th:text="#{setup.admin.code}">Authenticator code</span></label>
                     <input type="text" id="admin2faCode" inputmode="numeric" autocomplete="one-time-code" th:placeholder="#{setup.admin.code.placeholder}" placeholder="123456">
                     <div class="help" th:text="#{setup.admin.code.help}">Enter the current 6-digit code from your authenticator app to finish installation.</div>
                 </div>

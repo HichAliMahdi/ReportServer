@@ -151,6 +151,29 @@
             color: #3a4a90;
             transform: translateX(2px);
         }
+        .sidebar-settings-language {
+            margin: 4px 0 8px;
+            padding: 8px 10px 10px;
+            border: 1px solid #e3e8fb;
+            border-radius: 8px;
+            background: #f9fbff;
+        }
+        .sidebar-settings-language-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #53619a;
+            margin-bottom: 6px;
+        }
+        .sidebar-settings-language-select {
+            width: 100%;
+            border: 1px solid #cfd7f4;
+            border-radius: 7px;
+            padding: 7px 8px;
+            font-size: 13px;
+            color: #2f3869;
+            background: #ffffff;
+        }
         .sidebar-settings-item.danger {
             color: #b03f4a;
         }

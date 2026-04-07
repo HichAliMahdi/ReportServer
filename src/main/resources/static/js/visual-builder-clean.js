@@ -120,7 +120,10 @@ const VB = {
         fetch('/api/datasources')
             .then(response => response.json())
             .then(datasources => {
-                select.innerHTML = '<option value="">Select Datasource</option>';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select Datasource';
+                select.replaceChildren(placeholder);
 
                 const jdbcDatasources = datasources.filter(ds => ds.type === 'JDBC');
                 jdbcDatasources.forEach(ds => {
@@ -144,7 +147,10 @@ const VB = {
 
                     const tablesList = document.getElementById('vbTablesList');
                     if (tablesList) {
-                        tablesList.innerHTML = '<div class="vb-table-list-empty">Select a datasource to load tables</div>';
+                        const empty = document.createElement('div');
+                        empty.className = 'vb-table-list-empty';
+                        empty.textContent = 'Select a datasource to load tables';
+                        tablesList.replaceChildren(empty);
                     }
                 }
             })
@@ -357,7 +363,14 @@ const VB = {
                 div.style.borderStyle = 'dashed';
                 div.style.background = el.backgroundTransparent ? '#f4f7fb' : (el.backgroundColor || '#f4f7fb');
                 if (el.imageData) {
-                    div.innerHTML = `<img src="${el.imageData}" alt="Logo" style="width:100%;height:100%;object-fit:contain;pointer-events:none;">`;
+                        const img = document.createElement('img');
+                        img.src = el.imageData;
+                        img.alt = 'Logo';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'contain';
+                        img.style.pointerEvents = 'none';
+                        div.replaceChildren(img);
                 } else {
                     div.textContent = 'Logo';
                 }
@@ -376,21 +389,37 @@ const VB = {
                 div.style.fontSize = (el.fontSize || 10) + 'px';
                 div.style.display = 'block';
                 
-                // Create a mini preview of the table
-                let tableHTML = `<div style="font-weight: bold; color: #43566d; margin-bottom: 3px;">${vbEscapeHtml(el.tableName || 'Table')}</div>`;
+                const title = document.createElement('div');
+                title.style.fontWeight = 'bold';
+                title.style.color = '#43566d';
+                title.style.marginBottom = '3px';
+                title.textContent = el.tableName || 'Table';
+                div.appendChild(title);
+
+                const columnsWrap = document.createElement('div');
+                columnsWrap.style.fontSize = '8px';
+                columnsWrap.style.color = '#666';
+
                 if (el.selectedColumns && el.selectedColumns.length > 0) {
-                    tableHTML += '<div style="font-size: 8px; color: #666;">';
-                    el.selectedColumns.slice(0, 5).forEach(col => {
-                        tableHTML += `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${vbEscapeHtml(col)}</div>`;
+                    el.selectedColumns.slice(0, 5).forEach((col) => {
+                        const row = document.createElement('div');
+                        row.style.whiteSpace = 'nowrap';
+                        row.style.overflow = 'hidden';
+                        row.style.textOverflow = 'ellipsis';
+                        row.textContent = col;
+                        columnsWrap.appendChild(row);
                     });
                     if (el.selectedColumns.length > 5) {
-                        tableHTML += '<div>...</div>';
+                        const more = document.createElement('div');
+                        more.textContent = '...';
+                        columnsWrap.appendChild(more);
                     }
-                    tableHTML += '</div>';
                 } else {
-                    tableHTML += '<div style="font-size: 8px; color: #999;">No columns selected</div>';
+                    columnsWrap.style.color = '#999';
+                    columnsWrap.textContent = 'No columns selected';
                 }
-                div.innerHTML = tableHTML;
+
+                div.appendChild(columnsWrap);
             } else {
                 div.textContent = el.text;
             }
@@ -420,7 +449,10 @@ const VB = {
             guide.className = `vb-band-guide vb-band-${zone.key}`;
             guide.style.top = `${zone.top}px`;
             guide.style.height = `${zone.height}px`;
-            guide.innerHTML = `<span class="vb-band-guide-label">${zone.label}</span>`;
+            const label = document.createElement('span');
+            label.className = 'vb-band-guide-label';
+            label.textContent = zone.label;
+            guide.appendChild(label);
             this.canvas.appendChild(guide);
         });
     },
@@ -483,7 +515,10 @@ const VB = {
             : 0;
 
         if (!this.selectedId) {
-            panel.innerHTML = '<div class="vb-props-empty">Select an element on the canvas to edit its properties.</div>';
+            const empty = document.createElement('div');
+            empty.className = 'vb-props-empty';
+            empty.textContent = 'Select an element on the canvas to edit its properties.';
+            panel.replaceChildren(empty);
             return;
         }
 
@@ -492,170 +527,236 @@ const VB = {
 
         const textCapable = ['text', 'label', 'field', 'pageNumber', 'date'].includes(el.type);
 
-        let html = `
-            <div class="vb-prop-group">
-                <div class="vb-prop-group-title">Element</div>
-                <div class="vb-prop-field">
-                    <label>Type</label>
-                    <input type="text" value="${el.type}" disabled>
-                </div>
-                <div class="vb-prop-field">
-                    <label>ID</label>
-                    <input type="text" value="${el.id}" disabled>
-                </div>
-            </div>
-        `;
+        const makeGroup = (title) => {
+            const group = document.createElement('div');
+            group.className = 'vb-prop-group';
+            const heading = document.createElement('div');
+            heading.className = 'vb-prop-group-title';
+            heading.textContent = title;
+            group.appendChild(heading);
+            return group;
+        };
+
+        const makeField = (labelText, control) => {
+            const field = document.createElement('div');
+            field.className = 'vb-prop-field';
+            const label = document.createElement('label');
+            label.textContent = labelText;
+            field.append(label, control);
+            return field;
+        };
+
+        const makeRow = (...children) => {
+            const row = document.createElement('div');
+            row.className = 'vb-prop-row';
+            row.append(...children);
+            return row;
+        };
+
+        const makeInput = (type, value, onChange, extra = {}) => {
+            const input = document.createElement('input');
+            input.type = type;
+            input.value = value;
+            Object.entries(extra).forEach(([key, extraValue]) => {
+                input[key] = extraValue;
+            });
+            input.addEventListener('change', (event) => onChange(event.target.value));
+            return input;
+        };
+
+        const makeCheckbox = (labelText, checked, onChange) => {
+            const label = document.createElement('label');
+            label.className = 'vb-prop-check';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = checked;
+            input.addEventListener('change', (event) => onChange(event.target.checked));
+            label.append(input, document.createTextNode(labelText));
+            return label;
+        };
+
+        const makeSelect = (value, options, onChange) => {
+            const select = document.createElement('select');
+            select.value = value;
+            options.forEach((optionDef) => {
+                const option = document.createElement('option');
+                option.value = optionDef.value;
+                option.textContent = optionDef.label;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', (event) => onChange(event.target.value));
+            return select;
+        };
+
+        const fragment = document.createDocumentFragment();
+
+        const elementGroup = makeGroup('Element');
+        elementGroup.append(
+            makeField('Type', (() => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = el.type;
+                input.disabled = true;
+                return input;
+            })()),
+            makeField('ID', (() => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = String(el.id);
+                input.disabled = true;
+                return input;
+            })())
+        );
+        fragment.appendChild(elementGroup);
 
         if (textCapable) {
-            html += `
-                <div class="vb-prop-group">
-                    <div class="vb-prop-group-title">Content</div>
-                    <div class="vb-prop-field">
-                        <label>Text</label>
-                        <input type="text" value="${el.text || ''}" onchange="VB.updateElement('text', this.value)">
-                    </div>
-                </div>
-            `;
+            const contentGroup = makeGroup('Content');
+            contentGroup.appendChild(
+                makeField('Text', makeInput('text', el.text || '', (value) => VB.updateElement('text', value)))
+            );
+            fragment.appendChild(contentGroup);
         }
 
         if (el.type === 'logo') {
-            html += `
-                <div class="vb-prop-group">
-                    <div class="vb-prop-group-title">Image</div>
-                    <button type="button" class="vb-toolbox-btn" onclick="document.getElementById('vbLogoInput').click()">Upload / Replace Image</button>
-                </div>
-            `;
+            const imageGroup = makeGroup('Image');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vb-toolbox-btn';
+            button.textContent = 'Upload / Replace Image';
+            button.addEventListener('click', () => document.getElementById('vbLogoInput')?.click());
+            imageGroup.appendChild(button);
+            fragment.appendChild(imageGroup);
         }
 
         if (el.type === 'dbTable') {
-            html += `
-                <div class="vb-prop-group">
-                    <div class="vb-prop-group-title">Data Table</div>
-                    <div class="vb-prop-field">
-                        <label>Table Name</label>
-                        <input type="text" value="${el.tableName || ''}" disabled>
-                    </div>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.showHeaders ? 'checked' : ''} onchange="VB.updateElement('showHeaders', this.checked)">Show Headers</label>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.headerBold ? 'checked' : ''} onchange="VB.updateElement('headerBold', this.checked)">Bold Headers</label>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.alternateRows ? 'checked' : ''} onchange="VB.updateElement('alternateRows', this.checked)">Alternate Rows</label>
-                    <div class="vb-prop-field">
-                        <label>Columns to Display</label>
-                        <div id="vbColumnSelector" style="max-height: 150px; overflow-y: auto; border: 1px solid #d2dbe6; border-radius: 4px; padding: 5px; font-size: 11px; background: #fff;">
-                            ${el.columns ? el.columns.map((col) => `
-                                <label class="vb-prop-check" style="margin-bottom: 4px;">
-                                    <input type="checkbox" ${el.selectedColumns && el.selectedColumns.includes(col) ? 'checked' : ''}
-                                           onchange="vbToggleColumn('${vbEscapeJsString(col)}', this.checked)">
-                                    <span>${vbEscapeHtml(col)}</span>
-                                </label>
-                            `).join('') : '<div style="color:#8a96a3;">No columns found</div>'}
-                        </div>
-                    </div>
-                </div>
-            `;
+            const tableGroup = makeGroup('Data Table');
+            tableGroup.appendChild(
+                makeField('Table Name', (() => {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = el.tableName || '';
+                    input.disabled = true;
+                    return input;
+                })())
+            );
+            tableGroup.append(
+                makeCheckbox('Show Headers', !!el.showHeaders, (checked) => VB.updateElement('showHeaders', checked)),
+                makeCheckbox('Bold Headers', !!el.headerBold, (checked) => VB.updateElement('headerBold', checked)),
+                makeCheckbox('Alternate Rows', !!el.alternateRows, (checked) => VB.updateElement('alternateRows', checked))
+            );
+
+            const columnsField = document.createElement('div');
+            columnsField.className = 'vb-prop-field';
+            const columnsLabel = document.createElement('label');
+            columnsLabel.textContent = 'Columns to Display';
+            const columnsWrap = document.createElement('div');
+            columnsWrap.id = 'vbColumnSelector';
+            columnsWrap.style.maxHeight = '150px';
+            columnsWrap.style.overflowY = 'auto';
+            columnsWrap.style.border = '1px solid #d2dbe6';
+            columnsWrap.style.borderRadius = '4px';
+            columnsWrap.style.padding = '5px';
+            columnsWrap.style.fontSize = '11px';
+            columnsWrap.style.background = '#fff';
+
+            if (el.columns && el.columns.length > 0) {
+                el.columns.forEach((col) => {
+                    const row = document.createElement('label');
+                    row.className = 'vb-prop-check';
+                    row.style.marginBottom = '4px';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.checked = !!(el.selectedColumns && el.selectedColumns.includes(col));
+                    input.addEventListener('change', (event) => vbToggleColumn(col, event.target.checked));
+                    const span = document.createElement('span');
+                    span.textContent = col;
+                    row.append(input, span);
+                    columnsWrap.appendChild(row);
+                });
+            } else {
+                const emptyColumns = document.createElement('div');
+                emptyColumns.style.color = '#8a96a3';
+                emptyColumns.textContent = 'No columns found';
+                columnsWrap.appendChild(emptyColumns);
+            }
+
+            columnsField.append(columnsLabel, columnsWrap);
+            tableGroup.appendChild(columnsField);
+            fragment.appendChild(tableGroup);
         }
 
-        html += `
-            <div class="vb-prop-group">
-                <div class="vb-prop-group-title">Geometry</div>
-                <div class="vb-prop-row">
-                    <div class="vb-prop-field">
-                        <label>X</label>
-                        <input type="number" value="${el.x}" min="0" onchange="VB.updateElement('x', this.value)">
-                    </div>
-                    <div class="vb-prop-field">
-                        <label>Y</label>
-                        <input type="number" value="${el.y}" min="0" onchange="VB.updateElement('y', this.value)">
-                    </div>
-                </div>
-                <div class="vb-prop-row">
-                    <div class="vb-prop-field">
-                        <label>Width</label>
-                        <input type="number" value="${el.width}" min="1" onchange="VB.updateElement('width', this.value)">
-                    </div>
-                    <div class="vb-prop-field">
-                        <label>Height</label>
-                        <input type="number" value="${el.height}" min="1" onchange="VB.updateElement('height', this.value)">
-                    </div>
-                </div>
-            </div>
-        `;
+        const geometryGroup = makeGroup('Geometry');
+        geometryGroup.append(
+            makeRow(
+                makeField('X', makeInput('number', String(el.x), (value) => VB.updateElement('x', value), { min: 0 })),
+                makeField('Y', makeInput('number', String(el.y), (value) => VB.updateElement('y', value), { min: 0 }))
+            ),
+            makeRow(
+                makeField('Width', makeInput('number', String(el.width), (value) => VB.updateElement('width', value), { min: 1 })),
+                makeField('Height', makeInput('number', String(el.height), (value) => VB.updateElement('height', value), { min: 1 }))
+            )
+        );
+        fragment.appendChild(geometryGroup);
 
         if (el.type !== 'line') {
-            html += `
-                <div class="vb-prop-group">
-                    <div class="vb-prop-group-title">Typography</div>
-                    <div class="vb-prop-row">
-                        <div class="vb-prop-field">
-                            <label>Font Family</label>
-                            <select onchange="VB.updateElement('fontFamily', this.value)">
-                                <option value="DejaVu Sans" ${el.fontFamily === 'DejaVu Sans' ? 'selected' : ''}>DejaVu Sans</option>
-                                <option value="SansSerif" ${el.fontFamily === 'SansSerif' ? 'selected' : ''}>Sans Serif</option>
-                                <option value="Serif" ${el.fontFamily === 'Serif' ? 'selected' : ''}>Serif</option>
-                                <option value="Monospaced" ${el.fontFamily === 'Monospaced' ? 'selected' : ''}>Monospaced</option>
-                            </select>
-                        </div>
-                        <div class="vb-prop-field">
-                            <label>Font Size</label>
-                            <input type="number" value="${el.fontSize || 12}" min="6" max="72" onchange="VB.updateElement('fontSize', this.value)">
-                        </div>
-                    </div>
-                    <div class="vb-prop-row">
-                        <div class="vb-prop-field">
-                            <label>Horizontal Align</label>
-                            <select onchange="VB.updateElement('hAlign', this.value)">
-                                <option value="left" ${el.hAlign === 'left' ? 'selected' : ''}>Left</option>
-                                <option value="center" ${el.hAlign === 'center' ? 'selected' : ''}>Center</option>
-                                <option value="right" ${el.hAlign === 'right' ? 'selected' : ''}>Right</option>
-                            </select>
-                        </div>
-                        <div class="vb-prop-field">
-                            <label>Vertical Align</label>
-                            <select onchange="VB.updateElement('vAlign', this.value)">
-                                <option value="top" ${el.vAlign === 'top' ? 'selected' : ''}>Top</option>
-                                <option value="middle" ${el.vAlign === 'middle' ? 'selected' : ''}>Middle</option>
-                                <option value="bottom" ${el.vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
-                            </select>
-                        </div>
-                    </div>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.bold ? 'checked' : ''} onchange="VB.updateElement('bold', this.checked)">Bold</label>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.italic ? 'checked' : ''} onchange="VB.updateElement('italic', this.checked)">Italic</label>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.underline ? 'checked' : ''} onchange="VB.updateElement('underline', this.checked)">Underline</label>
-                </div>
-            `;
+            const typographyGroup = makeGroup('Typography');
+            typographyGroup.append(
+                makeRow(
+                    makeField('Font Family', makeSelect(el.fontFamily || 'DejaVu Sans', [
+                        { value: 'DejaVu Sans', label: 'DejaVu Sans' },
+                        { value: 'SansSerif', label: 'Sans Serif' },
+                        { value: 'Serif', label: 'Serif' },
+                        { value: 'Monospaced', label: 'Monospaced' }
+                    ], (value) => VB.updateElement('fontFamily', value))),
+                    makeField('Font Size', makeInput('number', String(el.fontSize || 12), (value) => VB.updateElement('fontSize', value), { min: 6, max: 72 }))
+                ),
+                makeRow(
+                    makeField('Horizontal Align', makeSelect(el.hAlign || 'left', [
+                        { value: 'left', label: 'Left' },
+                        { value: 'center', label: 'Center' },
+                        { value: 'right', label: 'Right' }
+                    ], (value) => VB.updateElement('hAlign', value))),
+                    makeField('Vertical Align', makeSelect(el.vAlign || 'middle', [
+                        { value: 'top', label: 'Top' },
+                        { value: 'middle', label: 'Middle' },
+                        { value: 'bottom', label: 'Bottom' }
+                    ], (value) => VB.updateElement('vAlign', value)))
+                ),
+                makeCheckbox('Bold', !!el.bold, (checked) => VB.updateElement('bold', checked)),
+                makeCheckbox('Italic', !!el.italic, (checked) => VB.updateElement('italic', checked)),
+                makeCheckbox('Underline', !!el.underline, (checked) => VB.updateElement('underline', checked))
+            );
+            fragment.appendChild(typographyGroup);
         }
 
-        html += `
-            <div class="vb-prop-group">
-                <div class="vb-prop-group-title">Appearance</div>
-                <div class="vb-prop-row">
-                    <div class="vb-prop-field">
-                        <label>${el.type === 'line' ? 'Line Color' : 'Text Color'}</label>
-                        <input type="color" value="${el.color || '#111111'}" onchange="VB.updateElement('color', this.value)">
-                    </div>
-                    <div class="vb-prop-field">
-                        <label>${el.type === 'line' ? 'Thickness' : 'Border Width'}</label>
-                        <input type="number" value="${el.borderWidth != null ? el.borderWidth : 1}" min="1" max="12" onchange="VB.updateElement('borderWidth', this.value)">
-                    </div>
-                </div>
-                ${el.type !== 'line' ? `
-                    <div class="vb-prop-row">
-                        <div class="vb-prop-field">
-                            <label>Border Color</label>
-                            <input type="color" value="${el.borderColor || '#7f90a3'}" onchange="VB.updateElement('borderColor', this.value)">
-                        </div>
-                        <div class="vb-prop-field">
-                            <label>Fill Color</label>
-                            <input type="color" value="${el.backgroundColor || '#ffffff'}" onchange="VB.updateElement('backgroundColor', this.value)">
-                        </div>
-                    </div>
-                    <label class="vb-prop-check"><input type="checkbox" ${el.backgroundTransparent ? 'checked' : ''} onchange="VB.updateElement('backgroundTransparent', this.checked)">Transparent Fill</label>
-                ` : ''}
-            </div>
+        const appearanceGroup = makeGroup('Appearance');
+        appearanceGroup.append(
+            makeRow(
+                makeField(el.type === 'line' ? 'Line Color' : 'Text Color', makeInput('color', el.color || '#111111', (value) => VB.updateElement('color', value))),
+                makeField(el.type === 'line' ? 'Thickness' : 'Border Width', makeInput('number', String(el.borderWidth != null ? el.borderWidth : 1), (value) => VB.updateElement('borderWidth', value), { min: 1, max: 12 }))
+            )
+        );
 
-            <button type="button" class="vb-prop-danger" onclick="VB.delete()">Delete Element</button>
-        `;
+        if (el.type !== 'line') {
+            appearanceGroup.append(
+                makeRow(
+                    makeField('Border Color', makeInput('color', el.borderColor || '#7f90a3', (value) => VB.updateElement('borderColor', value))),
+                    makeField('Fill Color', makeInput('color', el.backgroundColor || '#ffffff', (value) => VB.updateElement('backgroundColor', value)))
+                ),
+                makeCheckbox('Transparent Fill', !!el.backgroundTransparent, (checked) => VB.updateElement('backgroundTransparent', checked))
+            );
+        }
 
-        panel.innerHTML = html;
+        fragment.appendChild(appearanceGroup);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'vb-prop-danger';
+        deleteButton.textContent = 'Delete Element';
+        deleteButton.addEventListener('click', () => VB.delete());
+        fragment.appendChild(deleteButton);
+
+        panel.replaceChildren(fragment);
 
         if (preserveScroll) {
             panel.scrollTop = previousPanelScroll;
@@ -895,12 +996,19 @@ function vbRefreshBuilderCoverTemplateSelectors(preferredVisual = null, preferre
         }
 
         const desiredValue = preferredValue !== null ? preferredValue : (select.value || '');
-        select.innerHTML = `
-            <option value="">-- No Cover Page --</option>
-            <option value="builtin:corporate">Corporate</option>
-            <option value="builtin:minimal">Minimal</option>
-            <option value="builtin:executive">Executive</option>
-        `;
+        const noCover = document.createElement('option');
+        noCover.value = '';
+        noCover.textContent = '-- No Cover Page --';
+        const corporate = document.createElement('option');
+        corporate.value = 'builtin:corporate';
+        corporate.textContent = 'Corporate';
+        const minimal = document.createElement('option');
+        minimal.value = 'builtin:minimal';
+        minimal.textContent = 'Minimal';
+        const executive = document.createElement('option');
+        executive.value = 'builtin:executive';
+        executive.textContent = 'Executive';
+        select.replaceChildren(noCover, corporate, minimal, executive);
 
         customPresetNames.forEach((name) => {
             const option = document.createElement('option');
@@ -1146,18 +1254,80 @@ function vbRenderCoverLivePreview() {
 
     container.className = previewClassName;
     container.style.cssText = previewStyle;
-    container.innerHTML = `
-        ${coverPageFileData ? `<img class="vb-cover-live-preview-shape" style="object-fit:cover;width:100%;height:100%;" src="${coverPageFileData}" alt="Cover page background">` : ''}
-        ${showShape ? `<div class="vb-cover-live-preview-shape" style="background:${palette.backgroundColor};"></div>` : ''}
-        <div class="vb-cover-live-preview-content" style="text-align:${alignCss};align-items:${alignCss === 'left' ? 'flex-start' : (alignCss === 'right' ? 'flex-end' : 'center')};min-height:${contentMinHeight}px;">
-            ${logoData ? `<img class="vb-cover-live-preview-logo" src="${logoData}" alt="Cover logo">` : ''}
-            ${title ? `<p class="vb-cover-live-preview-title" style="font-size:${titleSize}px;color:${palette.titleColor};">${escape(title)}</p>` : ''}
-            ${subtitle ? `<p class="vb-cover-live-preview-subtitle" style="font-size:${subtitleSize}px;color:${palette.subtitleColor};">${escape(subtitle)}</p>` : ''}
-            ${author ? `<p class="vb-cover-live-preview-meta" style="font-size:12px;color:${palette.metaColor};">${escape(author)}</p>` : ''}
-            ${dateValue ? `<p class="vb-cover-live-preview-date" style="font-size:12px;color:${palette.metaColor};">${escape(dateValue)}</p>` : ''}
-            ${showAccent ? `<div class="vb-cover-live-preview-accent" style="background:${palette.accentColor};"></div>` : ''}
-        </div>
-    `;
+    const previewFragment = document.createDocumentFragment();
+
+    if (coverPageFileData) {
+        const background = document.createElement('img');
+        background.className = 'vb-cover-live-preview-shape';
+        background.style.objectFit = 'cover';
+        background.style.width = '100%';
+        background.style.height = '100%';
+        background.src = coverPageFileData;
+        background.alt = 'Cover page background';
+        previewFragment.appendChild(background);
+    }
+
+    if (showShape) {
+        const shape = document.createElement('div');
+        shape.className = 'vb-cover-live-preview-shape';
+        shape.style.background = palette.backgroundColor;
+        previewFragment.appendChild(shape);
+    }
+
+    const content = document.createElement('div');
+    content.className = 'vb-cover-live-preview-content';
+    content.style.textAlign = alignCss;
+    content.style.alignItems = alignCss === 'left' ? 'flex-start' : (alignCss === 'right' ? 'flex-end' : 'center');
+    content.style.minHeight = `${contentMinHeight}px`;
+
+    if (logoData) {
+        const logo = document.createElement('img');
+        logo.className = 'vb-cover-live-preview-logo';
+        logo.src = logoData;
+        logo.alt = 'Cover logo';
+        content.appendChild(logo);
+    }
+    if (title) {
+        const titleEl = document.createElement('p');
+        titleEl.className = 'vb-cover-live-preview-title';
+        titleEl.style.fontSize = `${titleSize}px`;
+        titleEl.style.color = palette.titleColor;
+        titleEl.textContent = title;
+        content.appendChild(titleEl);
+    }
+    if (subtitle) {
+        const subtitleEl = document.createElement('p');
+        subtitleEl.className = 'vb-cover-live-preview-subtitle';
+        subtitleEl.style.fontSize = `${subtitleSize}px`;
+        subtitleEl.style.color = palette.subtitleColor;
+        subtitleEl.textContent = subtitle;
+        content.appendChild(subtitleEl);
+    }
+    if (author) {
+        const authorEl = document.createElement('p');
+        authorEl.className = 'vb-cover-live-preview-meta';
+        authorEl.style.fontSize = '12px';
+        authorEl.style.color = palette.metaColor;
+        authorEl.textContent = author;
+        content.appendChild(authorEl);
+    }
+    if (dateValue) {
+        const dateEl = document.createElement('p');
+        dateEl.className = 'vb-cover-live-preview-date';
+        dateEl.style.fontSize = '12px';
+        dateEl.style.color = palette.metaColor;
+        dateEl.textContent = dateValue;
+        content.appendChild(dateEl);
+    }
+    if (showAccent) {
+        const accent = document.createElement('div');
+        accent.className = 'vb-cover-live-preview-accent';
+        accent.style.background = palette.accentColor;
+        content.appendChild(accent);
+    }
+
+    previewFragment.appendChild(content);
+    container.replaceChildren(previewFragment);
 }
 
 function vbGetBuiltInCoverPresets(reportName) {
@@ -1244,12 +1414,19 @@ function vbRefreshCoverPresetOptions(preferredValue = null) {
     const customPresets = vbLoadCoverPresetsFromStorage();
     const customNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
 
-    select.innerHTML = `
-        <option value="custom">Custom</option>
-        <option value="corporate">Corporate</option>
-        <option value="minimal">Minimal</option>
-        <option value="executive">Executive</option>
-    `;
+    const customOption = document.createElement('option');
+    customOption.value = 'custom';
+    customOption.textContent = 'Custom';
+    const corporateOption = document.createElement('option');
+    corporateOption.value = 'corporate';
+    corporateOption.textContent = 'Corporate';
+    const minimalOption = document.createElement('option');
+    minimalOption.value = 'minimal';
+    minimalOption.textContent = 'Minimal';
+    const executiveOption = document.createElement('option');
+    executiveOption.value = 'executive';
+    executiveOption.textContent = 'Executive';
+    select.replaceChildren(customOption, corporateOption, minimalOption, executiveOption);
 
     customNames.forEach((name) => {
         const option = document.createElement('option');
@@ -1305,7 +1482,10 @@ function vbApplyCoverPresetConfig(config) {
         const status = document.getElementById('vbCoverLogoStatus');
         if (preview) {
             preview.style.display = '';
-            preview.innerHTML = `<img src="${config.logoData}" alt="Cover logo preview">`;
+            const img = document.createElement('img');
+            img.src = config.logoData;
+            img.alt = 'Cover logo preview';
+            preview.replaceChildren(img);
         }
         if (status) {
             status.textContent = 'Logo loaded from template';
@@ -1560,7 +1740,10 @@ function vbUploadCoverLogo(event) {
         }
         if (preview) {
             preview.style.display = '';
-            preview.innerHTML = `<img src="${dataUrl}" alt="Cover logo preview">`;
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = 'Cover logo preview';
+            preview.replaceChildren(img);
         }
         if (status) {
             status.textContent = `Logo selected: ${file.name}`;
@@ -1674,7 +1857,7 @@ function vbRemoveCoverLogo() {
     }
     if (preview) {
         preview.style.display = 'none';
-        preview.innerHTML = '';
+        preview.replaceChildren();
     }
     if (status) {
         status.textContent = 'No logo selected';
@@ -1988,14 +2171,20 @@ function vbLoadTables() {
     const tablesList = document.getElementById('vbTablesList');
     
     if (!datasourceId) {
-        tablesList.innerHTML = '<div class="vb-table-list-empty">Select a datasource first</div>';
+        const empty = document.createElement('div');
+        empty.className = 'vb-table-list-empty';
+        empty.textContent = 'Select a datasource first';
+        tablesList.replaceChildren(empty);
         VB.datasourceId = null;
         VB.availableTables = [];
         return;
     }
     
     VB.datasourceId = parseInt(datasourceId);
-    tablesList.innerHTML = '<div class="vb-table-list-empty">Loading tables...</div>';
+    const loading = document.createElement('div');
+    loading.className = 'vb-table-list-empty';
+    loading.textContent = 'Loading tables...';
+    tablesList.replaceChildren(loading);
     
     fetch(`/api/builder/datasources/${datasourceId}/tables`)
         .then(response => vbReadJsonResponse(response, 'Unable to load tables from the selected datasource'))
@@ -2003,7 +2192,7 @@ function vbLoadTables() {
             if (data.success && data.tables && data.tables.length > 0) {
                 VB.availableTables = data.tables;
 
-                tablesList.innerHTML = '';
+                tablesList.replaceChildren();
                 data.tables.forEach(table => {
                     const button = document.createElement('button');
                     button.type = 'button';
@@ -2017,13 +2206,20 @@ function vbLoadTables() {
                     tablesList.appendChild(button);
                 });
             } else {
-                tablesList.innerHTML = '<div class="vb-table-list-empty">No tables found</div>';
+                const empty = document.createElement('div');
+                empty.className = 'vb-table-list-empty';
+                empty.textContent = 'No tables found';
+                tablesList.replaceChildren(empty);
                 VB.availableTables = [];
             }
         })
         .catch(error => {
             console.error('Error loading tables:', error);
-            tablesList.innerHTML = `<div class="vb-table-list-empty" style="color:#c0392b;">${vbEscapeHtml(error.message || 'Error loading tables')}</div>`;
+            const errorBox = document.createElement('div');
+            errorBox.className = 'vb-table-list-empty';
+            errorBox.style.color = '#c0392b';
+            errorBox.textContent = error.message || 'Error loading tables';
+            tablesList.replaceChildren(errorBox);
             VB.availableTables = [];
         });
 }

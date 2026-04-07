@@ -1,5 +1,29 @@
 // ========== Visual Builder Functions ==========
 
+        function clearElement(element) {
+            if (element) {
+                element.replaceChildren();
+            }
+        }
+
+        function createLegacyEmptyState(message, iconText) {
+            const wrapper = document.createElement('div');
+            wrapper.style.textAlign = 'center';
+            wrapper.style.padding = '40px';
+            wrapper.style.color = '#999';
+
+            const icon = document.createElement('p');
+            icon.style.fontSize = '24px';
+            icon.textContent = iconText || '📄';
+
+            const text = document.createElement('p');
+            text.textContent = message;
+
+            wrapper.appendChild(icon);
+            wrapper.appendChild(text);
+            return wrapper;
+        }
+
         let visualBuilder = {
             elements: [],
             selectedElement: null,
@@ -78,7 +102,10 @@
                 .then(response => response.json())
                 .then(datasources => {
                     const select = document.getElementById('visualDatasource');
-                    select.innerHTML = '<option value="">-- Select datasource --</option>';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = '-- Select datasource --';
+                    select.replaceChildren(placeholder);
                     datasources.forEach(ds => {
                         const option = document.createElement('option');
                         option.value = ds.id;
@@ -96,7 +123,10 @@
             const datasourceId = datasourceSelect.value;
             const tableSelect = document.getElementById('visualTable');
 
-            tableSelect.innerHTML = '<option value="">-- Select table --</option>';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select table --';
+            tableSelect.replaceChildren(placeholder);
             document.getElementById('visualFieldsList').style.display = 'none';
             visualBuilder.datasourceId = datasourceId ? parseInt(datasourceId) : null;
             visualBuilder.availableFields = [];
@@ -155,7 +185,7 @@
                 return;
             }
 
-            container.innerHTML = '';
+            clearElement(container);
             visualBuilder.availableFields.forEach(field => {
                 const badge = document.createElement('span');
                 badge.style.cssText = 'padding: 5px 10px; background: #667eea; color: white; border-radius: 4px; font-size: 12px; cursor: pointer;';
@@ -263,7 +293,7 @@
 
         function renderCanvas() {
             const canvas = document.getElementById('visualCanvas');
-            canvas.innerHTML = '';
+            clearElement(canvas);
 
             const currentBand = document.getElementById('currentBand').value;
             document.getElementById('bandIndicator').textContent = currentBand.charAt(0).toUpperCase() + currentBand.slice(1);
@@ -272,13 +302,16 @@
             const bandElements = visualBuilder.elements.filter(el => el.band === currentBand);
 
             if (bandElements.length === 0) {
-                canvas.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #999;">
-                        <p style="font-size: 24px;">📄</p>
-                        <p>Drag elements from the toolbox to start designing</p>
-                        <p style="font-size: 12px; margin-top: 10px;">Current Band: ${currentBand.charAt(0).toUpperCase() + currentBand.slice(1)}</p>
-                    </div>
-                `;
+                const emptyState = createLegacyEmptyState(
+                    'Drag elements from the toolbox to start designing',
+                    '📄'
+                );
+                const bandInfo = document.createElement('p');
+                bandInfo.style.fontSize = '12px';
+                bandInfo.style.marginTop = '10px';
+                bandInfo.textContent = `Current Band: ${currentBand.charAt(0).toUpperCase() + currentBand.slice(1)}`;
+                emptyState.appendChild(bandInfo);
+                canvas.appendChild(emptyState);
                 return;
             }
 
@@ -407,145 +440,224 @@
             const panel = document.getElementById('propertiesPanel');
 
             if (!visualBuilder.selectedElement) {
-                panel.innerHTML = '<p style="color: #999; font-size: 13px;">Select an element to edit its properties</p>';
+                clearElement(panel);
+                const empty = document.createElement('p');
+                empty.style.color = '#999';
+                empty.style.fontSize = '13px';
+                empty.textContent = 'Select an element to edit its properties';
+                panel.appendChild(empty);
                 return;
             }
 
             const element = visualBuilder.elements.find(el => el.id === visualBuilder.selectedElement);
             if (!element) return;
 
-            let html = `
-                <div style="margin-bottom: 15px;">
-                    <strong style="color: #667eea;">${element.type.toUpperCase()}</strong>
-                    <button onclick="deleteSelectedElement()" style="float: right; background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Delete</button>
-                </div>
+            clearElement(panel);
 
-                <div class="form-group">
-                    <label style="font-size: 12px;">Position X:</label>
-                    <input type="number" value="${element.x}" onchange="updateElementProperty('x', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                </div>
+            const header = document.createElement('div');
+            header.style.marginBottom = '15px';
 
-                <div class="form-group">
-                    <label style="font-size: 12px;">Position Y:</label>
-                    <input type="number" value="${element.y}" onchange="updateElementProperty('y', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                </div>
+            const typeLabel = document.createElement('strong');
+            typeLabel.style.color = '#667eea';
+            typeLabel.textContent = element.type.toUpperCase();
 
-                <div class="form-group">
-                    <label style="font-size: 12px;">Width:</label>
-                    <input type="number" value="${element.width}" onchange="updateElementProperty('width', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                </div>
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.textContent = '🗑️ Delete';
+            deleteButton.style.float = 'right';
+            deleteButton.style.background = '#dc3545';
+            deleteButton.style.color = 'white';
+            deleteButton.style.border = 'none';
+            deleteButton.style.padding = '4px 8px';
+            deleteButton.style.borderRadius = '4px';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.fontSize = '11px';
+            deleteButton.addEventListener('click', deleteSelectedElement);
 
-                <div class="form-group">
-                    <label style="font-size: 12px;">Height:</label>
-                    <input type="number" value="${element.height}" onchange="updateElementProperty('height', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                </div>
-            `;
+            header.appendChild(typeLabel);
+            header.appendChild(deleteButton);
+            panel.appendChild(header);
+
+            const createGroup = (labelText, control) => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                const label = document.createElement('label');
+                label.style.fontSize = '12px';
+                label.textContent = labelText;
+                group.appendChild(label);
+                group.appendChild(control);
+                return group;
+            };
+
+            const createInput = (value, type, property) => {
+                const input = document.createElement('input');
+                input.type = type;
+                input.value = value;
+                input.style.width = '100%';
+                input.style.padding = '5px';
+                input.style.fontSize = '12px';
+                input.addEventListener('change', () => updateElementProperty(property, type === 'checkbox' ? input.checked : input.value));
+                return input;
+            };
+
+            panel.appendChild(createGroup('Position X:', createInput(element.x, 'number', 'x')));
+            panel.appendChild(createGroup('Position Y:', createInput(element.y, 'number', 'y')));
+            panel.appendChild(createGroup('Width:', createInput(element.width, 'number', 'width')));
+            panel.appendChild(createGroup('Height:', createInput(element.height, 'number', 'height')));
 
             if (element.type === 'text') {
-                html += `
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Text:</label>
-                        <textarea onchange="updateElementProperty('text', this.value)" style="width: 100%; padding: 5px; font-size: 12px; min-height: 60px;">${element.text}</textarea>
-                    </div>
+                const textArea = document.createElement('textarea');
+                textArea.style.width = '100%';
+                textArea.style.padding = '5px';
+                textArea.style.fontSize = '12px';
+                textArea.style.minHeight = '60px';
+                textArea.value = element.text;
+                textArea.addEventListener('change', () => updateElementProperty('text', textArea.value));
+                panel.appendChild(createGroup('Text:', textArea));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Font:</label>
-                        <select onchange="updateElementProperty('fontName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                            <option ${element.fontName === 'Arial' ? 'selected' : ''}>Arial</option>
-                            <option ${element.fontName === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
-                            <option ${element.fontName === 'Courier' ? 'selected' : ''}>Courier</option>
-                            <option ${element.fontName === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
-                        </select>
-                    </div>
+                const fontSelect = document.createElement('select');
+                fontSelect.style.width = '100%';
+                fontSelect.style.padding = '5px';
+                fontSelect.style.fontSize = '12px';
+                ['Arial', 'Times New Roman', 'Courier', 'Helvetica'].forEach(font => {
+                    const option = document.createElement('option');
+                    option.textContent = font;
+                    if (element.fontName === font) option.selected = true;
+                    fontSelect.appendChild(option);
+                });
+                fontSelect.addEventListener('change', () => updateElementProperty('fontName', fontSelect.value));
+                panel.appendChild(createGroup('Font:', fontSelect));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Font Size:</label>
-                        <input type="number" value="${element.fontSize}" onchange="updateElementProperty('fontSize', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                    </div>
+                panel.appendChild(createGroup('Font Size:', createInput(element.fontSize, 'number', 'fontSize')));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px; display: flex; align-items: center;">
-                            <input type="checkbox" ${element.bold ? 'checked' : ''} onchange="updateElementProperty('bold', this.checked)" style="margin-right: 5px;">
-                            Bold
-                        </label>
-                    </div>
+                const boldGroup = document.createElement('div');
+                boldGroup.className = 'form-group';
+                const boldLabel = document.createElement('label');
+                boldLabel.style.fontSize = '12px';
+                boldLabel.style.display = 'flex';
+                boldLabel.style.alignItems = 'center';
+                const boldCheck = document.createElement('input');
+                boldCheck.type = 'checkbox';
+                boldCheck.checked = !!element.bold;
+                boldCheck.style.marginRight = '5px';
+                boldCheck.addEventListener('change', () => updateElementProperty('bold', boldCheck.checked));
+                boldLabel.appendChild(boldCheck);
+                boldLabel.appendChild(document.createTextNode('Bold'));
+                boldGroup.appendChild(boldLabel);
+                panel.appendChild(boldGroup);
 
-                    <div class="form-group">
-                        <label style="font-size: 12px; display: flex; align-items: center;">
-                            <input type="checkbox" ${element.italic ? 'checked' : ''} onchange="updateElementProperty('italic', this.checked)" style="margin-right: 5px;">
-                            Italic
-                        </label>
-                    </div>
+                const italicGroup = document.createElement('div');
+                italicGroup.className = 'form-group';
+                const italicLabel = document.createElement('label');
+                italicLabel.style.fontSize = '12px';
+                italicLabel.style.display = 'flex';
+                italicLabel.style.alignItems = 'center';
+                const italicCheck = document.createElement('input');
+                italicCheck.type = 'checkbox';
+                italicCheck.checked = !!element.italic;
+                italicCheck.style.marginRight = '5px';
+                italicCheck.addEventListener('change', () => updateElementProperty('italic', italicCheck.checked));
+                italicLabel.appendChild(italicCheck);
+                italicLabel.appendChild(document.createTextNode('Italic'));
+                italicGroup.appendChild(italicLabel);
+                panel.appendChild(italicGroup);
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Alignment:</label>
-                        <select onchange="updateElementProperty('alignment', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                            <option ${element.alignment === 'Left' ? 'selected' : ''}>Left</option>
-                            <option ${element.alignment === 'Center' ? 'selected' : ''}>Center</option>
-                            <option ${element.alignment === 'Right' ? 'selected' : ''}>Right</option>
-                        </select>
-                    </div>
+                const alignmentSelect = document.createElement('select');
+                alignmentSelect.style.width = '100%';
+                alignmentSelect.style.padding = '5px';
+                alignmentSelect.style.fontSize = '12px';
+                ['Left', 'Center', 'Right'].forEach(alignment => {
+                    const option = document.createElement('option');
+                    option.textContent = alignment;
+                    if (element.alignment === alignment) option.selected = true;
+                    alignmentSelect.appendChild(option);
+                });
+                alignmentSelect.addEventListener('change', () => updateElementProperty('alignment', alignmentSelect.value));
+                panel.appendChild(createGroup('Alignment:', alignmentSelect));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Color:</label>
-                        <input type="color" value="${element.color}" onchange="updateElementProperty('color', this.value)" style="width: 100%; height: 35px;">
-                    </div>
-                `;
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.value = element.color;
+                colorInput.style.width = '100%';
+                colorInput.style.height = '35px';
+                colorInput.addEventListener('change', () => updateElementProperty('color', colorInput.value));
+                panel.appendChild(createGroup('Color:', colorInput));
             } else if (element.type === 'field') {
-                html += `
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Field Name:</label>
-                        <input type="text" value="${element.fieldName || ''}" onchange="updateElementProperty('fieldName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                    </div>
+                const fieldNameInput = createInput(element.fieldName || '', 'text', 'fieldName');
+                panel.appendChild(createGroup('Field Name:', fieldNameInput));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Field Type:</label>
-                        <select onchange="updateElementProperty('fieldType', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                            <option ${element.fieldType === 'String' ? 'selected' : ''}>String</option>
-                            <option ${element.fieldType === 'Integer' ? 'selected' : ''}>Integer</option>
-                            <option ${element.fieldType === 'Long' ? 'selected' : ''}>Long</option>
-                            <option ${element.fieldType === 'Double' ? 'selected' : ''}>Double</option>
-                            <option ${element.fieldType === 'BigDecimal' ? 'selected' : ''}>BigDecimal</option>
-                            <option ${element.fieldType === 'Date' ? 'selected' : ''}>Date</option>
-                            <option ${element.fieldType === 'Boolean' ? 'selected' : ''}>Boolean</option>
-                        </select>
-                    </div>
+                const fieldTypeSelect = document.createElement('select');
+                fieldTypeSelect.style.width = '100%';
+                fieldTypeSelect.style.padding = '5px';
+                fieldTypeSelect.style.fontSize = '12px';
+                ['String', 'Integer', 'Long', 'Double', 'BigDecimal', 'Date', 'Boolean'].forEach(typeName => {
+                    const option = document.createElement('option');
+                    option.textContent = typeName;
+                    if (element.fieldType === typeName) option.selected = true;
+                    fieldTypeSelect.appendChild(option);
+                });
+                fieldTypeSelect.addEventListener('change', () => updateElementProperty('fieldType', fieldTypeSelect.value));
+                panel.appendChild(createGroup('Field Type:', fieldTypeSelect));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Font:</label>
-                        <select onchange="updateElementProperty('fontName', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                            <option ${element.fontName === 'Arial' ? 'selected' : ''}>Arial</option>
-                            <option ${element.fontName === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
-                            <option ${element.fontName === 'Courier' ? 'selected' : ''}>Courier</option>
-                            <option ${element.fontName === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
-                        </select>
-                    </div>
+                const fontSelect = document.createElement('select');
+                fontSelect.style.width = '100%';
+                fontSelect.style.padding = '5px';
+                fontSelect.style.fontSize = '12px';
+                ['Arial', 'Times New Roman', 'Courier', 'Helvetica'].forEach(font => {
+                    const option = document.createElement('option');
+                    option.textContent = font;
+                    if (element.fontName === font) option.selected = true;
+                    fontSelect.appendChild(option);
+                });
+                fontSelect.addEventListener('change', () => updateElementProperty('fontName', fontSelect.value));
+                panel.appendChild(createGroup('Font:', fontSelect));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Font Size:</label>
-                        <input type="number" value="${element.fontSize}" onchange="updateElementProperty('fontSize', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                    </div>
+                panel.appendChild(createGroup('Font Size:', createInput(element.fontSize, 'number', 'fontSize')));
 
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Alignment:</label>
-                        <select onchange="updateElementProperty('alignment', this.value)" style="width: 100%; padding: 5px; font-size: 12px;">
-                            <option ${element.alignment === 'Left' ? 'selected' : ''}>Left</option>
-                            <option ${element.alignment === 'Center' ? 'selected' : ''}>Center</option>
-                            <option ${element.alignment === 'Right' ? 'selected' : ''}>Right</option>
-                        </select>
-                    </div>
-                `;
+                const alignmentSelect = document.createElement('select');
+                alignmentSelect.style.width = '100%';
+                alignmentSelect.style.padding = '5px';
+                alignmentSelect.style.fontSize = '12px';
+                ['Left', 'Center', 'Right'].forEach(alignment => {
+                    const option = document.createElement('option');
+                    option.textContent = alignment;
+                    if (element.alignment === alignment) option.selected = true;
+                    alignmentSelect.appendChild(option);
+                });
+                alignmentSelect.addEventListener('change', () => updateElementProperty('alignment', alignmentSelect.value));
+                panel.appendChild(createGroup('Alignment:', alignmentSelect));
             } else if (element.type === 'image') {
-                html += `
-                    <div class="form-group">
-                        <label style="font-size: 12px;">Image:</label>
-                        <button onclick="selectImageForElement()" class="btn" style="width: 100%; padding: 8px; font-size: 12px; margin-top: 5px;">Select Image</button>
-                        ${element.imagePath ? `<p style="font-size: 11px; color: #666; margin-top: 5px;">${element.imagePath}</p>` : ''}
-                    </div>
-                `;
-            }
+                const imageGroup = document.createElement('div');
+                imageGroup.className = 'form-group';
 
-            panel.innerHTML = html;
+                const label = document.createElement('label');
+                label.style.fontSize = '12px';
+                label.textContent = 'Image:';
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn';
+                button.style.width = '100%';
+                button.style.padding = '8px';
+                button.style.fontSize = '12px';
+                button.style.marginTop = '5px';
+                button.textContent = 'Select Image';
+                button.addEventListener('click', selectImageForElement);
+
+                imageGroup.appendChild(label);
+                imageGroup.appendChild(button);
+
+                if (element.imagePath) {
+                    const pathInfo = document.createElement('p');
+                    pathInfo.style.fontSize = '11px';
+                    pathInfo.style.color = '#666';
+                    pathInfo.style.marginTop = '5px';
+                    pathInfo.textContent = element.imagePath;
+                    imageGroup.appendChild(pathInfo);
+                }
+
+                panel.appendChild(imageGroup);
+            }
         }
 
         function updateElementProperty(property, value) {

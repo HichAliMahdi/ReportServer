@@ -54,6 +54,9 @@ public class User {
     
     @Column(nullable = false)
     private String role = "READ_ONLY"; // Default role
+
+    @Column(name = "preferred_language", nullable = false, length = 10)
+    private String preferredLanguage = "en";
     
     @Column(name = "first_login", nullable = false)
     private boolean firstLogin = true; // Force password change on first login
@@ -70,12 +73,18 @@ public class User {
     
     @PrePersist
     protected void onCreate() {
+        if (preferredLanguage == null || preferredLanguage.isBlank()) {
+            preferredLanguage = "en";
+        }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
     
     @PreUpdate
     protected void onUpdate() {
+        if (preferredLanguage == null || preferredLanguage.isBlank()) {
+            preferredLanguage = "en";
+        }
         updatedAt = LocalDateTime.now();
     }
     
